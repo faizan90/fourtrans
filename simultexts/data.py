@@ -147,8 +147,8 @@ class SimultaneousExtremesDataAndSettings:
         assert np.issubdtype(time_windows.dtype, np.integer), (
             'time_windows\'s values not of integer type!')
 
-        assert np.all(time_windows > 0), (
-            'Time windows can\'t be less than one!')
+        assert np.all(time_windows >= 0), (
+            'Time windows can\'t be less than zero!')
 
         assert time_windows.shape[0], 'No elements in time_windows!'
 

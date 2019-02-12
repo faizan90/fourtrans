@@ -20,27 +20,29 @@ def main():
 
     in_file = r'neckar_daily_discharge_1961_2015.csv'
 
-    out_dir = 'test_simultexts_2'
+    out_dir = 'test_simultexts_more_cats'
 
-    stns = ['411', '427', '454']
+    stns = ['420', '427', '454', '3421', '3470', '3465']
 
-    return_periods = [0.001, 0.005, 0.0001]
+    return_periods = [0.001, 0.005, 0.0001, 0.0005]
 
-    time_windows = [2, 10, 1, 3, ]
+    time_windows = [2, 10, 1, 3, 0]
 
-    n_sims = 10
+    n_sims = 100
 
-    n_cpus = 1  # 'auto'
+    n_cpus = 'auto'
 
     verbose_flag = False
     overwrite_flag = False
     cmpt_simultexts_flag = False
-    plot_simultexts_flag = False
+    plot_simultexts_freqs_flag = False
+    plot_simultexts_dendrs_flag = False
 
     verbose_flag = True
     overwrite_flag = True
-    cmpt_simultexts_flag = True
-#     plot_simultexts_flag = True
+#     cmpt_simultexts_flag = True
+#     plot_simultexts_freqs_flag = True
+    plot_simultexts_dendrs_flag = True
 
     in_df = pd.read_csv(in_file, sep=';', index_col=0)
 
@@ -67,7 +69,7 @@ def main():
 
         SE.cmpt_simult_exts_freqs()
 
-    if plot_simultexts_flag:
+    if any([plot_simultexts_freqs_flag, plot_simultexts_dendrs_flag, ]):
         SEP = SimultaneousExtremesPlot(verbose_flag)
 
         SEP.set_outputs_directory(out_dir)
@@ -76,9 +78,12 @@ def main():
 
         SEP.set_misc_settings(n_cpus)
 
+        SEP.set_plot_type_flags(
+            plot_simultexts_freqs_flag, plot_simultexts_dendrs_flag)
+
         SEP.verify()
 
-        SEP.plot_simultext_probs()
+        SEP.plot()
 
     return
 

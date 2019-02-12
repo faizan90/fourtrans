@@ -103,6 +103,8 @@ class SimultaneousExtremesAlgorithm(SEDS):
             stn_combs__arrs_dicts = list(
                 self._mp_pool.uimap(SEFC.get_freqs, SEFC_gen))
 
+            self._mp_pool.clear()
+
         else:
             stn_combs__arrs_dicts = map(SEFC.get_freqs, SEFC_gen)
 
@@ -157,6 +159,8 @@ class SimultaneousExtremesFrequencyComputerMP:
 
         for _var in take_sea_cls_var_labs:
             setattr(self, _var, getattr(SEA_cls, _var))
+
+        self._vb_old = self._vb
 
         if self._n_cpus > 1:
             self._vb = False
@@ -261,12 +265,13 @@ class SimultaneousExtremesFrequencyComputerMP:
 
             'ref_evts':np.array(self._rps * n_steps, dtype=int),
             'n_steps': n_steps,
+            'n_sims': self._n_sims,
             }
 
         for sim_no in range(self._n_sims + 1):
             # first sim is the observed data
             if not sim_no:
-                sim_ft_phas_df = obs_ft_phas_df.copy()
+                sim_ft_phas_df = obs_ft_phas_df
 
             else:
                 sim_phases = -np.pi + (
@@ -283,11 +288,11 @@ class SimultaneousExtremesFrequencyComputerMP:
             for stn in stn_comb:
                 reals = (
                     obs_ft_mags_df.loc[:, stn] *
-                    sim_ft_phas_cos_df.loc[:, stn])
+                    sim_ft_phas_cos_df.loc[:, stn]).values
 
                 imags = (
                     obs_ft_mags_df.loc[:, stn] *
-                    sim_ft_phas_sin_df.loc[:, stn])
+                    sim_ft_phas_sin_df.loc[:, stn]).values
 
                 sim_ft_df.loc[:, stn].values.real = reals
                 sim_ft_df.loc[:, stn].values.imag = imags
@@ -311,9 +316,7 @@ class SimultaneousExtremesFrequencyComputerMP:
                     neb_evt_ctrs = {tw:0 for tw in self._tws}
 
                     for evt_idx in max_rp_sim_df.index:
-                        if max_rp_sim_df.loc[
-                            evt_idx, stn_1] > rp:
-
+                        if max_rp_sim_df.loc[evt_idx, stn_1] > rp:
                             continue
 
                         for stn_2 in stn_comb:
@@ -324,9 +327,9 @@ class SimultaneousExtremesFrequencyComputerMP:
                                 back_idx = max(0, evt_idx - tw)
                                 forw_idx = evt_idx + tw
 
-                                neb_evt_idxs = (max_rp_sim_df.loc[
-                                    back_idx:forw_idx, stn_2] <= rp
-                                    ).values
+                                neb_evt_idxs = (
+                                    max_rp_sim_df.loc[
+                                    back_idx:forw_idx, stn_2] <= rp).values
 
                                 neb_evt_sum = neb_evt_idxs.sum()
                                 if not neb_evt_sum:
@@ -338,9 +341,12 @@ class SimultaneousExtremesFrequencyComputerMP:
                         arrs_dict[f'neb_evts_{stn_1}'][
                             sim_no, rp_idx, tw_idx] = neb_evt_ctrs[tw]
 
-        if self._vb:
+        if self._vb_old:
+            if self._vb_old and not self._vb:
+                print_sl()
+
             print(
-                f'INFO: Done with the {stn_comb} combination in '
+                f'INFO: Done with the combination {stn_comb} in '
                 f'{default_timer() - sim_beg_time:0.3f} seconds.')
 
             print_el()
