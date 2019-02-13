@@ -167,14 +167,17 @@ class SimultaneousExtremesFrequencyComputerMP:
         return
 
     def get_freqs(self, obs_vals_df):
+
+        assert isinstance(obs_vals_df, pd.DataFrame)
+
         sim_beg_time = default_timer()
 
         stn_comb = tuple(obs_vals_df.columns)
 
+        assert len(stn_comb) == 2
+
         if obs_vals_df.shape[0] % 2:
             obs_vals_df = obs_vals_df.iloc[:-1]
-
-        assert len(stn_comb) == 2
 
         if self._vb:
             print_sl()
@@ -188,9 +191,7 @@ class SimultaneousExtremesFrequencyComputerMP:
 
         n_steps = obs_vals_df.shape[0]
 
-        assert obs_vals_df.shape[0] > min(self._tws)
-
-        if not n_steps:
+        if not obs_vals_df.shape[0] > (2 * min(self._tws)):
             if self._vb:
                 print(
                     'WARNING: no steps to iterate through, in '
@@ -209,9 +210,9 @@ class SimultaneousExtremesFrequencyComputerMP:
                 f'INFO: Maximum return period for this '
                 f'combination: {max_rp}')
 
-        max_tw = min(self._tws)
+        max_tw = 2 * min(self._tws)
         for tw in self._tws:
-            if (tw > n_steps) or (tw < max_tw):
+            if ((2 * tw) > n_steps) or (tw < max_tw):
                 continue
 
             max_tw = tw
