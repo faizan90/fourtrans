@@ -164,6 +164,12 @@ class SimultaneousExtremesFrequencyComputerMP:
 
         if self._n_cpus > 1:
             self._vb = False
+
+        assert np.all((self._rps[1:] - self._rps[:-1]) > 0), (
+            'rps not ascending!')
+
+        assert np.all((self._tws[1:] - self._tws[:-1]) > 0), (
+            'tws not ascending!')
         return
 
     def get_freqs(self, obs_vals_df):
@@ -173,6 +179,8 @@ class SimultaneousExtremesFrequencyComputerMP:
         sim_beg_time = default_timer()
 
         stn_comb = tuple(obs_vals_df.columns)
+
+        n_combs = obs_vals_df.shape[1]
 
         assert len(stn_comb) == 2
 
@@ -191,7 +199,7 @@ class SimultaneousExtremesFrequencyComputerMP:
 
         n_steps = obs_vals_df.shape[0]
 
-        if not obs_vals_df.shape[0] > (2 * min(self._tws)):
+        if not obs_vals_df.shape[0] > ((2 * min(self._tws)) + 1):
             if self._vb:
                 print(
                     'WARNING: no steps to iterate through, in '
@@ -210,9 +218,9 @@ class SimultaneousExtremesFrequencyComputerMP:
                 f'INFO: Maximum return period for this '
                 f'combination: {max_rp}')
 
-        max_tw = 2 * min(self._tws)
+        max_tw = (2 * min(self._tws)) + 1
         for tw in self._tws:
-            if ((2 * tw) > n_steps) or (tw < max_tw):
+            if (((2 * tw) + 1) > n_steps) or (((2 * tw) + 1) < max_tw):
                 continue
 
             max_tw = tw
@@ -228,8 +236,8 @@ class SimultaneousExtremesFrequencyComputerMP:
             data=np.full((ft_steps, len(stn_comb)), np.nan, dtype=complex),
             columns=stn_comb)
 
-        for stn in stn_comb:
-            obs_ft_df.loc[:, stn] = np.fft.rfft(obs_vals_df.loc[:, stn])
+        for i in range(n_combs):
+            obs_ft_df.iloc[:, i] = np.fft.rfft(obs_vals_df.iloc[:, i])
 
         obs_ft_mags_df = pd.DataFrame(
             data=np.abs(obs_ft_df.values), columns=stn_comb)
@@ -250,8 +258,7 @@ class SimultaneousExtremesFrequencyComputerMP:
             columns=stn_comb)
 
         sim_vals_df = pd.DataFrame(
-            data=np.full(
-                (n_steps, len(stn_comb)), np.nan, dtype=float),
+            data=np.full((n_steps, len(stn_comb)), np.nan, dtype=float),
             columns=stn_comb)
 
         arrs_dict = {
@@ -268,6 +275,8 @@ class SimultaneousExtremesFrequencyComputerMP:
             'n_steps': n_steps,
             'n_sims': self._n_sims,
             }
+
+        stn_idxs_swth = (1, 0)
 
         for sim_no in range(self._n_sims + 1):
             # first sim is the observed data
@@ -286,61 +295,76 @@ class SimultaneousExtremesFrequencyComputerMP:
             sim_ft_phas_cos_df = np.cos(sim_ft_phas_df)
             sim_ft_phas_sin_df = np.sin(sim_ft_phas_df)
 
-            for stn in stn_comb:
+            for i in range(n_combs):
                 reals = (
-                    obs_ft_mags_df.loc[:, stn] *
-                    sim_ft_phas_cos_df.loc[:, stn]).values
+                    obs_ft_mags_df.iloc[:, i] *
+                    sim_ft_phas_cos_df.iloc[:, i]).values
 
                 imags = (
-                    obs_ft_mags_df.loc[:, stn] *
-                    sim_ft_phas_sin_df.loc[:, stn]).values
+                    obs_ft_mags_df.iloc[:, i] *
+                    sim_ft_phas_sin_df.iloc[:, i]).values
 
-                sim_ft_df.loc[:, stn].values.real = reals
-                sim_ft_df.loc[:, stn].values.imag = imags
+                sim_ft_df.iloc[:, i].values.real = reals
+                sim_ft_df.iloc[:, i].values.imag = imags
 
-            for stn in stn_comb:
-                sim_vals_df.loc[:, stn] = np.fft.irfft(
-                    sim_ft_df.loc[:, stn])
+            for i in range(n_combs):
+                sim_vals_df.iloc[:, i] = np.fft.irfft(sim_ft_df.iloc[:, i])
 
             # hard coded for 2D, make changes from here on for more dims
 
             sim_vals_probs_df = sim_vals_df.rank(
                 ascending=False) / (n_steps + 1.0)
 
-            for stn_1 in stn_comb:
+            for stn_1_idx, stn_1 in enumerate(stn_comb):
                 max_rp_ge_idxs = (
-                    sim_vals_probs_df.loc[:, stn_1] <= max_rp).values
+                    sim_vals_probs_df.iloc[:, stn_1_idx] <= max_rp).values
 
+                stn_2 = stn_comb[stn_idxs_swth[stn_1_idx]]
+
+                # number of events from a higher return period are added
+                # to the smaller return period as well. The corresponding
+                # labels are dropped so that when computing the frequency
+                # for a smaller return period, the same events are not
+                # taken again.
                 max_rp_sim_df = sim_vals_probs_df.loc[max_rp_ge_idxs]
+
+                stn_1_arr = arrs_dict[f'neb_evts_{stn_1}']
 
                 for rp_idx, rp in enumerate(self._rps):
                     neb_evt_ctrs = {tw:0 for tw in self._tws}
 
-                    for evt_idx in max_rp_sim_df.index:
-                        if max_rp_sim_df.loc[evt_idx, stn_1] > rp:
+                    drop_labs = []
+                    for evt_idx_i, evt_idx in enumerate(max_rp_sim_df.index):
+                        if max_rp_sim_df.iloc[evt_idx_i, stn_1_idx] > rp:
                             continue
 
-                        for stn_2 in stn_comb:
-                            if stn_1 == stn_2:
+                        for tw in self._tws:
+                            back_idx = max(0, evt_idx - tw)
+                            forw_idx = evt_idx + tw
+
+                            neb_evt_idxs = (max_rp_sim_df.loc[
+                                back_idx:forw_idx, stn_2] <= rp).values
+
+                            neb_evt_sum = neb_evt_idxs.sum()
+                            if not neb_evt_sum:
                                 continue
 
-                            for tw in self._tws:
-                                back_idx = max(0, evt_idx - tw)
-                                forw_idx = evt_idx + tw
+                            neb_evt_ctrs[tw] += 1
 
-                                neb_evt_idxs = (
-                                    max_rp_sim_df.loc[
-                                    back_idx:forw_idx, stn_2] <= rp).values
+                            drop_labs.append(evt_idx)
 
-                                neb_evt_sum = neb_evt_idxs.sum()
-                                if not neb_evt_sum:
-                                    continue
-
-                                neb_evt_ctrs[tw] += 1
+                    if drop_labs:
+                        max_rp_sim_df = max_rp_sim_df.drop(
+                            index=np.unique(drop_labs))
 
                     for tw_idx, tw in enumerate(self._tws):
-                        arrs_dict[f'neb_evts_{stn_1}'][
-                            sim_no, rp_idx, tw_idx] = neb_evt_ctrs[tw]
+                        stn_1_arr[sim_no, rp_idx, tw_idx] = neb_evt_ctrs[tw]
+
+                        if not rp_idx:
+                            continue
+
+                        stn_1_arr[sim_no, rp_idx, tw_idx] += (
+                            stn_1_arr[sim_no, rp_idx - 1, tw_idx])
 
         if self._vb_old:
             if self._vb_old and not self._vb:

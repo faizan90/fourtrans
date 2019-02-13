@@ -122,7 +122,8 @@ class SimultaneousExtremesDataAndSettings:
         assert np.all(np.unique(return_periods) == np.sort(return_periods)), (
             'Non-unique elements in return_periods!')
 
-        self._rps = np.sort(return_periods)[::-1]
+        # sorting is important! the algorithm depends on it
+        self._rps = np.sort(return_periods)
 
         if self._vb:
             print_sl()
@@ -156,6 +157,7 @@ class SimultaneousExtremesDataAndSettings:
             np.unique(time_windows).shape[0] == time_windows.shape[0]), (
                 'Non-unique elements in time_windows!')
 
+        # sorting is important! the algorithm depends on it
         self._tws = np.sort(time_windows)
 
         if self._vb:
