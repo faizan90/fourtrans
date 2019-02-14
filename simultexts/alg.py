@@ -174,6 +174,9 @@ class SimultaneousExtremesFrequencyComputerMP:
 
     def get_stn_comb_freqs(self, obs_vals_df):
 
+        return self._get_stn_comb_freqs(obs_vals_df)
+
+    def _get_stn_comb_freqs(self, obs_vals_df):
         # hard coded for 2D!
 
         assert isinstance(obs_vals_df, pd.DataFrame)
