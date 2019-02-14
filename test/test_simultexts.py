@@ -20,7 +20,7 @@ def main():
 
     in_file = r'neckar_daily_discharge_1961_2015.csv'
 
-    out_dir = 'test_simultexts_code_opt_03'
+    out_dir = 'test_simultexts_save_sers_01'
 
     out_h5 = os.path.join(out_dir, 'simultexts_db.hdf5')
 
@@ -30,21 +30,25 @@ def main():
 
     time_windows = [2, 10, 1, 3, 0]
 
-    n_sims = 10
+    n_sims = 1000
 
-    n_cpus = 1  # 'auto'
+    n_cpus = 'auto'
 
     verbose_flag = False
     overwrite_flag = False
     cmpt_simultexts_flag = False
-    plot_simultexts_freqs_flag = False
-    plot_simultexts_dendrs_flag = False
+    save_sim_sers_flag = False
+    plot_freqs_flag = False
+    plot_dendrs_flag = False
+    plot_sim_cdfs_flag = False
 
     verbose_flag = True
     overwrite_flag = True
-    cmpt_simultexts_flag = True
-    plot_simultexts_freqs_flag = True
-    plot_simultexts_dendrs_flag = True
+#     cmpt_simultexts_flag = True
+#     save_sim_sers_flag = True
+#     plot_freqs_flag = True
+#     plot_dendrs_flag = True
+    plot_sim_cdfs_flag = True
 
     in_df = pd.read_csv(in_file, sep=';', index_col=0)
 
@@ -66,13 +70,15 @@ def main():
 
         SE.set_number_of_simulations(n_sims)
 
-        SE.set_misc_settings(n_cpus)
+        SE.set_misc_settings(
+            n_cpus,
+            save_sim_sers_flag)
 
         SE.verify()
 
         SE.cmpt_simult_exts_freqs()
 
-    if any([plot_simultexts_freqs_flag, plot_simultexts_dendrs_flag]):
+    if any([plot_freqs_flag, plot_dendrs_flag, plot_sim_cdfs_flag]):
         SEP = SimultaneousExtremesPlot(verbose_flag)
 
         SEP.set_outputs_directory(out_dir)
@@ -82,7 +88,7 @@ def main():
         SEP.set_misc_settings(n_cpus)
 
         SEP.set_plot_type_flags(
-            plot_simultexts_freqs_flag, plot_simultexts_dendrs_flag)
+            plot_freqs_flag, plot_dendrs_flag, plot_sim_cdfs_flag)
 
         SEP.verify()
 

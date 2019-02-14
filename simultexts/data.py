@@ -20,6 +20,7 @@ class SimultaneousExtremesDataAndSettings:
         self._vb = bool(verbose)
 
         self._n_cpus = 1
+        self._save_sim_sers_flag = False
 
         self._set_data_flag = False
         self._set_out_dir_flag = False
@@ -27,7 +28,6 @@ class SimultaneousExtremesDataAndSettings:
         self._set_ret_prd_flag = False
         self._set_tws_flag = False
         self._set_n_sims_flag = False
-        self._set_misc_sett_flag = False
 
         self._set_data_verify_flag = False
         return
@@ -202,7 +202,7 @@ class SimultaneousExtremesDataAndSettings:
         self._set_n_sims_flag = True
         return
 
-    def set_misc_settings(self, n_cpus):
+    def set_misc_settings(self, n_cpus, save_sim_sers_flag):
 
         if isinstance(n_cpus, int):
             assert n_cpus > 0, 'n_cpus has to be one or more!'
@@ -215,7 +215,11 @@ class SimultaneousExtremesDataAndSettings:
         else:
             raise AssertionError('n_cpus can be an integer or \'auto\' only!')
 
+        assert isinstance(save_sim_sers_flag, bool), (
+            'save_sim_sers_flag not a boolean value!')
+
         self._n_cpus = n_cpus
+        self._save_sim_sers_flag = save_sim_sers_flag
 
         if self._vb:
             print_sl()
@@ -226,7 +230,6 @@ class SimultaneousExtremesDataAndSettings:
 
             print_el()
 
-        self._set_misc_sett_flag = True
         return
 
     def verify(self):

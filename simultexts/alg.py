@@ -153,6 +153,7 @@ class SimultaneousExtremesFrequencyComputerMP:
             '_tws',
             '_n_sims',
             '_n_cpus',
+            '_save_sim_sers_flag',
             ]
 
         for _var in take_sea_cls_var_labs:
@@ -171,6 +172,8 @@ class SimultaneousExtremesFrequencyComputerMP:
         return
 
     def get_stn_comb_freqs(self, obs_vals_df):
+
+        # hard coded for 2D!
 
         assert isinstance(obs_vals_df, pd.DataFrame)
 
@@ -272,6 +275,15 @@ class SimultaneousExtremesFrequencyComputerMP:
             'n_steps': n_steps,
             }
 
+        if self._save_sim_sers_flag:
+            arrs_dict.update({f'sim_sers_{stn}':
+                np.full(
+                    (self._n_sims + 1, n_steps),
+                    np.nan,
+                    dtype=float)
+                for stn in stn_comb}
+                )
+
         _stn_idxs_swth = (1, 0)  # never change this
 
         for sim_no in range(self._n_sims + 1):
@@ -306,10 +318,13 @@ class SimultaneousExtremesFrequencyComputerMP:
             for i in range(n_combs):
                 sim_vals_df.iloc[:, i] = np.fft.irfft(sim_ft_df.iloc[:, i])
 
-            # hard coded for 2D, make changes from here on for more dims
-
             sim_vals_probs_df = sim_vals_df.rank(
                 ascending=False) / (n_steps + 1.0)
+
+            if self._save_sim_sers_flag:
+                for i in range(n_combs):
+                    key = f'sim_sers_{stn_comb[i]}'
+                    arrs_dict[key][sim_no, :] = sim_vals_df.iloc[:, i]
 
             for ref_stn_idx, ref_stn in enumerate(stn_comb):
                 max_rp_ge_idxs = (
@@ -319,7 +334,7 @@ class SimultaneousExtremesFrequencyComputerMP:
 
                 max_rp_sim_df = sim_vals_probs_df.loc[max_rp_ge_idxs]
 
-                ref_stn_freqs_arr = arrs_dict[f'neb_evts_{ref_stn}']
+                freqs_arr = arrs_dict[f'neb_evts_{ref_stn}']
 
                 for rp_idx, rp in enumerate(self._rps):
                     neb_evt_ctrs = {tw:0 for tw in self._tws}
@@ -342,8 +357,7 @@ class SimultaneousExtremesFrequencyComputerMP:
                             neb_evt_ctrs[tw] += 1
 
                     for tw_idx, tw in enumerate(self._tws):
-                        ref_stn_freqs_arr[
-                            sim_no, rp_idx, tw_idx] = neb_evt_ctrs[tw]
+                        freqs_arr[sim_no, rp_idx, tw_idx] = neb_evt_ctrs[tw]
 
         if self._vb_old:
             if self._vb_old and not self._vb:

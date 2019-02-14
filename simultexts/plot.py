@@ -36,10 +36,12 @@ class SimultaneousExtremesPlot:
 
         self._plot_freqs_flag = False
         self._plot_dendrs_flag = False
+        self._plot_sim_cdfs_flag = False
 
         self._sim_freq_figs_dir = None
         self._sim_freq_tabs_dir = None
         self._sim_dendro_figs_dir = None
+        self._sim_cdf_figs_dir = None
 
         self._set_out_dir_flag = False
         self._h5_path_set_flag = False
@@ -112,7 +114,11 @@ class SimultaneousExtremesPlot:
         self._set_misc_sett_flag = True
         return
 
-    def set_plot_type_flags(self, frequencies_flag, dendrograms_flag):
+    def set_plot_type_flags(
+            self,
+            frequencies_flag=False,
+            dendrograms_flag=False,
+            sim_cdfs_flag=False):
 
         assert isinstance(frequencies_flag, bool), (
             'frequencies_flag not a boolean value!')
@@ -120,8 +126,12 @@ class SimultaneousExtremesPlot:
         assert isinstance(dendrograms_flag, bool), (
             'dendrograms_flag not a boolean value!')
 
+        assert isinstance(sim_cdfs_flag, bool), (
+            'sim_cdfs_flag not a boolean value!')
+
         self._plot_freqs_flag = frequencies_flag
         self._plot_dendrs_flag = dendrograms_flag
+        self._plot_sim_cdfs_flag = sim_cdfs_flag
 
         if self._vb:
             print_sl()
@@ -129,7 +139,8 @@ class SimultaneousExtremesPlot:
             print(
                 f'INFO: Set the following plot flags:\n'
                 f'\tPlot frequencies flag: {self._plot_freqs_flag}\n',
-                f'\tPlot dendrograms flag: {self._plot_dendrs_flag}')
+                f'\tPlot dendrograms flag: {self._plot_dendrs_flag}\n',
+                f'\tPlot simulation CDFs flag: {self._plot_sim_cdfs_flag}')
 
             print_el()
         return
@@ -139,7 +150,10 @@ class SimultaneousExtremesPlot:
         assert self._set_out_dir_flag, 'Outputs directory not set!'
         assert self._h5_path_set_flag, 'Path to HDF5 not set!'
 
-        assert any([self._plot_freqs_flag, self._plot_dendrs_flag]), (
+        assert any([
+            self._plot_freqs_flag,
+            self._plot_dendrs_flag,
+            self._plot_sim_cdfs_flag]), (
             'None of the plotting flags are True!')
 
         self._set_plot_verify_flag = True
@@ -172,6 +186,12 @@ class SimultaneousExtremesPlot:
                 self._out_dir / 'simultexts_dendro_figs')
 
             self._sim_dendro_figs_dir.mkdir(exist_ok=True)
+
+        if self._plot_sim_cdfs_flag:
+            self._sim_cdf_figs_dir = (
+                self._out_dir / 'simultexts_sim_cdfs_figs')
+
+            self._sim_cdf_figs_dir.mkdir(exist_ok=True)
         return
 
     def plot(self):
@@ -246,14 +266,19 @@ class PlotSimultaneousExtremesMP:
             '_sim_freq_figs_dir',
             '_sim_freq_tabs_dir',
             '_sim_dendro_figs_dir',
+            '_sim_cdf_figs_dir',
             '_plot_freqs_flag',
             '_plot_dendrs_flag',
+            '_plot_sim_cdfs_flag',
             ]
 
         for _var in take_sep_cls_var_labs:
             setattr(self, _var, getattr(SEP_cls, _var))
 
-        assert any([self._plot_freqs_flag, self._plot_dendrs_flag]), (
+        assert any([
+            self._plot_freqs_flag,
+            self._plot_dendrs_flag,
+            self._plot_sim_cdfs_flag]), (
             'None of the plotting flags are True!')
 
         if self._n_cpus > 1:
@@ -271,10 +296,14 @@ class PlotSimultaneousExtremesMP:
                 'min_probs',
                 'max_probs'))
 
+        self._stn_idxs_swth = (1, 0)
         return
 
     def _prepare_data(self):
-        '''The data for a given combination only. Each call gets there own
+
+        '''
+        Called only when freqs or dendro flags are True.
+        The data for a given combination only. Each call gets there own
         space. The combined output for each combination can then be used
         by the plot_dendrograms function.
         '''
@@ -380,7 +409,8 @@ class PlotSimultaneousExtremesMP:
 
         assert len(self._stn_labs) == 2, 'Only configured for pairs!'
 
-        self._prepare_data()
+        if any([self._plot_freqs_flag, self._plot_dendrs_flag]):
+            self._prepare_data()
 
         if self._plot_freqs_flag:
             self._plot_frequencies()
@@ -389,7 +419,97 @@ class PlotSimultaneousExtremesMP:
         if self._plot_dendrs_flag:
             plot_ret = {self._stn_comb:self._freqs_tups}
 
+        if self._plot_sim_cdfs_flag:
+            self._plot_sim_cdfs()
+
         return plot_ret
+
+    def _plot_sim_cdfs(self):
+
+        fig_size = (15, 6)
+
+        if self._h5_hdl is None:
+            self._h5_hdl = h5py.File(self._h5_path, 'r', driver='core')
+
+        stn_comb_grp = self._h5_hdl['simultexts_sims'][self._stn_comb]
+        n_steps = stn_comb_grp['n_steps'][...]
+
+        probs = np.arange(1, 1 + n_steps, dtype=float) / (n_steps + 1)
+
+        for stn in self._stn_labs:
+            stn_refr_ser = np.sort(stn_comb_grp[f'sim_sers_{stn}'][0, :][...])
+
+            stn_sim_sers = np.sort(
+                stn_comb_grp[f'sim_sers_{stn}'][1:, :][...], axis=1)
+
+            avg_stn_sim_sers = stn_sim_sers.mean(axis=0)
+
+            min_stn_sim_sers = stn_sim_sers.min(axis=0)
+            max_stn_sim_sers = stn_sim_sers.max(axis=0)
+
+            plt.figure(figsize=fig_size)
+
+#             for i in range(self._n_sims):
+#                 plt.plot(stn_sim_sers[i], probs, color='k', alpha=0.1)
+
+            plt.plot(
+                min_stn_sim_sers,
+                probs,
+                color='C0',
+                alpha=0.5,
+                label='min_sim_cdf',
+                lw=1)
+
+            plt.plot(
+                max_stn_sim_sers,
+                probs,
+                color='C1',
+                alpha=0.5,
+                label='max_sim_cdf',
+                lw=1)
+
+            plt.plot(
+                avg_stn_sim_sers,
+                probs,
+                color='b',
+                alpha=0.7,
+                label='mean_sim_cdf',
+                lw=1.5)
+
+            plt.plot(
+                stn_refr_ser,
+                probs,
+                color='r',
+                alpha=0.7,
+                label='obs_cdf',
+                lw=1.5)
+
+            plt.xlabel('Probability')
+            plt.ylabel('Value')
+
+            plt.legend()
+            plt.grid()
+
+            plt.title(
+                f'CDFs for observed and simulated series of station {stn} '
+                f'for the combination '
+                f'{self._stn_labs[0]} and {self._stn_labs[1]}')
+
+            plt.tight_layout()
+
+            fig_name = (
+                f'simult_ext_cdfs_({self._stn_labs[0]}_'
+                f'{self._stn_labs[1]})_{stn}.png')
+
+            plt.savefig(
+                str(self._sim_cdf_figs_dir / fig_name), bbox_inches='tight')
+
+            plt.close()
+
+        if self._n_cpus > 1:
+            self._h5_hdl.close()
+            self._h5_hdl = None
+        return
 
     def _get_rp_tw_dicts(self, stn_combs_data_dict):
 
@@ -473,8 +593,6 @@ class PlotSimultaneousExtremesMP:
 
     def _plot_frequencies(self):
 
-        _stn_idxs_swth = (1, 0)
-
         TableTup = namedtuple('TableTup', ['i', 'j', 'tbl', 'lab'])
 
         n_fig_rows = 2
@@ -492,7 +610,7 @@ class PlotSimultaneousExtremesMP:
 
         for stn_idx, stn in enumerate(self._stn_labs):
 
-            neb_stn = self._stn_labs[_stn_idxs_swth[stn_idx]]
+            neb_stn = self._stn_labs[self._stn_idxs_swth[stn_idx]]
 
             obs_vals = self._freqs_tups[stn].obs_vals
 
