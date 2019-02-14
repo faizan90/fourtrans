@@ -30,7 +30,7 @@ def main():
 
     time_windows = [2, 10, 1, 3, 0]
 
-    n_sims = 1000
+    n_sims = 10
 
     n_cpus = 'auto'
 
@@ -44,11 +44,11 @@ def main():
 
     verbose_flag = True
     overwrite_flag = True
-#     cmpt_simultexts_flag = True
+    cmpt_simultexts_flag = True
 #     save_sim_sers_flag = True
 #     plot_freqs_flag = True
 #     plot_dendrs_flag = True
-    plot_sim_cdfs_flag = True
+#     plot_sim_cdfs_flag = True
 
     in_df = pd.read_csv(in_file, sep=';', index_col=0)
 

@@ -3,10 +3,9 @@ Created on Feb 7, 2019
 
 @author: Faizan-Uni
 '''
-
 import psutil
-from timeit import default_timer
 from pathlib import Path
+from timeit import default_timer
 from collections import namedtuple
 
 import h5py
@@ -159,6 +158,32 @@ class SimultaneousExtremesPlot:
         self._set_plot_verify_flag = True
         return
 
+    def _var_chk(self):
+
+        main_vars = [
+            'return_periods',
+            'time_windows',
+            'n_sims',
+            'simultexts_sims']
+
+        exst_list = [x in self._h5_hdl for x in main_vars]
+
+        if not all(exst_list):
+            print_sl()
+
+            print('WARNING: The following variables are not in the HDF5:')
+            print(
+                '\t',
+                [main_vars[i]
+                    for i in range(len(main_vars)) if not exst_list[i]])
+
+            print_el()
+
+        assert all(exst_list), (
+            'Some or all the required variables are not in '
+            'the input HDF5 file!')
+        return
+
     def _prepare(self):
 
         if not self._out_dir.exists():
@@ -170,6 +195,8 @@ class SimultaneousExtremesPlot:
         if self._h5_hdl is None:
             self._h5_hdl = h5py.File(self._h5_path, 'r', driver='core')
 
+        self._var_chk()
+
         self._rps = self._h5_hdl['return_periods'][...]
         self._tws = self._h5_hdl['time_windows'][...]
         self._n_sims = self._h5_hdl['n_sims'][...]
@@ -178,7 +205,9 @@ class SimultaneousExtremesPlot:
             self._sim_freq_figs_dir = self._out_dir / 'simultexts_freqs_figs'
             self._sim_freq_figs_dir.mkdir(exist_ok=True)
 
-            self._sim_freq_tabs_dir = self._out_dir / 'simultexts_freqs_tables'
+            self._sim_freq_tabs_dir = (
+                self._out_dir / 'simultexts_freqs_tables')
+
             self._sim_freq_tabs_dir.mkdir(exist_ok=True)
 
         if self._plot_dendrs_flag:
@@ -311,7 +340,18 @@ class PlotSimultaneousExtremesMP:
         if self._h5_hdl is None:
             self._h5_hdl = h5py.File(self._h5_path, 'r', driver='core')
 
+        assert self._stn_comb in self._h5_hdl['simultexts_sims'], (
+            f'Given combination {self._stn_comb} not in the input HDF5!')
+
         self._stn_comb_grp = self._h5_hdl['simultexts_sims'][self._stn_comb]
+
+        assert 'ref_evts' in self._stn_comb_grp, (
+            f'Required variable ref_evts for the given combination '
+            f'not in the input HDF5!')
+
+        assert 'n_steps' in self._stn_comb_grp, (
+            f'Required variable n_steps for the given combination '
+            f'not in the input HDF5!')
 
         self._ref_evts_arr = self._stn_comb_grp['ref_evts'][...]
 
@@ -319,28 +359,32 @@ class PlotSimultaneousExtremesMP:
 
         self._freqs_tups = {}
 
-        # eight tables
-        n_tabs = 8
-        tws_tile = np.tile(self._tws, n_tabs)
-        tws_rpt = np.repeat([
-            'obs_frq',
-            'avg_sim_freq',
-            'min_sim_freq',
-            'max_sim_freq',
-            'std_sim_freq',
-            'avg_sim_prob',
-            'min_sim_prob',
-            'max_sim_prob'], self._tws.shape[0])
+        if self._plot_freqs_flag:
+            # eight tables
+            n_tabs = 8
+            tws_tile = np.tile(self._tws, n_tabs)
+            tws_rpt = np.repeat([
+                'obs_frq',
+                'avg_sim_freq',
+                'min_sim_freq',
+                'max_sim_freq',
+                'std_sim_freq',
+                'avg_sim_prob',
+                'min_sim_prob',
+                'max_sim_prob'], self._tws.shape[0])
 
-        assert tws_rpt.shape[0] == tws_tile.shape[0]
+            assert tws_rpt.shape[0] == tws_tile.shape[0]
 
-        tab_header = ['exd_prob', 'n_ref_evts'] + [
-            f'{tws_rpt[i]}_TW{tws_tile[i]}'
-            for i in range(tws_tile.shape[0])]
+            tab_header = ['exd_prob', 'n_ref_evts'] + [
+                f'{tws_rpt[i]}_TW{tws_tile[i]}'
+                for i in range(tws_tile.shape[0])]
 
         _stn_idxs_swth = (1, 0)
 
         for stn_idx, stn in enumerate(self._stn_labs):
+            assert f'neb_evts_{stn}' in self._stn_comb_grp, (
+                f'Required variable neb_evts_{stn} not in the input HDF5!')
+
             neb_evts_arr = self._stn_comb_grp[f'neb_evts_{stn}'][...]
 
             neb_stn = self._stn_labs[_stn_idxs_swth[stn_idx]]
@@ -372,30 +416,31 @@ class PlotSimultaneousExtremesMP:
                 max_probs,
                 )
 
-            table_concat = np.concatenate((
-                self._rps.reshape(-1, 1),
-                self._ref_evts_arr.reshape(-1, 1),
-                obs_vals,
-                sim_avgs,
-                sim_mins,
-                sim_maxs,
-                sim_stds,
-                avg_probs,
-                min_probs,
-                max_probs,
-                ), axis=1)
+            if self._plot_freqs_flag:
+                table_concat = np.concatenate((
+                    self._rps.reshape(-1, 1),
+                    self._ref_evts_arr.reshape(-1, 1),
+                    obs_vals,
+                    sim_avgs,
+                    sim_mins,
+                    sim_maxs,
+                    sim_stds,
+                    avg_probs,
+                    min_probs,
+                    max_probs,
+                    ), axis=1)
 
-            out_stats_df = pd.DataFrame(
-                data=table_concat,
-                columns=tab_header,
-                dtype=float)
+                out_stats_df = pd.DataFrame(
+                    data=table_concat,
+                    columns=tab_header,
+                    dtype=float)
 
-            tab_name = f'simult_ext_stats_{stn}_{neb_stn}.csv'
+                tab_name = f'simult_ext_stats_{stn}_{neb_stn}.csv'
 
-            out_stats_df.to_csv(
-                self._sim_freq_tabs_dir / tab_name,
-                sep=';',
-                float_format='%0.4f')
+                out_stats_df.to_csv(
+                    self._sim_freq_tabs_dir / tab_name,
+                    sep=';',
+                    float_format='%0.4f')
 
         if self._n_cpus > 1:
             self._h5_hdl.close()
@@ -431,12 +476,24 @@ class PlotSimultaneousExtremesMP:
         if self._h5_hdl is None:
             self._h5_hdl = h5py.File(self._h5_path, 'r', driver='core')
 
+        assert self._stn_comb in self._h5_hdl['simultexts_sims'], (
+            f'Simulated data for the given combination {self._stn_comb} '
+            f'not in the input HDF5!')
+
         stn_comb_grp = self._h5_hdl['simultexts_sims'][self._stn_comb]
+
+        assert 'n_steps' in stn_comb_grp, (
+            f'Required variable n_steps for the given combination '
+            f'not in the input HDF5!')
+
         n_steps = stn_comb_grp['n_steps'][...]
 
         probs = np.arange(1, 1 + n_steps, dtype=float) / (n_steps + 1)
 
         for stn in self._stn_labs:
+            assert f'sim_sers_{stn}' in stn_comb_grp, (
+                f'Required variable sim_sers_{stn} not in the input HDF5!')
+
             stn_refr_ser = np.sort(stn_comb_grp[f'sim_sers_{stn}'][0, :][...])
 
             stn_sim_sers = np.sort(
@@ -448,9 +505,6 @@ class PlotSimultaneousExtremesMP:
             max_stn_sim_sers = stn_sim_sers.max(axis=0)
 
             plt.figure(figsize=fig_size)
-
-#             for i in range(self._n_sims):
-#                 plt.plot(stn_sim_sers[i], probs, color='k', alpha=0.1)
 
             plt.plot(
                 min_stn_sim_sers,
@@ -527,8 +581,6 @@ class PlotSimultaneousExtremesMP:
 
                         dendro_dict[
                             f'{stn_comb}_{stn}_{crd_val:0.3f}'] = crd_val
-
-#                         break
 
                 rp_tw_dicts[f'{rp}_{tw}'] = dendro_dict
 
