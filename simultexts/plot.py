@@ -11,6 +11,7 @@ from collections import namedtuple
 
 import h5py
 import numpy as np
+import pandas as pd
 from parse import search
 import matplotlib.pyplot as plt
 from scipy.cluster import hierarchy
@@ -37,6 +38,8 @@ class SimultaneousExtremesPlot:
         self._plot_dendrs_flag = False
 
         self._sim_freq_figs_dir = None
+        self._sim_freq_tabs_dir = None
+        self._sim_dendro_figs_dir = None
 
         self._set_out_dir_flag = False
         self._h5_path_set_flag = False
@@ -155,13 +158,19 @@ class SimultaneousExtremesPlot:
 
         self._rps = self._h5_hdl['return_periods'][...]
         self._tws = self._h5_hdl['time_windows'][...]
+        self._n_sims = self._h5_hdl['n_sims'][...]
 
         if self._plot_freqs_flag:
             self._sim_freq_figs_dir = self._out_dir / 'simultexts_freqs_figs'
             self._sim_freq_figs_dir.mkdir(exist_ok=True)
 
+            self._sim_freq_tabs_dir = self._out_dir / 'simultexts_freqs_tables'
+            self._sim_freq_tabs_dir.mkdir(exist_ok=True)
+
         if self._plot_dendrs_flag:
-            self._sim_dendro_figs_dir = self._out_dir / 'simultexts_dendro_figs'
+            self._sim_dendro_figs_dir = (
+                self._out_dir / 'simultexts_dendro_figs')
+
             self._sim_dendro_figs_dir.mkdir(exist_ok=True)
         return
 
@@ -229,11 +238,13 @@ class PlotSimultaneousExtremesMP:
             '_vb',
             '_rps',
             '_tws',
+            '_n_sims',
             '_n_cpus',
             '_out_dir',
             '_h5_path',
             '_h5_hdl',
             '_sim_freq_figs_dir',
+            '_sim_freq_tabs_dir',
             '_sim_dendro_figs_dir',
             '_plot_freqs_flag',
             '_plot_dendrs_flag',
@@ -248,9 +259,25 @@ class PlotSimultaneousExtremesMP:
         if self._n_cpus > 1:
             self._vb = False
             self._h5_hdl = None
+
+        self._FreqTup = namedtuple(
+            'FreqTup', (
+                'obs_vals',
+                'sim_avgs',
+                'sim_maxs',
+                'sim_mins',
+                'sim_stds',
+                'avg_probs',
+                'min_probs',
+                'max_probs'))
+
         return
 
     def _prepare_data(self):
+        '''The data for a given combination only. Each call gets there own
+        space. The combined output for each combination can then be used
+        by the plot_dendrograms function.
+        '''
 
         if self._h5_hdl is None:
             self._h5_hdl = h5py.File(self._h5_path, 'r', driver='core')
@@ -261,23 +288,33 @@ class PlotSimultaneousExtremesMP:
 
         self._n_steps = self._stn_comb_grp['n_steps'][...]
 
-        self._n_sims = self._stn_comb_grp['n_sims'][...]
-
         self._freqs_tups = {}
 
-        FreqTup = namedtuple(
-            'FreqTup', (
-                'obs_vals',
-                'sim_avgs',
-                'sim_maxs',
-                'sim_mins',
-                'sim_stds',
-                'mean_probs',
-                'min_probs',
-                'max_probs'))
+        # eight tables
+        n_tabs = 8
+        tws_tile = np.tile(self._tws, n_tabs)
+        tws_rpt = np.repeat([
+            'obs_frq',
+            'avg_sim_freq',
+            'min_sim_freq',
+            'max_sim_freq',
+            'std_sim_freq',
+            'avg_sim_prob',
+            'min_sim_prob',
+            'max_sim_prob'], self._tws.shape[0])
 
-        for stn in self._stn_labs:
+        assert tws_rpt.shape[0] == tws_tile.shape[0]
+
+        tab_header = ['exd_prob', 'n_ref_evts'] + [
+            f'{tws_rpt[i]}_TW{tws_tile[i]}'
+            for i in range(tws_tile.shape[0])]
+
+        _stn_idxs_swth = (1, 0)
+
+        for stn_idx, stn in enumerate(self._stn_labs):
             neb_evts_arr = self._stn_comb_grp[f'neb_evts_{stn}'][...]
+
+            neb_stn = self._stn_labs[_stn_idxs_swth[stn_idx]]
 
             obs_vals = neb_evts_arr[0]
 
@@ -286,7 +323,7 @@ class PlotSimultaneousExtremesMP:
             sim_mins = np.round(neb_evts_arr[1:].min(axis=0)).astype(int)
             sim_stds = np.round(neb_evts_arr[1:].std(axis=0), 2)
 
-            mean_probs = np.round(
+            avg_probs = np.round(
                 sim_avgs / self._ref_evts_arr.reshape(-1, 1), 3)
 
             min_probs = np.round(
@@ -295,16 +332,41 @@ class PlotSimultaneousExtremesMP:
             max_probs = np.round(
                 sim_maxs / self._ref_evts_arr.reshape(-1, 1), 3)
 
-            self._freqs_tups[stn] = FreqTup(
+            self._freqs_tups[stn] = self._FreqTup(
                 obs_vals,
                 sim_avgs,
                 sim_maxs,
                 sim_mins,
                 sim_stds,
-                mean_probs,
+                avg_probs,
                 min_probs,
                 max_probs,
                 )
+
+            table_concat = np.concatenate((
+                self._rps.reshape(-1, 1),
+                self._ref_evts_arr.reshape(-1, 1),
+                obs_vals,
+                sim_avgs,
+                sim_mins,
+                sim_maxs,
+                sim_stds,
+                avg_probs,
+                min_probs,
+                max_probs,
+                ), axis=1)
+
+            out_stats_df = pd.DataFrame(
+                data=table_concat,
+                columns=tab_header,
+                dtype=float)
+
+            tab_name = f'simult_ext_stats_{stn}_{neb_stn}.csv'
+
+            out_stats_df.to_csv(
+                self._sim_freq_tabs_dir / tab_name,
+                sep=';',
+                float_format='%0.4f')
 
         if self._n_cpus > 1:
             self._h5_hdl.close()
@@ -341,15 +403,11 @@ class PlotSimultaneousExtremesMP:
                     for stn in stn_combs_data_dict[stn_comb]:
 
                         crd_val = (stn_combs_data_dict[
-                            stn_comb][stn].mean_probs[rp_idx, tw_idx])
+                            stn_comb][stn].avg_probs[rp_idx, tw_idx])
 
                         dendro_dict[
                             f'{stn_comb}_{stn}_{crd_val:0.3f}'] = crd_val
 
-#                         dendro_dict[f'{stn_comb}'] = 1 - (
-#                             stn_combs_data_dict[stn_comb
-#                                 ][stn].mean_probs[rp_idx, tw_idx])
-#
 #                         break
 
                 rp_tw_dicts[f'{rp}_{tw}'] = dendro_dict
@@ -360,13 +418,14 @@ class PlotSimultaneousExtremesMP:
 
         fig_size = (16, 8)
 
-        prs_pt = '(\'{}\', \'{}\')_{}_{:0.3f}'
+        _prs_pt = '(\'{}\', \'{}\')_{}_{:0.3f}'
 
         for rp_tw_comb in rp_tw_dicts:
             dendro_labs = []
+
             for stn_comb_mean_prob in rp_tw_dicts[rp_tw_comb].keys():
                 stn_1, stn_2, ref_stn, mean_prob = search(
-                    prs_pt, stn_comb_mean_prob)
+                    _prs_pt, stn_comb_mean_prob)
 
                 dendro_labs.append(
                     f'{stn_1} & {stn_2} ({ref_stn}, {mean_prob})')
@@ -403,7 +462,6 @@ class PlotSimultaneousExtremesMP:
 
             plt.savefig(fig_path, bbox_inches='tight')
             plt.close()
-
         return
 
     def plot_dendrograms(self, stn_combs_data_dict):
@@ -415,9 +473,7 @@ class PlotSimultaneousExtremesMP:
 
     def _plot_frequencies(self):
 
-        # TODO: save tables as a csv
-
-        stn_idxs_swth = (1, 0)
+        _stn_idxs_swth = (1, 0)
 
         TableTup = namedtuple('TableTup', ['i', 'j', 'tbl', 'lab'])
 
@@ -436,7 +492,7 @@ class PlotSimultaneousExtremesMP:
 
         for stn_idx, stn in enumerate(self._stn_labs):
 
-            neb_stn = self._stn_labs[stn_idxs_swth[stn_idx]]
+            neb_stn = self._stn_labs[_stn_idxs_swth[stn_idx]]
 
             obs_vals = self._freqs_tups[stn].obs_vals
 
@@ -445,7 +501,7 @@ class PlotSimultaneousExtremesMP:
             sim_mins = self._freqs_tups[stn].sim_mins
             sim_stds = self._freqs_tups[stn].sim_stds
 
-            mean_probs = self._freqs_tups[stn].mean_probs
+            avg_probs = self._freqs_tups[stn].avg_probs
             min_probs = self._freqs_tups[stn].min_probs
             max_probs = self._freqs_tups[stn].max_probs
 
@@ -459,7 +515,7 @@ class PlotSimultaneousExtremesMP:
             tbls = [
                 TableTup(0, 0, obs_vals, 'Observed frequency'),
                 TableTup(0, 1, sim_avgs, 'Mean simulated frequency'),
-                TableTup(0, 2, mean_probs, 'Mean simulated probability'),
+                TableTup(0, 2, avg_probs, 'Mean simulated probability'),
                 TableTup(1, 0, sim_mins, 'Minimum simulated frequency'),
                 TableTup(1, 1, sim_maxs, 'Maximum simulated frequency'),
                 TableTup(1, 2, sim_stds, 'Simulated frequencies\' Std.'),

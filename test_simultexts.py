@@ -20,7 +20,9 @@ def main():
 
     in_file = r'neckar_daily_discharge_1961_2015.csv'
 
-    out_dir = 'test_simultexts_code_opt'
+    out_dir = 'test_simultexts_code_opt_03'
+
+    out_h5 = os.path.join(out_dir, 'simultexts_db.hdf5')
 
     stns = ['420', '427', '454']
 
@@ -28,9 +30,9 @@ def main():
 
     time_windows = [2, 10, 1, 3, 0]
 
-    n_sims = 1000
+    n_sims = 10
 
-    n_cpus = 'auto'
+    n_cpus = 1  # 'auto'
 
     verbose_flag = False
     overwrite_flag = False
@@ -56,6 +58,7 @@ def main():
         SE.set_data(in_df)
 
         SE.set_outputs_directory(out_dir)
+        SE.set_output_hdf5_path(out_h5)
 
         SE.set_return_periods(np.array(return_periods))
 
@@ -69,12 +72,12 @@ def main():
 
         SE.cmpt_simult_exts_freqs()
 
-    if any([plot_simultexts_freqs_flag, plot_simultexts_dendrs_flag, ]):
+    if any([plot_simultexts_freqs_flag, plot_simultexts_dendrs_flag]):
         SEP = SimultaneousExtremesPlot(verbose_flag)
 
         SEP.set_outputs_directory(out_dir)
 
-        SEP.set_hdf5_path(os.path.join(out_dir, 'simultexts_db.hdf5'))
+        SEP.set_hdf5_path(out_h5)
 
         SEP.set_misc_settings(n_cpus)
 

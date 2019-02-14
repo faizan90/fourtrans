@@ -26,19 +26,18 @@ class SimultaneousExtremesAlgorithm(SEDS):
         self._mp_pool = None
 
         self._set_alg_verify_flag = False
-        self._simult_exts_probs_done_flag = False
         return
 
     def _prepare(self):
 
-        self._stn_combs = list(combinations(self._data_df.columns, 2))
+        self._stn_combs = tuple(combinations(self._data_df.columns, 2))
+
+        n_stn_combs = len(self._stn_combs)
 
         assert all([len(stn_comb) == 2 for stn_comb in self._stn_combs]), (
             'Only configured for combinations of two series!')
 
         self._out_dir.mkdir(exist_ok=True)
-
-        self._h5_path = self._out_dir / 'simultexts_db.hdf5'
 
         if self._owr_flag or (not self._h5_path.exists()):
             self._h5_hdl = h5py.File(self._h5_path, mode='w', driver='core')
@@ -48,8 +47,10 @@ class SimultaneousExtremesAlgorithm(SEDS):
 
         self._h5_hdl['return_periods'] = self._rps
         self._h5_hdl['time_windows'] = self._tws
+        self._h5_hdl['n_sims'] = self._n_sims
+        self._h5_hdl['n_stn_combs'] = n_stn_combs
 
-        n_stn_combs = len(self._stn_combs)
+        self._h5_hdl.flush()
 
         if n_stn_combs < self._n_cpus:
             if self._vb:
@@ -64,7 +65,6 @@ class SimultaneousExtremesAlgorithm(SEDS):
 
         if (self._n_cpus > 1) and (self._mp_pool is None):
             self._mp_pool = ProcessPool(self._n_cpus)
-
         return
 
     def verify(self):
@@ -84,7 +84,7 @@ class SimultaneousExtremesAlgorithm(SEDS):
             print_sl()
 
             print(
-                f'Computing simultaneous extremes frequency for '
+                f'Computing simultaneous extremes frequencies for '
                 f'{len(self._stn_combs)} pairs...')
 
             print_el()
@@ -101,12 +101,12 @@ class SimultaneousExtremesAlgorithm(SEDS):
 
         if self._mp_pool is not None:
             stn_combs__arrs_dicts = list(
-                self._mp_pool.uimap(SEFC.get_freqs, SEFC_gen))
+                self._mp_pool.uimap(SEFC.get_stn_comb_freqs, SEFC_gen))
 
             self._mp_pool.clear()
 
         else:
-            stn_combs__arrs_dicts = map(SEFC.get_freqs, SEFC_gen)
+            stn_combs__arrs_dicts = map(SEFC.get_stn_comb_freqs, SEFC_gen)
 
         for stn_comb_arrs_dict in stn_combs__arrs_dicts:
 
@@ -123,12 +123,10 @@ class SimultaneousExtremesAlgorithm(SEDS):
 
         self._finalize_sims()
 
-        self._simult_exts_probs_done_flag = True
-
         if self._vb:
             print_sl()
             print(
-                f'Done computing simultaneous extremes frequency\n'
+                f'Done computing simultaneous extremes frequencies\n'
                 f'Total simulation time was: '
                 f'{default_timer() - main_sim_beg_time:0.3f} seconds')
             print_el()
@@ -172,7 +170,7 @@ class SimultaneousExtremesFrequencyComputerMP:
             'tws not ascending!')
         return
 
-    def get_freqs(self, obs_vals_df):
+    def get_stn_comb_freqs(self, obs_vals_df):
 
         assert isinstance(obs_vals_df, pd.DataFrame)
 
@@ -194,8 +192,7 @@ class SimultaneousExtremesFrequencyComputerMP:
 
         if self._vb:
             print(
-                'Commmon steps between these stations:',
-                obs_vals_df.shape[0])
+                'Commmon steps between these stations:', obs_vals_df.shape[0])
 
         n_steps = obs_vals_df.shape[0]
 
@@ -273,10 +270,9 @@ class SimultaneousExtremesFrequencyComputerMP:
 
             'ref_evts':np.array(self._rps * n_steps, dtype=int),
             'n_steps': n_steps,
-            'n_sims': self._n_sims,
             }
 
-        stn_idxs_swth = (1, 0)
+        _stn_idxs_swth = (1, 0)  # never change this
 
         for sim_no in range(self._n_sims + 1):
             # first sim is the observed data
@@ -315,27 +311,21 @@ class SimultaneousExtremesFrequencyComputerMP:
             sim_vals_probs_df = sim_vals_df.rank(
                 ascending=False) / (n_steps + 1.0)
 
-            for stn_1_idx, stn_1 in enumerate(stn_comb):
+            for ref_stn_idx, ref_stn in enumerate(stn_comb):
                 max_rp_ge_idxs = (
-                    sim_vals_probs_df.iloc[:, stn_1_idx] <= max_rp).values
+                    sim_vals_probs_df.iloc[:, ref_stn_idx] <= max_rp).values
 
-                stn_2 = stn_comb[stn_idxs_swth[stn_1_idx]]
+                neb_stn = stn_comb[_stn_idxs_swth[ref_stn_idx]]
 
-                # number of events from a higher return period are added
-                # to the smaller return period as well. The corresponding
-                # labels are dropped so that when computing the frequency
-                # for a smaller return period, the same events are not
-                # taken again.
                 max_rp_sim_df = sim_vals_probs_df.loc[max_rp_ge_idxs]
 
-                stn_1_arr = arrs_dict[f'neb_evts_{stn_1}']
+                ref_stn_freqs_arr = arrs_dict[f'neb_evts_{ref_stn}']
 
                 for rp_idx, rp in enumerate(self._rps):
                     neb_evt_ctrs = {tw:0 for tw in self._tws}
 
-                    drop_labs = []
                     for evt_idx_i, evt_idx in enumerate(max_rp_sim_df.index):
-                        if max_rp_sim_df.iloc[evt_idx_i, stn_1_idx] > rp:
+                        if max_rp_sim_df.iloc[evt_idx_i, ref_stn_idx] > rp:
                             continue
 
                         for tw in self._tws:
@@ -343,7 +333,7 @@ class SimultaneousExtremesFrequencyComputerMP:
                             forw_idx = evt_idx + tw
 
                             neb_evt_idxs = (max_rp_sim_df.loc[
-                                back_idx:forw_idx, stn_2] <= rp).values
+                                back_idx:forw_idx, neb_stn] <= rp).values
 
                             neb_evt_sum = neb_evt_idxs.sum()
                             if not neb_evt_sum:
@@ -351,20 +341,9 @@ class SimultaneousExtremesFrequencyComputerMP:
 
                             neb_evt_ctrs[tw] += 1
 
-                            drop_labs.append(evt_idx)
-
-                    if drop_labs:
-                        max_rp_sim_df = max_rp_sim_df.drop(
-                            index=np.unique(drop_labs))
-
                     for tw_idx, tw in enumerate(self._tws):
-                        stn_1_arr[sim_no, rp_idx, tw_idx] = neb_evt_ctrs[tw]
-
-                        if not rp_idx:
-                            continue
-
-                        stn_1_arr[sim_no, rp_idx, tw_idx] += (
-                            stn_1_arr[sim_no, rp_idx - 1, tw_idx])
+                        ref_stn_freqs_arr[
+                            sim_no, rp_idx, tw_idx] = neb_evt_ctrs[tw]
 
         if self._vb_old:
             if self._vb_old and not self._vb:

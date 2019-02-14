@@ -23,6 +23,7 @@ class SimultaneousExtremesDataAndSettings:
 
         self._set_data_flag = False
         self._set_out_dir_flag = False
+        self._h5_path_set_flag = False
         self._set_ret_prd_flag = False
         self._set_tws_flag = False
         self._set_n_sims_flag = False
@@ -97,6 +98,17 @@ class SimultaneousExtremesDataAndSettings:
             print_el()
 
         self._set_out_dir_flag = True
+        return
+
+    def set_output_hdf5_path(self, hdf5_path):
+        assert isinstance(hdf5_path, (str, Path)), (
+            'hdf5_path not a string or Path object!')
+
+        hdf5_path = Path(hdf5_path).absolute()
+
+        self._h5_path = hdf5_path
+
+        self._h5_path_set_flag = True
         return
 
     def set_return_periods(self, return_periods):
@@ -208,7 +220,8 @@ class SimultaneousExtremesDataAndSettings:
         if self._vb:
             print_sl()
 
-            print(f'INFO: Set the number of running processes to: '
+            print(
+                f'INFO: Set the number of running processes to: '
                 f'{self._n_cpus}')
 
             print_el()
@@ -220,6 +233,7 @@ class SimultaneousExtremesDataAndSettings:
 
         assert self._set_data_flag, 'Data not set!'
         assert self._set_out_dir_flag, 'Outputs directory not set!'
+        assert self._h5_path_set_flag, 'Output HDF5 path not set!'
         assert self._set_ret_prd_flag, 'Return periods not set!'
         assert self._set_tws_flag, 'Time windows not set!'
         assert self._set_n_sims_flag, 'Number of simulations not set!'
