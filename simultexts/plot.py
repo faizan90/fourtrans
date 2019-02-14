@@ -36,11 +36,9 @@ class SimultaneousExtremesPlot:
         self._plot_freqs_flag = False
         self._plot_dendrs_flag = False
         self._plot_sim_cdfs_flag = False
+        self._plot_auto_corrs_flag = False
 
-        self._sim_freq_figs_dir = None
-        self._sim_freq_tabs_dir = None
-        self._sim_dendro_figs_dir = None
-        self._sim_cdf_figs_dir = None
+        self._out_dirs_dict = {}
 
         self._set_out_dir_flag = False
         self._h5_path_set_flag = False
@@ -117,7 +115,8 @@ class SimultaneousExtremesPlot:
             self,
             frequencies_flag=False,
             dendrograms_flag=False,
-            sim_cdfs_flag=False):
+            sim_cdfs_flag=False,
+            sim_auto_corrs_flag=False):
 
         assert isinstance(frequencies_flag, bool), (
             'frequencies_flag not a boolean value!')
@@ -128,9 +127,13 @@ class SimultaneousExtremesPlot:
         assert isinstance(sim_cdfs_flag, bool), (
             'sim_cdfs_flag not a boolean value!')
 
+        assert isinstance(sim_auto_corrs_flag, bool), (
+            'sim_auto_corrs_flag not a boolean value!')
+
         self._plot_freqs_flag = frequencies_flag
         self._plot_dendrs_flag = dendrograms_flag
         self._plot_sim_cdfs_flag = sim_cdfs_flag
+        self._plot_auto_corrs_flag = sim_auto_corrs_flag
 
         if self._vb:
             print_sl()
@@ -139,7 +142,9 @@ class SimultaneousExtremesPlot:
                 f'INFO: Set the following plot flags:\n'
                 f'\tPlot frequencies flag: {self._plot_freqs_flag}\n',
                 f'\tPlot dendrograms flag: {self._plot_dendrs_flag}\n',
-                f'\tPlot simulation CDFs flag: {self._plot_sim_cdfs_flag}')
+                f'\tPlot simulation CDFs flag: {self._plot_sim_cdfs_flag}\n',
+                f'\tPlot simulation auto corrs flag: '
+                f'{self._plot_auto_corrs_flag}')
 
             print_el()
         return
@@ -152,8 +157,9 @@ class SimultaneousExtremesPlot:
         assert any([
             self._plot_freqs_flag,
             self._plot_dendrs_flag,
-            self._plot_sim_cdfs_flag]), (
-            'None of the plotting flags are True!')
+            self._plot_sim_cdfs_flag,
+            self._plot_auto_corrs_flag]), (
+                'None of the plotting flags are True!')
 
         self._set_plot_verify_flag = True
         return
@@ -175,7 +181,7 @@ class SimultaneousExtremesPlot:
             print(
                 '\t',
                 [main_vars[i]
-                    for i in range(len(main_vars)) if not exst_list[i]])
+                 for i in range(len(main_vars)) if not exst_list[i]])
 
             print_el()
 
@@ -202,25 +208,39 @@ class SimultaneousExtremesPlot:
         self._n_sims = self._h5_hdl['n_sims'][...]
 
         if self._plot_freqs_flag:
-            self._sim_freq_figs_dir = self._out_dir / 'simultexts_freqs_figs'
-            self._sim_freq_figs_dir.mkdir(exist_ok=True)
+            self._out_dirs_dict['freq_figs'] = (
+                self._out_dir / 'simultexts_freqs_figs')
 
-            self._sim_freq_tabs_dir = (
+            self._out_dirs_dict['freq_figs'].mkdir(exist_ok=True)
+
+            self._out_dirs_dict['freq_tabs'] = (
                 self._out_dir / 'simultexts_freqs_tables')
 
-            self._sim_freq_tabs_dir.mkdir(exist_ok=True)
+            self._out_dirs_dict['freq_tabs'].mkdir(exist_ok=True)
 
         if self._plot_dendrs_flag:
-            self._sim_dendro_figs_dir = (
+            self._out_dirs_dict['dend_figs'] = (
                 self._out_dir / 'simultexts_dendro_figs')
 
-            self._sim_dendro_figs_dir.mkdir(exist_ok=True)
+            self._out_dirs_dict['dend_figs'].mkdir(exist_ok=True)
 
         if self._plot_sim_cdfs_flag:
-            self._sim_cdf_figs_dir = (
+            self._out_dirs_dict['cdfs_figs'] = (
                 self._out_dir / 'simultexts_sim_cdfs_figs')
 
-            self._sim_cdf_figs_dir.mkdir(exist_ok=True)
+            self._out_dirs_dict['cdfs_figs'].mkdir(exist_ok=True)
+
+        if self._plot_auto_corrs_flag:
+            self._out_dirs_dict['pcorr_figs'] = (
+                self._out_dir / 'simultexts_sim_pcorr_figs')
+
+            self._out_dirs_dict['pcorr_figs'].mkdir(exist_ok=True)
+
+            self._out_dirs_dict['scorr_figs'] = (
+                self._out_dir / 'simultexts_sim_scorr_figs')
+
+            self._out_dirs_dict['scorr_figs'].mkdir(exist_ok=True)
+
         return
 
     def plot(self):
@@ -292,13 +312,11 @@ class PlotSimultaneousExtremesMP:
             '_out_dir',
             '_h5_path',
             '_h5_hdl',
-            '_sim_freq_figs_dir',
-            '_sim_freq_tabs_dir',
-            '_sim_dendro_figs_dir',
-            '_sim_cdf_figs_dir',
+            '_out_dirs_dict',
             '_plot_freqs_flag',
             '_plot_dendrs_flag',
             '_plot_sim_cdfs_flag',
+            '_plot_auto_corrs_flag',
             ]
 
         for _var in take_sep_cls_var_labs:
@@ -307,7 +325,8 @@ class PlotSimultaneousExtremesMP:
         assert any([
             self._plot_freqs_flag,
             self._plot_dendrs_flag,
-            self._plot_sim_cdfs_flag]), (
+            self._plot_sim_cdfs_flag,
+            self._plot_auto_corrs_flag]), (
             'None of the plotting flags are True!')
 
         if self._n_cpus > 1:
@@ -438,7 +457,7 @@ class PlotSimultaneousExtremesMP:
                 tab_name = f'simult_ext_stats_{stn}_{neb_stn}.csv'
 
                 out_stats_df.to_csv(
-                    self._sim_freq_tabs_dir / tab_name,
+                    self._out_dirs_dict['freq_tabs'] / tab_name,
                     sep=';',
                     float_format='%0.4f')
 
@@ -464,12 +483,12 @@ class PlotSimultaneousExtremesMP:
         if self._plot_dendrs_flag:
             plot_ret = {self._stn_comb:self._freqs_tups}
 
-        if self._plot_sim_cdfs_flag:
-            self._plot_sim_cdfs()
+        if self._plot_sim_cdfs_flag or self._plot_auto_corrs_flag:
+            self._plot_sim_cdfs__corrs()
 
         return plot_ret
 
-    def _plot_sim_cdfs(self):
+    def _plot_sim_cdfs__corrs(self):
 
         fig_size = (15, 6)
 
@@ -491,74 +510,199 @@ class PlotSimultaneousExtremesMP:
         probs = np.arange(1, 1 + n_steps, dtype=float) / (n_steps + 1)
 
         for stn in self._stn_labs:
-            assert f'sim_sers_{stn}' in stn_comb_grp, (
+            assert f'sim_stats_{stn}' in stn_comb_grp, (
                 f'Required variable sim_sers_{stn} not in the input HDF5!')
 
-            stn_refr_ser = np.sort(stn_comb_grp[f'sim_sers_{stn}'][0, :][...])
+            stats_arr = stn_comb_grp[f'sim_stats_{stn}']
 
-            stn_sim_sers = np.sort(
-                stn_comb_grp[f'sim_sers_{stn}'][1:, :][...], axis=1)
+            if self._plot_sim_cdfs_flag:
+                # mean, minima and maxima
+                sort_stn_refr_ser = stats_arr[0, :][...]
+                sort_avg_stn_sim_sers = stats_arr[1, :][...]
+                sort_min_stn_sim_sers = stats_arr[2, :][...]
+                sort_max_stn_sim_sers = stats_arr[3, :][...]
 
-            avg_stn_sim_sers = stn_sim_sers.mean(axis=0)
+                plt.figure(figsize=fig_size)
 
-            min_stn_sim_sers = stn_sim_sers.min(axis=0)
-            max_stn_sim_sers = stn_sim_sers.max(axis=0)
+                plt.plot(
+                    sort_min_stn_sim_sers,
+                    probs,
+                    color='C0',
+                    alpha=0.5,
+                    label='min_sim',
+                    lw=1)
 
-            plt.figure(figsize=fig_size)
+                plt.plot(
+                    sort_max_stn_sim_sers,
+                    probs,
+                    color='C1',
+                    alpha=0.5,
+                    label='max_sim',
+                    lw=1)
 
-            plt.plot(
-                min_stn_sim_sers,
-                probs,
-                color='C0',
-                alpha=0.5,
-                label='min_sim_cdf',
-                lw=1)
+                plt.plot(
+                    sort_avg_stn_sim_sers,
+                    probs,
+                    color='b',
+                    alpha=0.7,
+                    label='mean_sim',
+                    lw=1.5)
 
-            plt.plot(
-                max_stn_sim_sers,
-                probs,
-                color='C1',
-                alpha=0.5,
-                label='max_sim_cdf',
-                lw=1)
+                plt.plot(
+                    sort_stn_refr_ser,
+                    probs,
+                    color='r',
+                    alpha=0.7,
+                    label='obs',
+                    lw=1.5)
 
-            plt.plot(
-                avg_stn_sim_sers,
-                probs,
-                color='b',
-                alpha=0.7,
-                label='mean_sim_cdf',
-                lw=1.5)
+                plt.xlabel('Probability')
+                plt.ylabel('Value')
 
-            plt.plot(
-                stn_refr_ser,
-                probs,
-                color='r',
-                alpha=0.7,
-                label='obs_cdf',
-                lw=1.5)
+                plt.legend()
+                plt.grid()
 
-            plt.xlabel('Probability')
-            plt.ylabel('Value')
+                plt.title(
+                    f'CDFs for observed and simulated series of station {stn} '
+                    f'for the combination '
+                    f'{self._stn_labs[0]} and {self._stn_labs[1]}\n'
+                    f'No. of steps: {n_steps}, No. of simulations: '
+                    f'{self._n_sims}')
 
-            plt.legend()
-            plt.grid()
+                plt.tight_layout()
 
-            plt.title(
-                f'CDFs for observed and simulated series of station {stn} '
-                f'for the combination '
-                f'{self._stn_labs[0]} and {self._stn_labs[1]}')
+                fig_name = (
+                    f'simult_ext_cdfs_({self._stn_labs[0]}_'
+                    f'{self._stn_labs[1]})_{stn}.png')
 
-            plt.tight_layout()
+                plt.savefig(
+                    str(self._out_dirs_dict['cdfs_figs'] / fig_name),
+                    bbox_inches='tight')
 
-            fig_name = (
-                f'simult_ext_cdfs_({self._stn_labs[0]}_'
-                f'{self._stn_labs[1]})_{stn}.png')
+                plt.close()
 
-            plt.savefig(
-                str(self._sim_cdf_figs_dir / fig_name), bbox_inches='tight')
+            if self._plot_auto_corrs_flag:
+                # pearson corr
+                stn_refr_pcorr = stats_arr[4, :][...]
+                avg_stn_sim_pcorr = stats_arr[5, :][...]
+                min_stn_sim_pcorr = stats_arr[6, :][...]
+                max_stn_sim_pcorr = stats_arr[7, :][...]
 
-            plt.close()
+                plt.figure(figsize=fig_size)
+
+                plt.plot(
+                    min_stn_sim_pcorr,
+                    color='C0',
+                    alpha=0.5,
+                    label='min_sim',
+                    lw=1)
+
+                plt.plot(
+                    max_stn_sim_pcorr,
+                    color='C1',
+                    alpha=0.5,
+                    label='max_sim',
+                    lw=1)
+
+                plt.plot(
+                    avg_stn_sim_pcorr,
+                    color='b',
+                    alpha=0.7,
+                    label='mean_sim',
+                    lw=1.5)
+
+                plt.plot(
+                    stn_refr_pcorr,
+                    color='r',
+                    alpha=0.7,
+                    label='obs',
+                    lw=1.5)
+
+                plt.xlabel('Lag (step)')
+                plt.ylabel('Pearson correlation')
+
+                plt.legend()
+                plt.grid()
+
+                plt.title(
+                    f'Pearson autocorrelations for observed and simulated '
+                    f'series of station {stn} for the combination '
+                    f'{self._stn_labs[0]} and {self._stn_labs[1]}\n'
+                    f'No. of steps: {n_steps}, No. of simulations: '
+                    f'{self._n_sims}')
+
+                plt.tight_layout()
+
+                fig_name = (
+                    f'simult_ext_pcorrs_({self._stn_labs[0]}_'
+                    f'{self._stn_labs[1]})_{stn}.png')
+
+                plt.savefig(
+                    str(self._out_dirs_dict['pcorr_figs'] / fig_name),
+                    bbox_inches='tight')
+
+                plt.close()
+
+                # spearman corr
+                stn_refr_scorr = stats_arr[8, :][...]
+                avg_stn_sim_scorr = stats_arr[9, :][...]
+                min_stn_sim_scorr = stats_arr[10, :][...]
+                max_stn_sim_scorr = stats_arr[11, :][...]
+
+                plt.figure(figsize=fig_size)
+
+                plt.plot(
+                    min_stn_sim_scorr,
+                    color='C0',
+                    alpha=0.5,
+                    label='min_sim',
+                    lw=1)
+
+                plt.plot(
+                    max_stn_sim_scorr,
+                    color='C1',
+                    alpha=0.5,
+                    label='max_sim',
+                    lw=1)
+
+                plt.plot(
+                    avg_stn_sim_scorr,
+                    color='b',
+                    alpha=0.7,
+                    label='mean_sim',
+                    lw=1.5)
+
+                plt.plot(
+                    stn_refr_scorr,
+                    color='r',
+                    alpha=0.7,
+                    label='obs',
+                    lw=1.5)
+
+                plt.xlabel('Lag (step)')
+                plt.ylabel('Spearman correlation')
+
+                plt.legend()
+                plt.grid()
+
+                plt.title(
+                    f'Spearman autocorrelations for observed and simulated '
+                    f'series of station {stn} for the combination '
+                    f'{self._stn_labs[0]} and {self._stn_labs[1]}\n'
+                    f'No. of steps: {n_steps}, No. of simulations: '
+                    f'{self._n_sims}')
+
+                plt.tight_layout()
+
+                fig_name = (
+                    f'simult_ext_scorrs_({self._stn_labs[0]}_'
+                    f'{self._stn_labs[1]})_{stn}.png')
+
+                plt.savefig(
+                    str(self._out_dirs_dict['scorr_figs'] / fig_name),
+                    bbox_inches='tight')
+
+                plt.close()
 
         if self._n_cpus > 1:
             self._h5_hdl.close()
@@ -628,7 +772,7 @@ class PlotSimultaneousExtremesMP:
                 f'{tw} steps')
 
             fig_name = f'dendrogram_EP{rp}_TW{tw}.png'
-            fig_path = str(self._sim_dendro_figs_dir / fig_name)
+            fig_path = str(self._out_dirs_dict['dend_figs'] / fig_name)
 
             plt.tight_layout()
 
@@ -761,7 +905,7 @@ class PlotSimultaneousExtremesMP:
             sim_freq_fig_name = f'simult_ext_stats_{stn}_{neb_stn}.png'
 
             plt.savefig(
-                str(self._sim_freq_figs_dir / sim_freq_fig_name),
+                str(self._out_dirs_dict['freq_figs'] / sim_freq_fig_name),
                 bbox_inches='tight')
             plt.close()
         return

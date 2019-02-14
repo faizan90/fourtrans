@@ -9,6 +9,7 @@ from itertools import combinations
 import h5py
 import numpy as np
 import pandas as pd
+from scipy.stats import rankdata
 from pathos.multiprocessing import ProcessPool
 
 from .misc import print_sl, print_el
@@ -276,13 +277,13 @@ class SimultaneousExtremesFrequencyComputerMP:
             }
 
         if self._save_sim_sers_flag:
-            arrs_dict.update({f'sim_sers_{stn}':
+            stns_sims_dict = {
+                f'sim_sers_{stn}':
                 np.full(
                     (self._n_sims + 1, n_steps),
                     np.nan,
                     dtype=float)
                 for stn in stn_comb}
-                )
 
         _stn_idxs_swth = (1, 0)  # never change this
 
@@ -324,7 +325,7 @@ class SimultaneousExtremesFrequencyComputerMP:
             if self._save_sim_sers_flag:
                 for i in range(n_combs):
                     key = f'sim_sers_{stn_comb[i]}'
-                    arrs_dict[key][sim_no, :] = sim_vals_df.iloc[:, i]
+                    stns_sims_dict[key][sim_no, :] = sim_vals_df.iloc[:, i]
 
             for ref_stn_idx, ref_stn in enumerate(stn_comb):
                 max_rp_ge_idxs = (
@@ -359,6 +360,10 @@ class SimultaneousExtremesFrequencyComputerMP:
                     for tw_idx, tw in enumerate(self._tws):
                         freqs_arr[sim_no, rp_idx, tw_idx] = neb_evt_ctrs[tw]
 
+        if self._save_sim_sers_flag:
+            arrs_dict.update(
+                self._get_stats_dict(stn_comb, stns_sims_dict, n_steps))
+
         if self._vb_old:
             if self._vb_old and not self._vb:
                 print_sl()
@@ -369,3 +374,71 @@ class SimultaneousExtremesFrequencyComputerMP:
 
             print_el()
         return stn_comb, arrs_dict
+
+    def _get_stats_dict(self, stn_comb, stns_sims_dict, n_steps):
+
+        stn_stats_dict = {}
+
+        for stn in stn_comb:
+            key = f'sim_sers_{stn}'
+
+            stn_sims = stns_sims_dict[key]
+            stn_refr_ser = stn_sims[0, :]
+            stn_sim_sers = stn_sims[1:, :]
+
+            sort_stn_refr_ser = np.sort(stn_refr_ser)
+            sort_stn_sim_sers = np.sort(stn_sim_sers)
+            sort_avg_stn_sim_sers = sort_stn_sim_sers.mean(axis=0)
+            sort_min_stn_sim_sers = sort_stn_sim_sers.min(axis=0)
+            sort_max_stn_sim_sers = sort_stn_sim_sers.max(axis=0)
+
+            # for now, just a few steps
+            n_corr_steps = min(500, n_steps)
+
+            refr_auto_pcorrs = np.full(
+                (self._n_sims + 1, n_corr_steps), np.nan)
+
+            refr_auto_scorrs = refr_auto_pcorrs.copy()
+
+            for i in range(self._n_sims + 1):
+                sim_ser = stn_sims[i, :]
+                rank_sim = rankdata(sim_ser)
+
+                for j in range(n_corr_steps):
+                    refr_auto_pcorrs[i, j] = np.corrcoef(
+                        sim_ser, np.roll(sim_ser, j))[0, 1]
+
+                    refr_auto_scorrs[i, j] = np.corrcoef(
+                        rank_sim, np.roll(rank_sim, j))[0, 1]
+
+            stats_arr = np.full((12, n_steps), np.nan, dtype=float)
+
+            # regular stats
+            stats_arr[0, :] = sort_stn_refr_ser
+            stats_arr[1, :] = sort_avg_stn_sim_sers
+            stats_arr[2, :] = sort_min_stn_sim_sers
+            stats_arr[3, :] = sort_max_stn_sim_sers
+
+            # pearson
+            stats_arr[4, :n_corr_steps] = refr_auto_pcorrs[0, :]
+
+            stats_arr[5, :n_corr_steps] = refr_auto_pcorrs[1:, :].mean(axis=0)
+
+            stats_arr[6, :n_corr_steps] = refr_auto_pcorrs[1:, :].min(axis=0)
+
+            stats_arr[7, :n_corr_steps] = refr_auto_pcorrs[1:, :].max(axis=0)
+
+            # spearman
+            stats_arr[8, :n_corr_steps] = refr_auto_scorrs[0, :]
+            stats_arr[9, :n_corr_steps] = refr_auto_scorrs[1:, :].mean(axis=0)
+
+            stats_arr[10, :n_corr_steps] = refr_auto_scorrs[1:, :].min(axis=0)
+
+            stats_arr[11, :n_corr_steps] = refr_auto_scorrs[1:, :].max(axis=0)
+
+            stn_stats_dict[f'sim_stats_{stn}'] = stats_arr
+
+            stns_sims_dict[key] = None
+            stn_refr_ser = stn_sim_sers = sort_stn_sim_sers = None
+
+        return stn_stats_dict
