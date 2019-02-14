@@ -229,7 +229,6 @@ class SimultaneousExtremesDataAndSettings:
                 f'{self._n_cpus}')
 
             print_el()
-
         return
 
     def verify(self):

@@ -29,45 +29,6 @@ class SimultaneousExtremesAlgorithm(SEDS):
         self._set_alg_verify_flag = False
         return
 
-    def _prepare(self):
-
-        self._stn_combs = tuple(combinations(self._data_df.columns, 2))
-
-        n_stn_combs = len(self._stn_combs)
-
-        assert all([len(stn_comb) == 2 for stn_comb in self._stn_combs]), (
-            'Only configured for combinations of two series!')
-
-        self._out_dir.mkdir(exist_ok=True)
-
-        if self._owr_flag or (not self._h5_path.exists()):
-            self._h5_hdl = h5py.File(self._h5_path, mode='w', driver='core')
-
-        else:
-            self._h5_hdl = h5py.File(self._h5_path, mode='r+', driver='core')
-
-        self._h5_hdl['return_periods'] = self._rps
-        self._h5_hdl['time_windows'] = self._tws
-        self._h5_hdl['n_sims'] = self._n_sims
-        self._h5_hdl['n_stn_combs'] = n_stn_combs
-
-        self._h5_hdl.flush()
-
-        if n_stn_combs < self._n_cpus:
-            if self._vb:
-                print_sl()
-
-                print(f'INFO: Reduced the number of running processes from '
-                    f'{self._n_cpus} to {n_stn_combs}')
-
-                print_el()
-
-            self._n_cpus = n_stn_combs
-
-        if (self._n_cpus > 1) and (self._mp_pool is None):
-            self._mp_pool = ProcessPool(self._n_cpus)
-        return
-
     def verify(self):
 
         SEDS._SimultaneousExtremesDataAndSettings__verify(self)
@@ -131,6 +92,45 @@ class SimultaneousExtremesAlgorithm(SEDS):
                 f'Total simulation time was: '
                 f'{default_timer() - main_sim_beg_time:0.3f} seconds')
             print_el()
+        return
+
+    def _prepare(self):
+
+        self._stn_combs = tuple(combinations(self._data_df.columns, 2))
+
+        n_stn_combs = len(self._stn_combs)
+
+        assert all([len(stn_comb) == 2 for stn_comb in self._stn_combs]), (
+            'Only configured for combinations of two series!')
+
+        self._out_dir.mkdir(exist_ok=True)
+
+        if self._owr_flag or (not self._h5_path.exists()):
+            self._h5_hdl = h5py.File(self._h5_path, mode='w', driver='core')
+
+        else:
+            self._h5_hdl = h5py.File(self._h5_path, mode='r+', driver='core')
+
+        self._h5_hdl['return_periods'] = self._rps
+        self._h5_hdl['time_windows'] = self._tws
+        self._h5_hdl['n_sims'] = self._n_sims
+        self._h5_hdl['n_stn_combs'] = n_stn_combs
+
+        self._h5_hdl.flush()
+
+        if n_stn_combs < self._n_cpus:
+            if self._vb:
+                print_sl()
+
+                print(f'INFO: Reduced the number of running processes from '
+                    f'{self._n_cpus} to {n_stn_combs}')
+
+                print_el()
+
+            self._n_cpus = n_stn_combs
+
+        if (self._n_cpus > 1) and (self._mp_pool is None):
+            self._mp_pool = ProcessPool(self._n_cpus)
         return
 
     def _finalize_sims(self):

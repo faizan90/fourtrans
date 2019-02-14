@@ -164,6 +164,57 @@ class SimultaneousExtremesPlot:
         self._set_plot_verify_flag = True
         return
 
+    def plot(self):
+
+        plot_beg_time = default_timer()
+
+        assert self._set_plot_verify_flag, 'Unverified plotting state!'
+
+        self._prepare()
+
+        if self._vb:
+            print_sl()
+
+            print(f'Plotting simultaneous extremes\' simulation results...')
+
+            print_el()
+
+        sims_grp = self._h5_hdl['simultexts_sims']
+
+        PSE = PlotSimultaneousExtremesMP(self)
+
+        PSE_gen = (stn_comb for stn_comb in sims_grp)
+
+        if self._mp_pool is not None:
+            plot_rets = list(self._mp_pool.uimap(PSE.plot, PSE_gen))
+
+            self._mp_pool.clear()
+
+        else:
+            plot_rets = list(map(PSE.plot, PSE_gen))
+
+        if self._plot_dendrs_flag:
+            plot_ret_dict = {}
+
+            for plot_ret in plot_rets:
+                plot_ret_dict.update(plot_ret)
+
+            PSE.plot_dendrograms(plot_ret_dict)
+
+        self._h5_hdl.close()
+        self._h5_hdl = None
+
+        if self._vb:
+            print_sl()
+
+            print(
+                f'Done plotting simultaneous extremes\' simulation results\n'
+                f'Total plotting time was: '
+                f'{default_timer() - plot_beg_time:0.3f} seconds')
+
+            print_el()
+        return
+
     def _var_chk(self):
 
         main_vars = [
@@ -243,57 +294,6 @@ class SimultaneousExtremesPlot:
 
         return
 
-    def plot(self):
-
-        plot_beg_time = default_timer()
-
-        assert self._set_plot_verify_flag, 'Unverified plotting state!'
-
-        self._prepare()
-
-        if self._vb:
-            print_sl()
-
-            print(f'Plotting simultaneous extremes\' simulation results...')
-
-            print_el()
-
-        sims_grp = self._h5_hdl['simultexts_sims']
-
-        PSE = PlotSimultaneousExtremesMP(self)
-
-        PSE_gen = (stn_comb for stn_comb in sims_grp)
-
-        if self._mp_pool is not None:
-            plot_rets = list(self._mp_pool.uimap(PSE.plot, PSE_gen))
-
-            self._mp_pool.clear()
-
-        else:
-            plot_rets = list(map(PSE.plot, PSE_gen))
-
-        if self._plot_dendrs_flag:
-            plot_ret_dict = {}
-
-            for plot_ret in plot_rets:
-                plot_ret_dict.update(plot_ret)
-
-            PSE.plot_dendrograms(plot_ret_dict)
-
-        self._h5_hdl.close()
-        self._h5_hdl = None
-
-        if self._vb:
-            print_sl()
-
-            print(
-                f'Done plotting simultaneous extremes\' simulation results\n'
-                f'Total plotting time was: '
-                f'{default_timer() - plot_beg_time:0.3f} seconds')
-
-            print_el()
-        return
-
     __verify = verify
 
 
@@ -327,7 +327,9 @@ class PlotSimultaneousExtremesMP:
             self._plot_dendrs_flag,
             self._plot_sim_cdfs_flag,
             self._plot_auto_corrs_flag]), (
-            'None of the plotting flags are True!')
+                'None of the plotting flags are True!')
+
+        self._stn_idxs_swth = (1, 0)
 
         if self._n_cpus > 1:
             self._vb = False
@@ -343,17 +345,45 @@ class PlotSimultaneousExtremesMP:
                 'avg_probs',
                 'min_probs',
                 'max_probs'))
+        return
 
-        self._stn_idxs_swth = (1, 0)
+    def plot(self, stn_comb):
+
+        self._stn_comb = stn_comb
+        self._stn_labs = eval(self._stn_comb)
+
+        assert len(self._stn_labs) == 2, 'Only configured for pairs!'
+
+        if any([self._plot_freqs_flag, self._plot_dendrs_flag]):
+            self._prepare_data()
+
+        if self._plot_freqs_flag:
+            self._plot_frequencies()
+
+        plot_ret = None
+        if self._plot_dendrs_flag:
+            plot_ret = {self._stn_comb:self._freqs_tups}
+
+        if self._plot_sim_cdfs_flag or self._plot_auto_corrs_flag:
+            self._plot_sim_cdfs__corrs()
+
+        return plot_ret
+
+    def plot_dendrograms(self, stn_combs_data_dict):
+
+        rp_tw_dicts = self._get_rp_tw_dicts(stn_combs_data_dict)
+
+        self._plot_dendros(rp_tw_dicts)
         return
 
     def _prepare_data(self):
 
         '''
         Called only when freqs or dendro flags are True.
-        The data for a given combination only. Each call gets there own
+
+        The data is for a given combination only. Each call gets there own
         space. The combined output for each combination can then be used
-        by the plot_dendrograms function.
+        by plot_dendrograms.
         '''
 
         if self._h5_hdl is None:
@@ -380,8 +410,7 @@ class PlotSimultaneousExtremesMP:
 
         if self._plot_freqs_flag:
             # eight tables
-            n_tabs = 8
-            tws_tile = np.tile(self._tws, n_tabs)
+            tws_tile = np.tile(self._tws, 8)
             tws_rpt = np.repeat([
                 'obs_frq',
                 'avg_sim_freq',
@@ -398,15 +427,13 @@ class PlotSimultaneousExtremesMP:
                 f'{tws_rpt[i]}_TW{tws_tile[i]}'
                 for i in range(tws_tile.shape[0])]
 
-        _stn_idxs_swth = (1, 0)
-
         for stn_idx, stn in enumerate(self._stn_labs):
             assert f'neb_evts_{stn}' in self._stn_comb_grp, (
                 f'Required variable neb_evts_{stn} not in the input HDF5!')
 
             neb_evts_arr = self._stn_comb_grp[f'neb_evts_{stn}'][...]
 
-            neb_stn = self._stn_labs[_stn_idxs_swth[stn_idx]]
+            neb_stn = self._stn_labs[self._stn_idxs_swth[stn_idx]]
 
             obs_vals = neb_evts_arr[0]
 
@@ -466,27 +493,25 @@ class PlotSimultaneousExtremesMP:
             self._h5_hdl = None
         return
 
-    def plot(self, stn_comb):
+    def _get_rp_tw_dicts(self, stn_combs_data_dict):
 
-        self._stn_comb = stn_comb
-        self._stn_labs = eval(self._stn_comb)
+        rp_tw_dicts = {}
 
-        assert len(self._stn_labs) == 2, 'Only configured for pairs!'
+        for rp_idx, rp in enumerate(self._rps):
+            for tw_idx, tw in enumerate(self._tws):
 
-        if any([self._plot_freqs_flag, self._plot_dendrs_flag]):
-            self._prepare_data()
+                dendro_dict = {}
+                for stn_comb in stn_combs_data_dict:
+                    for stn in stn_combs_data_dict[stn_comb]:
+                        crd_val = (stn_combs_data_dict[
+                            stn_comb][stn].avg_probs[rp_idx, tw_idx])
 
-        if self._plot_freqs_flag:
-            self._plot_frequencies()
+                        dendro_dict[
+                            f'{stn_comb}_{stn}_{crd_val:0.3f}'] = crd_val
 
-        plot_ret = None
-        if self._plot_dendrs_flag:
-            plot_ret = {self._stn_comb:self._freqs_tups}
+                rp_tw_dicts[f'{rp}_{tw}'] = dendro_dict
 
-        if self._plot_sim_cdfs_flag or self._plot_auto_corrs_flag:
-            self._plot_sim_cdfs__corrs()
-
-        return plot_ret
+        return rp_tw_dicts
 
     def _plot_sim_cdfs__corrs(self):
 
@@ -563,8 +588,8 @@ class PlotSimultaneousExtremesMP:
                 plt.grid()
 
                 plt.title(
-                    f'CDFs for observed and simulated series of station {stn} '
-                    f'for the combination '
+                    f'CDFs for observed and simulated series of station '
+                    f'{stn} for the combination '
                     f'{self._stn_labs[0]} and {self._stn_labs[1]}\n'
                     f'No. of steps: {n_steps}, No. of simulations: '
                     f'{self._n_sims}')
@@ -709,27 +734,6 @@ class PlotSimultaneousExtremesMP:
             self._h5_hdl = None
         return
 
-    def _get_rp_tw_dicts(self, stn_combs_data_dict):
-
-        rp_tw_dicts = {}
-
-        for rp_idx, rp in enumerate(self._rps):
-            for tw_idx, tw in enumerate(self._tws):
-
-                dendro_dict = {}
-                for stn_comb in stn_combs_data_dict:
-                    for stn in stn_combs_data_dict[stn_comb]:
-
-                        crd_val = (stn_combs_data_dict[
-                            stn_comb][stn].avg_probs[rp_idx, tw_idx])
-
-                        dendro_dict[
-                            f'{stn_comb}_{stn}_{crd_val:0.3f}'] = crd_val
-
-                rp_tw_dicts[f'{rp}_{tw}'] = dendro_dict
-
-        return rp_tw_dicts
-
     def _plot_dendros(self, rp_tw_dicts):
 
         fig_size = (16, 8)
@@ -778,13 +782,6 @@ class PlotSimultaneousExtremesMP:
 
             plt.savefig(fig_path, bbox_inches='tight')
             plt.close()
-        return
-
-    def plot_dendrograms(self, stn_combs_data_dict):
-
-        rp_tw_dicts = self._get_rp_tw_dicts(stn_combs_data_dict)
-
-        self._plot_dendros(rp_tw_dicts)
         return
 
     def _plot_frequencies(self):
