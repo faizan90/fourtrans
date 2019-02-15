@@ -21,6 +21,7 @@ class SimultaneousExtremesDataAndSettings:
 
         self._n_cpus = 1
         self._save_sim_sers_flag = False
+        self._ext_steps = 0
 
         self._set_data_flag = False
         self._set_out_dir_flag = False
@@ -202,7 +203,8 @@ class SimultaneousExtremesDataAndSettings:
         self._set_n_sims_flag = True
         return
 
-    def set_misc_settings(self, n_cpus, save_sim_sers_flag):
+    def set_misc_settings(
+            self, n_cpus=1, save_sim_sers_flag=False, extend_steps=0):
 
         if isinstance(n_cpus, int):
             assert n_cpus > 0, 'n_cpus has to be one or more!'
@@ -218,15 +220,25 @@ class SimultaneousExtremesDataAndSettings:
         assert isinstance(save_sim_sers_flag, bool), (
             'save_sim_sers_flag not a boolean value!')
 
+        assert isinstance(extend_steps, int)
+        assert extend_steps >= 0, 'extend_steps can not be less than zero!'
+
         self._n_cpus = n_cpus
         self._save_sim_sers_flag = save_sim_sers_flag
+        self._ext_steps = extend_steps
 
         if self._vb:
             print_sl()
 
+            print(f'INFO: Set the following misc. settings:')
+
+            print('\t', f'Number of parallel processes: {self._n_cpus}')
+
             print(
-                f'INFO: Set the number of running processes to: '
-                f'{self._n_cpus}')
+                '\t',
+                f'Simulation statistics flag: {self._save_sim_sers_flag}')
+
+            print('\t', f'Extend each simulation to {self._ext_steps} steps')
 
             print_el()
         return
@@ -240,7 +252,8 @@ class SimultaneousExtremesDataAndSettings:
         assert self._set_tws_flag, 'Time windows not set!'
         assert self._set_n_sims_flag, 'Number of simulations not set!'
 
-        assert int(1.0 / self._rps.min()) < self._data_df.shape[0], (
+        _n_steps = max(self._ext_steps, self._data_df.shape[0])
+        assert int(1.0 / self._rps.min()) < _n_steps, (
             'Return period(s) longer than available data time steps!')
 
         assert np.any(self._data_df.count().values > (2 * self._tws).max()), (

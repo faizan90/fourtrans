@@ -354,8 +354,10 @@ class PlotSimultaneousExtremesMP:
 
         assert len(self._stn_labs) == 2, 'Only configured for pairs!'
 
-        if any([self._plot_freqs_flag, self._plot_dendrs_flag]):
-            self._prepare_data()
+        if self._h5_hdl is None:
+            self._h5_hdl = h5py.File(self._h5_path, 'r', driver='core')
+
+        self._prepare_data()
 
         if self._plot_freqs_flag:
             self._plot_frequencies()
@@ -367,6 +369,9 @@ class PlotSimultaneousExtremesMP:
         if self._plot_sim_cdfs_flag or self._plot_auto_corrs_flag:
             self._plot_sim_cdfs__corrs()
 
+        if self._n_cpus > 1:
+            self._h5_hdl.close()
+            self._h5_hdl = None
         return plot_ret
 
     def plot_dendrograms(self, stn_combs_data_dict):
@@ -386,9 +391,6 @@ class PlotSimultaneousExtremesMP:
         by plot_dendrograms.
         '''
 
-        if self._h5_hdl is None:
-            self._h5_hdl = h5py.File(self._h5_path, 'r', driver='core')
-
         assert self._stn_comb in self._h5_hdl['simultexts_sims'], (
             f'Given combination {self._stn_comb} not in the input HDF5!')
 
@@ -398,15 +400,23 @@ class PlotSimultaneousExtremesMP:
             f'Required variable ref_evts for the given combination '
             f'not in the input HDF5!')
 
+        assert 'ref_evts_ext' in self._stn_comb_grp, (
+            f'Required variable ref_evts_ext for the given combination '
+            f'not in the input HDF5!')
+
         assert 'n_steps' in self._stn_comb_grp, (
             f'Required variable n_steps for the given combination '
             f'not in the input HDF5!')
 
+        assert 'n_steps_ext' in self._stn_comb_grp, (
+            f'Required variable n_steps_ext for the given combination '
+            f'not in the input HDF5!')
+
         self._ref_evts_arr = self._stn_comb_grp['ref_evts'][...]
+        self._ref_evts_ext_arr = self._stn_comb_grp['ref_evts_ext'][...]
 
         self._n_steps = self._stn_comb_grp['n_steps'][...]
-
-        self._freqs_tups = {}
+        self._n_steps_ext = self._stn_comb_grp['n_steps_ext'][...]
 
         if self._plot_freqs_flag:
             # eight tables
@@ -423,74 +433,86 @@ class PlotSimultaneousExtremesMP:
 
             assert tws_rpt.shape[0] == tws_tile.shape[0]
 
-            tab_header = ['exd_prob', 'n_ref_evts'] + [
+            tab_header = ['exd_prob', 'n_ref_evts', 'n_ref_ext_evts'] + [
                 f'{tws_rpt[i]}_TW{tws_tile[i]}'
                 for i in range(tws_tile.shape[0])]
 
-        for stn_idx, stn in enumerate(self._stn_labs):
-            assert f'neb_evts_{stn}' in self._stn_comb_grp, (
-                f'Required variable neb_evts_{stn} not in the input HDF5!')
+        ref_evts_rshp = self._ref_evts_arr.reshape(-1, 1).copy()
+        ref_evts_rshp[~ref_evts_rshp.astype(bool)] = 1
+        ref_evts_ext_scl_rshp = (
+            self._ref_evts_ext_arr / self._ref_evts_arr).reshape(-1, 1)
 
-            neb_evts_arr = self._stn_comb_grp[f'neb_evts_{stn}'][...]
+        ref_evts_ext_scl_rshp[np.isfinite(ref_evts_ext_scl_rshp)] = 1
 
-            neb_stn = self._stn_labs[self._stn_idxs_swth[stn_idx]]
+        if self._plot_freqs_flag or self._plot_dendrs_flag:
+            self._freqs_tups = {}
+            for stn_idx, stn in enumerate(self._stn_labs):
+                assert f'neb_evts_{stn}' in self._stn_comb_grp, (
+                    f'Required variable neb_evts_{stn} not in the '
+                    f'input HDF5!')
 
-            obs_vals = neb_evts_arr[0]
+                neb_evts_arr = self._stn_comb_grp[f'neb_evts_{stn}'][...]
 
-            sim_avgs = np.round(neb_evts_arr[1:].mean(axis=0)).astype(int)
-            sim_maxs = np.round(neb_evts_arr[1:].max(axis=0)).astype(int)
-            sim_mins = np.round(neb_evts_arr[1:].min(axis=0)).astype(int)
-            sim_stds = np.round(neb_evts_arr[1:].std(axis=0), 2)
+                neb_stn = self._stn_labs[self._stn_idxs_swth[stn_idx]]
 
-            avg_probs = np.round(
-                sim_avgs / self._ref_evts_arr.reshape(-1, 1), 3)
+                obs_vals = neb_evts_arr[0]
 
-            min_probs = np.round(
-                sim_mins / self._ref_evts_arr.reshape(-1, 1), 3)
+                sim_avgs = np.round(
+                    neb_evts_arr[1:].mean(axis=0) /
+                    ref_evts_ext_scl_rshp).astype(int)
 
-            max_probs = np.round(
-                sim_maxs / self._ref_evts_arr.reshape(-1, 1), 3)
+                sim_maxs = np.round(
+                    neb_evts_arr[1:].max(axis=0) /
+                    ref_evts_ext_scl_rshp).astype(int)
 
-            self._freqs_tups[stn] = self._FreqTup(
-                obs_vals,
-                sim_avgs,
-                sim_maxs,
-                sim_mins,
-                sim_stds,
-                avg_probs,
-                min_probs,
-                max_probs,
-                )
+                sim_mins = np.round(
+                    neb_evts_arr[1:].min(axis=0) /
+                    ref_evts_ext_scl_rshp).astype(int)
 
-            if self._plot_freqs_flag:
-                table_concat = np.concatenate((
-                    self._rps.reshape(-1, 1),
-                    self._ref_evts_arr.reshape(-1, 1),
+                sim_stds = np.round(
+                    neb_evts_arr[1:].std(axis=0) /
+                     ref_evts_ext_scl_rshp, 2)
+
+                avg_probs = np.round(sim_avgs / ref_evts_rshp , 3)
+                min_probs = np.round(sim_mins / ref_evts_rshp , 3)
+                max_probs = np.round(sim_maxs / ref_evts_rshp , 3)
+
+                self._freqs_tups[stn] = self._FreqTup(
                     obs_vals,
                     sim_avgs,
-                    sim_mins,
                     sim_maxs,
+                    sim_mins,
                     sim_stds,
                     avg_probs,
                     min_probs,
                     max_probs,
-                    ), axis=1)
+                    )
 
-                out_stats_df = pd.DataFrame(
-                    data=table_concat,
-                    columns=tab_header,
-                    dtype=float)
+                if self._plot_freqs_flag:
+                    table_concat = np.concatenate((
+                        self._rps.reshape(-1, 1),
+                        self._ref_evts_arr.reshape(-1, 1),
+                        self._ref_evts_ext_arr.reshape(-1, 1),
+                        obs_vals,
+                        sim_avgs,
+                        sim_mins,
+                        sim_maxs,
+                        sim_stds,
+                        avg_probs,
+                        min_probs,
+                        max_probs,
+                        ), axis=1)
 
-                tab_name = f'simult_ext_stats_{stn}_{neb_stn}.csv'
+                    out_stats_df = pd.DataFrame(
+                        data=table_concat,
+                        columns=tab_header)
 
-                out_stats_df.to_csv(
-                    self._out_dirs_dict['freq_tabs'] / tab_name,
-                    sep=';',
-                    float_format='%0.4f')
+                    tab_name = f'simult_ext_stats_{stn}_{neb_stn}.csv'
 
-        if self._n_cpus > 1:
-            self._h5_hdl.close()
-            self._h5_hdl = None
+                    out_stats_df.to_csv(
+                        self._out_dirs_dict['freq_tabs'] / tab_name,
+                        sep=';',
+                        float_format='%0.8f')
         return
 
     def _get_rp_tw_dicts(self, stn_combs_data_dict):
@@ -517,22 +539,15 @@ class PlotSimultaneousExtremesMP:
 
         fig_size = (15, 6)
 
-        if self._h5_hdl is None:
-            self._h5_hdl = h5py.File(self._h5_path, 'r', driver='core')
-
-        assert self._stn_comb in self._h5_hdl['simultexts_sims'], (
-            f'Simulated data for the given combination {self._stn_comb} '
-            f'not in the input HDF5!')
-
         stn_comb_grp = self._h5_hdl['simultexts_sims'][self._stn_comb]
 
-        assert 'n_steps' in stn_comb_grp, (
-            f'Required variable n_steps for the given combination '
-            f'not in the input HDF5!')
+        probs = (
+            np.arange(1, 1 + self._n_steps, dtype=float) /
+            (self._n_steps + 1))
 
-        n_steps = stn_comb_grp['n_steps'][...]
-
-        probs = np.arange(1, 1 + n_steps, dtype=float) / (n_steps + 1)
+        probs_ext = (
+            np.arange(1, 1 + self._n_steps_ext, dtype=float) /
+            (self._n_steps_ext + 1))
 
         for stn in self._stn_labs:
             assert f'sim_stats_{stn}' in stn_comb_grp, (
@@ -551,7 +566,7 @@ class PlotSimultaneousExtremesMP:
 
                 plt.plot(
                     sort_min_stn_sim_sers,
-                    probs,
+                    probs_ext,
                     color='C0',
                     alpha=0.5,
                     label='min_sim',
@@ -559,7 +574,7 @@ class PlotSimultaneousExtremesMP:
 
                 plt.plot(
                     sort_max_stn_sim_sers,
-                    probs,
+                    probs_ext,
                     color='C1',
                     alpha=0.5,
                     label='max_sim',
@@ -567,14 +582,14 @@ class PlotSimultaneousExtremesMP:
 
                 plt.plot(
                     sort_avg_stn_sim_sers,
-                    probs,
+                    probs_ext,
                     color='b',
                     alpha=0.7,
                     label='mean_sim',
                     lw=1.5)
 
                 plt.plot(
-                    sort_stn_refr_ser,
+                    sort_stn_refr_ser[:self._n_steps],
                     probs,
                     color='r',
                     alpha=0.7,
@@ -591,8 +606,9 @@ class PlotSimultaneousExtremesMP:
                     f'CDFs for observed and simulated series of station '
                     f'{stn} for the combination '
                     f'{self._stn_labs[0]} and {self._stn_labs[1]}\n'
-                    f'No. of steps: {n_steps}, No. of simulations: '
-                    f'{self._n_sims}')
+                    f'No. of common steps: {self._n_steps}, '
+                    f'No. of extended steps: {self._n_steps_ext}, '
+                    f'No. of simulations: {self._n_sims}')
 
                 plt.tight_layout()
 
@@ -653,8 +669,9 @@ class PlotSimultaneousExtremesMP:
                     f'Pearson autocorrelations for observed and simulated '
                     f'series of station {stn} for the combination '
                     f'{self._stn_labs[0]} and {self._stn_labs[1]}\n'
-                    f'No. of steps: {n_steps}, No. of simulations: '
-                    f'{self._n_sims}')
+                    f'No. of common steps: {self._n_steps}, '
+                    f'No. of extended steps: {self._n_steps_ext}, '
+                    f'No. of simulations: {self._n_sims}')
 
                 plt.tight_layout()
 
@@ -714,8 +731,9 @@ class PlotSimultaneousExtremesMP:
                     f'Spearman autocorrelations for observed and simulated '
                     f'series of station {stn} for the combination '
                     f'{self._stn_labs[0]} and {self._stn_labs[1]}\n'
-                    f'No. of steps: {n_steps}, No. of simulations: '
-                    f'{self._n_sims}')
+                    f'No. of common steps: {self._n_steps}, '
+                    f'No. of extended steps: {self._n_steps_ext}, '
+                    f'No. of simulations: {self._n_sims}')
 
                 plt.tight_layout()
 
@@ -728,10 +746,6 @@ class PlotSimultaneousExtremesMP:
                     bbox_inches='tight')
 
                 plt.close()
-
-        if self._n_cpus > 1:
-            self._h5_hdl.close()
-            self._h5_hdl = None
         return
 
     def _plot_dendros(self, rp_tw_dicts):
@@ -793,7 +807,8 @@ class PlotSimultaneousExtremesMP:
         fig_size = (15, 6)
 
         row_lab_strs = [
-            f'{self._rps[i]} ({self._ref_evts_arr[i]})'
+            f'{self._rps[i]} ({self._ref_evts_arr[i]}, '
+            f'{self._ref_evts_ext_arr[i]})'
             for i in range(self._rps.shape[0])]
 
         col_hdr_clrs = [[0.75] * 4] * self._tws.shape[0]
@@ -859,7 +874,9 @@ class PlotSimultaneousExtremesMP:
                     row_colors = None
 
                 if tbl.j == (n_fig_cols - 1):
-                    y_label = 'Exceedance Probability\n(No. of events)'
+                    y_label = (
+                        'Exceedance Probability\n(No. of common events\n'
+                        'No. of extended events)')
 
                 else:
                     y_label = None
@@ -891,8 +908,9 @@ class PlotSimultaneousExtremesMP:
 
             plt.suptitle(
                 f'Reference station: {stn}, Nebor station: {neb_stn}\n'
-                f'No. of steps: {self._n_steps}, No. of simulations: '
-                f'{self._n_sims}',
+                f'No. of common steps: {self._n_steps}, '
+                f'No. of extended steps: {self._n_steps_ext}, '
+                f'No. of simulations: {self._n_sims}',
                 x=0.5,
                 y=n_tab_rows / max_tab_rows,
                 va='bottom')

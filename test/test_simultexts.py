@@ -20,19 +20,21 @@ def main():
 
     in_file = r'neckar_daily_discharge_1961_2015.csv'
 
-    out_dir = 'test_simultexts_save_sers_03'
+    out_dir = 'test_simultexts_extend_02'
 
     out_h5 = os.path.join(out_dir, 'simultexts_db.hdf5')
 
     stns = ['420', '427', '454']
 
-    return_periods = [0.001, 0.005, 0.0001, 0.0005]
+    return_periods = [0.001, 0.005, 0.0001, 0.0005, 0.00001]
 
     time_windows = [2, 10, 1, 3, 0]
 
-    n_sims = 1000
+    n_sims = 1
 
-    n_cpus = 'auto'
+    n_cpus = 1  # 'auto'
+
+    n_steps_extend = int(1e5)
 
     verbose_flag = False
     overwrite_flag = False
@@ -45,12 +47,12 @@ def main():
 
     verbose_flag = True
     overwrite_flag = True
-    cmpt_simultexts_flag = True
-    save_sim_sers_flag = True
+#     cmpt_simultexts_flag = True
+#     save_sim_sers_flag = True
     plot_freqs_flag = True
     plot_dendrs_flag = True
-    plot_sim_cdfs_flag = True
-    plot_sim_auto_corrs = True
+#     plot_sim_cdfs_flag = True
+#     plot_sim_auto_corrs = True
 
     in_df = pd.read_csv(in_file, sep=';', index_col=0)
 
@@ -74,7 +76,8 @@ def main():
 
         SE.set_misc_settings(
             n_cpus,
-            save_sim_sers_flag)
+            save_sim_sers_flag,
+            n_steps_extend)
 
         SE.verify()
 
