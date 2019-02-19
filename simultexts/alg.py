@@ -21,10 +21,13 @@ class SimultaneousExtremesAlgorithm(SEDS):
     def __init__(self, verbose=True, overwrite=True):
 
         SEDS.__init__(self, verbose=verbose)
+
         self._owr_flag = bool(overwrite)
 
         self._h5_hdl = None
         self._mp_pool = None
+
+        self._max_acorr_steps = 500
 
         self._set_alg_verify_flag = False
         return
@@ -83,7 +86,12 @@ class SimultaneousExtremesAlgorithm(SEDS):
 
             self._h5_hdl.flush()
 
-        self._finalize_sims()
+        self._h5_hdl.close()
+        self._h5_hdl = None
+
+        if self._mp_pool is not None:
+            self._mp_pool.join()
+            self._mp_pool = None
 
         if self._vb:
             print_sl()
@@ -133,12 +141,6 @@ class SimultaneousExtremesAlgorithm(SEDS):
             self._mp_pool = ProcessPool(self._n_cpus)
         return
 
-    def _finalize_sims(self):
-
-        self._h5_hdl.close()
-        self._h5_hdl = None
-        return
-
     __verify = verify
 
 
@@ -156,6 +158,7 @@ class SimultaneousExtremesFrequencyComputerMP:
             '_n_cpus',
             '_save_sim_sers_flag',
             '_ext_steps',
+            '_max_acorr_steps',
             ]
 
         for _var in take_sea_cls_var_labs:
@@ -166,11 +169,6 @@ class SimultaneousExtremesFrequencyComputerMP:
         if self._n_cpus > 1:
             self._vb = False
 
-        assert np.all((self._rps[1:] - self._rps[:-1]) > 0), (
-            'rps not ascending!')
-
-        assert np.all((self._tws[1:] - self._tws[:-1]) > 0), (
-            'tws not ascending!')
         return
 
     def get_stn_comb_freqs(self, obs_vals_df):
@@ -194,6 +192,8 @@ class SimultaneousExtremesFrequencyComputerMP:
             obs_vals_df = obs_vals_df.iloc[:-1]
 
         n_steps = obs_vals_df.shape[0]
+
+        assert np.any(obs_vals_df.count().values)
 
         if self._ext_steps:
             n_steps_ext = n_steps * int(np.ceil(self._ext_steps / n_steps))
@@ -356,7 +356,8 @@ class SimultaneousExtremesFrequencyComputerMP:
             if self._save_sim_sers_flag:
                 for i in range(n_combs):
                     key = f'sim_sers_{stn_comb[i]}'
-                    stns_sims_dict[key][sim_no, :] = sim_vals_df.iloc[:, i]
+                    stns_sims_dict[key][sim_no, :] = (
+                        sim_vals_df.iloc[:, i].values)
 
             for ref_stn_idx, ref_stn in enumerate(stn_comb):
                 max_rp_ge_idxs = (
@@ -425,7 +426,7 @@ class SimultaneousExtremesFrequencyComputerMP:
             sort_max_stn_sim_sers = sort_stn_sim_sers.max(axis=0)
 
             # for now, just a few steps
-            n_corr_steps = min(500, n_steps)
+            n_corr_steps = min(self._max_acorr_steps, n_steps)
 
             auto_pcorrs = np.full((self._n_sims + 1, n_corr_steps), np.nan)
             auto_scorrs = auto_pcorrs.copy()

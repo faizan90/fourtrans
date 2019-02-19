@@ -20,7 +20,7 @@ def main():
 
     in_file = r'neckar_daily_discharge_1961_2015.csv'
 
-    out_dir = 'test_simultexts_extend_02'
+    out_dir = 'test_simultexts_extend_03'
 
     out_h5 = os.path.join(out_dir, 'simultexts_db.hdf5')
 
@@ -30,11 +30,11 @@ def main():
 
     time_windows = [2, 10, 1, 3, 0]
 
-    n_sims = 1
+    n_sims = 2
 
-    n_cpus = 1  # 'auto'
+    n_cpus = 'auto'
 
-    n_steps_extend = int(1e5)
+    n_steps_extend = int(4e4)
 
     verbose_flag = False
     overwrite_flag = False
@@ -49,8 +49,8 @@ def main():
     overwrite_flag = True
 #     cmpt_simultexts_flag = True
 #     save_sim_sers_flag = True
-    plot_freqs_flag = True
-    plot_dendrs_flag = True
+#     plot_freqs_flag = True
+#     plot_dendrs_flag = True
 #     plot_sim_cdfs_flag = True
 #     plot_sim_auto_corrs = True
 

@@ -103,7 +103,7 @@ class SimultaneousExtremesPlot:
             print_sl()
 
             print(
-                f'INFO: Set the number of running processes to: '
+                f'INFO: Set the number of running processes to '
                 f'{self._n_cpus}')
 
             print_el()
@@ -203,6 +203,10 @@ class SimultaneousExtremesPlot:
 
         self._h5_hdl.close()
         self._h5_hdl = None
+
+        if self._mp_pool is not None:
+            self._mp_pool.join()
+            self._mp_pool = None
 
         if self._vb:
             print_sl()
@@ -420,8 +424,8 @@ class PlotSimultaneousExtremesMP:
 
         if self._plot_freqs_flag:
             # eight tables
-            tws_tile = np.tile(self._tws, 8)
-            tws_rpt = np.repeat([
+
+            _tab_labs = [
                 'obs_frq',
                 'avg_sim_freq',
                 'min_sim_freq',
@@ -429,7 +433,10 @@ class PlotSimultaneousExtremesMP:
                 'std_sim_freq',
                 'avg_sim_prob',
                 'min_sim_prob',
-                'max_sim_prob'], self._tws.shape[0])
+                'max_sim_prob']
+
+            tws_tile = np.tile(self._tws, len(_tab_labs))
+            tws_rpt = np.repeat(_tab_labs, self._tws.shape[0])
 
             assert tws_rpt.shape[0] == tws_tile.shape[0]
 
@@ -440,12 +447,13 @@ class PlotSimultaneousExtremesMP:
         ref_evts_rshp = self._ref_evts_arr.reshape(-1, 1).copy()
         ref_evts_rshp[~ref_evts_rshp.astype(bool)] = 1
         ref_evts_ext_scl_rshp = (
-            self._ref_evts_ext_arr / self._ref_evts_arr).reshape(-1, 1)
+            self._ref_evts_ext_arr.reshape(-1, 1) / ref_evts_rshp)
 
         ref_evts_ext_scl_rshp[np.isfinite(ref_evts_ext_scl_rshp)] = 1
 
         if self._plot_freqs_flag or self._plot_dendrs_flag:
             self._freqs_tups = {}
+
             for stn_idx, stn in enumerate(self._stn_labs):
                 assert f'neb_evts_{stn}' in self._stn_comb_grp, (
                     f'Required variable neb_evts_{stn} not in the '
@@ -783,6 +791,8 @@ class PlotSimultaneousExtremesMP:
             plt.ylabel('Linkage distance')
 
             rp, tw = rp_tw_comb.split('_')
+
+            rp = f'{float(rp):0.16f}'.rstrip('0')
 
             plt.title(
                 f'Simulated simultaneous extreme event occurence clusters '

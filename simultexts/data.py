@@ -49,7 +49,7 @@ class SimultaneousExtremesDataAndSettings:
 
         assert time_ser_df.shape[0], 'No time steps in time_ser_df!'
 
-        assert time_ser_df.shape[1], (
+        assert time_ser_df.shape[1] >= 2, (
             'Atleast two columns required in time_ser_df!')
 
         assert not time_ser_df.index.duplicated(keep=False).sum(), (
@@ -102,6 +102,7 @@ class SimultaneousExtremesDataAndSettings:
         return
 
     def set_output_hdf5_path(self, hdf5_path):
+
         assert isinstance(hdf5_path, (str, Path)), (
             'hdf5_path not a string or Path object!')
 
@@ -170,7 +171,6 @@ class SimultaneousExtremesDataAndSettings:
             np.unique(time_windows).shape[0] == time_windows.shape[0]), (
                 'Non-unique elements in time_windows!')
 
-        # sorting is important! the algorithm depends on it
         self._tws = np.sort(time_windows)
 
         if self._vb:
@@ -196,7 +196,7 @@ class SimultaneousExtremesDataAndSettings:
         if self._vb:
             print_sl()
 
-            print(f'INFO: Set the number of simulations to: {self._n_sims}')
+            print(f'INFO: Set the number of simulations to {self._n_sims}')
 
             print_el()
 
@@ -251,14 +251,6 @@ class SimultaneousExtremesDataAndSettings:
         assert self._set_ret_prd_flag, 'Return periods not set!'
         assert self._set_tws_flag, 'Time windows not set!'
         assert self._set_n_sims_flag, 'Number of simulations not set!'
-
-        _n_steps = max(self._ext_steps, self._data_df.shape[0])
-        assert int(1.0 / self._rps.min()) < _n_steps, (
-            'Return period(s) longer than available data time steps!')
-
-        assert np.any(self._data_df.count().values > (2 * self._tws).max()), (
-            'Time windows are wider than available data time steps '
-            'for all series!')
 
         if self._vb:
             print_sl()
