@@ -222,7 +222,7 @@ class SimultaneousExtremesPlot:
     def _var_chk(self):
 
         main_vars = [
-            'return_periods',
+            'excd_probs',
             'time_windows',
             'n_sims',
             'simultexts_sims']
@@ -258,7 +258,7 @@ class SimultaneousExtremesPlot:
 
         self._var_chk()
 
-        self._rps = self._h5_hdl['return_periods'][...]
+        self._eps = self._h5_hdl['excd_probs'][...]
         self._tws = self._h5_hdl['time_windows'][...]
         self._n_sims = self._h5_hdl['n_sims'][...]
 
@@ -309,7 +309,7 @@ class PlotSimultaneousExtremesMP:
 
         take_sep_cls_var_labs = [
             '_vb',
-            '_rps',
+            '_eps',
             '_tws',
             '_n_sims',
             '_n_cpus',
@@ -380,9 +380,9 @@ class PlotSimultaneousExtremesMP:
 
     def plot_dendrograms(self, stn_combs_data_dict):
 
-        rp_tw_dicts = self._get_rp_tw_dicts(stn_combs_data_dict)
+        ep_tw_dicts = self._get_ep_tw_dicts(stn_combs_data_dict)
 
-        self._plot_dendros(rp_tw_dicts)
+        self._plot_dendros(ep_tw_dicts)
         return
 
     def _prepare_data(self):
@@ -449,7 +449,8 @@ class PlotSimultaneousExtremesMP:
         ref_evts_ext_scl_rshp = (
             self._ref_evts_ext_arr.reshape(-1, 1) / ref_evts_rshp)
 
-        ref_evts_ext_scl_rshp[np.isfinite(ref_evts_ext_scl_rshp)] = 1
+        ref_evts_ext_scl_rshp[~np.isfinite(ref_evts_ext_scl_rshp)] = 1
+        ref_evts_ext_scl_rshp[~ref_evts_ext_scl_rshp.astype(bool)] = 1
 
         if self._plot_freqs_flag or self._plot_dendrs_flag:
             self._freqs_tups = {}
@@ -498,7 +499,7 @@ class PlotSimultaneousExtremesMP:
 
                 if self._plot_freqs_flag:
                     table_concat = np.concatenate((
-                        self._rps.reshape(-1, 1),
+                        self._eps.reshape(-1, 1),
                         self._ref_evts_arr.reshape(-1, 1),
                         self._ref_evts_ext_arr.reshape(-1, 1),
                         obs_vals,
@@ -523,25 +524,25 @@ class PlotSimultaneousExtremesMP:
                         float_format='%0.8f')
         return
 
-    def _get_rp_tw_dicts(self, stn_combs_data_dict):
+    def _get_ep_tw_dicts(self, stn_combs_data_dict):
 
-        rp_tw_dicts = {}
+        ep_tw_dicts = {}
 
-        for rp_idx, rp in enumerate(self._rps):
+        for ep_idx, ep in enumerate(self._eps):
             for tw_idx, tw in enumerate(self._tws):
 
                 dendro_dict = {}
                 for stn_comb in stn_combs_data_dict:
                     for stn in stn_combs_data_dict[stn_comb]:
                         crd_val = (stn_combs_data_dict[
-                            stn_comb][stn].avg_probs[rp_idx, tw_idx])
+                            stn_comb][stn].avg_probs[ep_idx, tw_idx])
 
                         dendro_dict[
                             f'{stn_comb}_{stn}_{crd_val:0.3f}'] = crd_val
 
-                rp_tw_dicts[f'{rp}_{tw}'] = dendro_dict
+                ep_tw_dicts[f'{ep}_{tw}'] = dendro_dict
 
-        return rp_tw_dicts
+        return ep_tw_dicts
 
     def _plot_sim_cdfs__corrs(self):
 
@@ -573,6 +574,22 @@ class PlotSimultaneousExtremesMP:
                 plt.figure(figsize=fig_size)
 
                 plt.plot(
+                    sort_stn_refr_ser[:self._n_steps],
+                    probs,
+                    color='r',
+                    alpha=0.7,
+                    label='obs',
+                    lw=1.5)
+
+                plt.plot(
+                    sort_avg_stn_sim_sers,
+                    probs_ext,
+                    color='b',
+                    alpha=0.7,
+                    label='mean_sim',
+                    lw=1.5)
+
+                plt.plot(
                     sort_min_stn_sim_sers,
                     probs_ext,
                     color='C0',
@@ -587,22 +604,6 @@ class PlotSimultaneousExtremesMP:
                     alpha=0.5,
                     label='max_sim',
                     lw=1)
-
-                plt.plot(
-                    sort_avg_stn_sim_sers,
-                    probs_ext,
-                    color='b',
-                    alpha=0.7,
-                    label='mean_sim',
-                    lw=1.5)
-
-                plt.plot(
-                    sort_stn_refr_ser[:self._n_steps],
-                    probs,
-                    color='r',
-                    alpha=0.7,
-                    label='obs',
-                    lw=1.5)
 
                 plt.xlabel('Probability')
                 plt.ylabel('Value')
@@ -756,23 +757,23 @@ class PlotSimultaneousExtremesMP:
                 plt.close()
         return
 
-    def _plot_dendros(self, rp_tw_dicts):
+    def _plot_dendros(self, ep_tw_dicts):
 
         fig_size = (16, 8)
 
         _prs_pt = '(\'{}\', \'{}\')_{}_{:0.3f}'
 
-        for rp_tw_comb in rp_tw_dicts:
+        for ep_tw_comb in ep_tw_dicts:
             dendro_labs = []
 
-            for stn_comb_mean_prob in rp_tw_dicts[rp_tw_comb].keys():
+            for stn_comb_mean_prob in ep_tw_dicts[ep_tw_comb].keys():
                 stn_1, stn_2, ref_stn, mean_prob = search(
                     _prs_pt, stn_comb_mean_prob)
 
                 dendro_labs.append(
                     f'{stn_1} & {stn_2} ({ref_stn}, {mean_prob})')
 
-            mean_probs = np.array(list(rp_tw_dicts[rp_tw_comb].values()))
+            mean_probs = np.array(list(ep_tw_dicts[ep_tw_comb].values()))
 
             linkage = hierarchy.linkage(mean_probs.reshape(-1, 1), 'median')
 
@@ -790,16 +791,16 @@ class PlotSimultaneousExtremesMP:
 
             plt.ylabel('Linkage distance')
 
-            rp, tw = rp_tw_comb.split('_')
+            ep, tw = ep_tw_comb.split('_')
 
-            rp = f'{float(rp):0.16f}'.rstrip('0')
+            ep = f'{float(ep):0.16f}'.rstrip('0')
 
             plt.title(
                 f'Simulated simultaneous extreme event occurence clusters '
-                f'for event exeecedance probabilty: {rp} and time window: '
+                f'for event exeecedance probability: {ep} and time window: '
                 f'{tw} steps')
 
-            fig_name = f'dendrogram_EP{rp}_TW{tw}.png'
+            fig_name = f'dendrogram_EP{ep}_TW{tw}.png'
             fig_path = str(self._out_dirs_dict['dend_figs'] / fig_name)
 
             plt.tight_layout()
@@ -817,14 +818,14 @@ class PlotSimultaneousExtremesMP:
         fig_size = (15, 6)
 
         row_lab_strs = [
-            f'{self._rps[i]} ({self._ref_evts_arr[i]}, '
+            f'{self._eps[i]} ({self._ref_evts_arr[i]}, '
             f'{self._ref_evts_ext_arr[i]})'
-            for i in range(self._rps.shape[0])]
+            for i in range(self._eps.shape[0])]
 
         col_hdr_clrs = [[0.75] * 4] * self._tws.shape[0]
-        row_hdr_clrs = [[0.75] * 4] * self._rps.shape[0]
+        row_hdr_clrs = [[0.75] * 4] * self._eps.shape[0]
 
-        max_tab_rows = self._rps.shape[0]
+        max_tab_rows = self._eps.shape[0]
 
         for stn_idx, stn in enumerate(self._stn_labs):
 
@@ -866,14 +867,14 @@ class PlotSimultaneousExtremesMP:
                     tcol_labs = self._tws
                     x_label = None
                     col_colors = col_hdr_clrs
-                    n_tab_rows = self._rps.shape[0] + 1
+                    n_tab_rows = self._eps.shape[0] + 1
 
                 else:
                     tcol_labs = None
                     x_label = 'Time window'
                     col_colors = None
 
-                    n_tab_rows = self._rps.shape[0]
+                    n_tab_rows = self._eps.shape[0]
 
                 if not tbl.j:
                     trow_labs = row_lab_strs
@@ -885,8 +886,8 @@ class PlotSimultaneousExtremesMP:
 
                 if tbl.j == (n_fig_cols - 1):
                     y_label = (
-                        'Exceedance Probability\n(No. of common events\n'
-                        'No. of extended events)')
+                        'Exceedance Probability\n(No. of common events,\n'
+                        'No. of extended common events)')
 
                 else:
                     y_label = None

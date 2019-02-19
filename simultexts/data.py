@@ -26,7 +26,7 @@ class SimultaneousExtremesDataAndSettings:
         self._set_data_flag = False
         self._set_out_dir_flag = False
         self._h5_path_set_flag = False
-        self._set_ret_prd_flag = False
+        self._set_excd_probs_flag = False
         self._set_tws_flag = False
         self._set_n_sims_flag = False
 
@@ -113,42 +113,50 @@ class SimultaneousExtremesDataAndSettings:
         self._h5_path_set_flag = True
         return
 
-    def set_return_periods(self, return_periods):
+    def set_exceedance_probabilities(self, exceedance_probabilities):
 
-        assert isinstance(return_periods, np.ndarray), (
-            'return_periods not a numpy array!')
+        assert isinstance(exceedance_probabilities, np.ndarray), (
+            'exceedance_probabilities not a numpy array!')
 
-        assert return_periods.ndim == 1, (
-            'return_periods cannot have more than one dimension!')
+        assert exceedance_probabilities.ndim == 1, (
+            'exceedance_probabilities cannot have more than one dimension!')
 
-        assert np.issubdtype(return_periods.dtype, np.floating), (
-            'return_periods\'s values not of floating type!')
+        assert np.issubdtype(exceedance_probabilities.dtype, np.floating), (
+            'exceedance_probabilities\'s values not of floating type!')
 
-        assert np.all(np.isfinite(return_periods)), (
-            'Invalid values in return_periods!')
+        assert np.all(np.isfinite(exceedance_probabilities)), (
+            'Invalid values in exceedance_probabilities!')
 
-        assert np.all((return_periods > 0) & (return_periods < 1)), (
-            'Return periods can\'t be less than or equal to zero or '
-            'greater than or equal to one!')
+        assert np.all(
+            (exceedance_probabilities > 0) &
+            (exceedance_probabilities < 1)), (
+                'All values in exceedance_probabilities must be between'
+                'zero and one!')
 
-        assert return_periods.shape[0], 'No elements in return_periods!'
+        assert exceedance_probabilities.shape[0], (
+            'No elements in exceedance_probabilities!')
 
-        assert np.all(np.unique(return_periods) == np.sort(return_periods)), (
-            'Non-unique elements in return_periods!')
+        assert np.all(
+            np.unique(exceedance_probabilities) ==
+            np.sort(exceedance_probabilities)), (
+                'Non-unique elements in exceedance_probabilities!')
 
-        # sorting is important! the algorithm depends on it
-        self._rps = np.sort(return_periods)
+        self._eps = np.sort(exceedance_probabilities)
 
         if self._vb:
             print_sl()
 
-            print('INFO: Set the return periods as following:')
-            print('\t', f'Number of return periods: {self._rps.shape[0]}')
-            print('\t', f'{self._rps}')
+            print('INFO: Set the exceedance probabilities as following:')
+
+            print(
+                '\t',
+                f'Number of exceedance probabilities: {self._eps.shape[0]}')
+
+            print('\t', f'{self._eps}')
 
             print_el()
 
-        self._set_ret_prd_flag = True
+        self._set_excd_probs_flag = True
         return
 
     def set_time_windows(self, time_windows):
@@ -248,7 +256,7 @@ class SimultaneousExtremesDataAndSettings:
         assert self._set_data_flag, 'Data not set!'
         assert self._set_out_dir_flag, 'Outputs directory not set!'
         assert self._h5_path_set_flag, 'Output HDF5 path not set!'
-        assert self._set_ret_prd_flag, 'Return periods not set!'
+        assert self._set_excd_probs_flag, 'Exceedance probabilities not set!'
         assert self._set_tws_flag, 'Time windows not set!'
         assert self._set_n_sims_flag, 'Number of simulations not set!'
 

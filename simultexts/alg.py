@@ -119,7 +119,7 @@ class SimultaneousExtremesAlgorithm(SEDS):
         else:
             self._h5_hdl = h5py.File(self._h5_path, mode='r+', driver='core')
 
-        self._h5_hdl['return_periods'] = self._rps
+        self._h5_hdl['excd_probs'] = self._eps
         self._h5_hdl['time_windows'] = self._tws
         self._h5_hdl['n_sims'] = self._n_sims
         self._h5_hdl['n_stn_combs'] = n_stn_combs
@@ -152,7 +152,7 @@ class SimultaneousExtremesFrequencyComputerMP:
 
         take_sea_cls_var_labs = [
             '_vb',
-            '_rps',
+            '_eps',
             '_tws',
             '_n_sims',
             '_n_cpus',
@@ -224,17 +224,17 @@ class SimultaneousExtremesFrequencyComputerMP:
                     'this combination!')
             return
 
-        max_rp = self._rps.max()
-        for rp in self._rps:
-            if ((1 // rp) > n_steps_ext) or (rp < max_rp):
+        max_ep = self._eps.max()
+        for ep in self._eps:
+            if ((1 // ep) > n_steps_ext) or (ep < max_ep):
                 continue
 
-            max_rp = rp
+            max_ep = ep
 
         if self._vb:
             print(
-                f'INFO: Maximum return period for this '
-                f'combination: {max_rp}')
+                f'INFO: Maximum exceedance probability for this '
+                f'combination: {max_ep}')
 
         max_tw = (2 * min(self._tws)) + 1
         for tw in self._tws:
@@ -283,14 +283,14 @@ class SimultaneousExtremesFrequencyComputerMP:
             **{f'neb_evts_{stn}':
                 np.full(
                     (self._n_sims + 1,
-                     len(self._rps),
+                     len(self._eps),
                      len(self._tws)),
                     np.nan,
                     dtype=int)
                 for stn in stn_comb},
 
-            'ref_evts':np.array(self._rps * n_steps, dtype=int),
-            'ref_evts_ext':np.array(self._rps * n_steps_ext, dtype=int),
+            'ref_evts':np.array(self._eps * n_steps, dtype=int),
+            'ref_evts_ext':np.array(self._eps * n_steps_ext, dtype=int),
             'n_steps': n_steps,
             'n_steps_ext': n_steps_ext,
             }
@@ -360,28 +360,28 @@ class SimultaneousExtremesFrequencyComputerMP:
                         sim_vals_df.iloc[:, i].values)
 
             for ref_stn_idx, ref_stn in enumerate(stn_comb):
-                max_rp_ge_idxs = (
-                    sim_vals_probs_df.iloc[:, ref_stn_idx] <= max_rp).values
+                max_ep_ge_idxs = (
+                    sim_vals_probs_df.iloc[:, ref_stn_idx] <= max_ep).values
 
                 neb_stn = stn_comb[_stn_idxs_swth[ref_stn_idx]]
 
-                max_rp_sim_df = sim_vals_probs_df.loc[max_rp_ge_idxs]
+                max_ep_sim_df = sim_vals_probs_df.loc[max_ep_ge_idxs]
 
                 freqs_arr = arrs_dict[f'neb_evts_{ref_stn}']
 
-                for rp_idx, rp in enumerate(self._rps):
+                for ep_idx, ep in enumerate(self._eps):
                     neb_evt_ctrs = {tw:0 for tw in self._tws}
 
-                    for evt_idx_i, evt_idx in enumerate(max_rp_sim_df.index):
-                        if max_rp_sim_df.iloc[evt_idx_i, ref_stn_idx] > rp:
+                    for evt_idx_i, evt_idx in enumerate(max_ep_sim_df.index):
+                        if max_ep_sim_df.iloc[evt_idx_i, ref_stn_idx] > ep:
                             continue
 
                         for tw in self._tws:
                             back_idx = max(0, evt_idx - tw)
                             forw_idx = evt_idx + tw
 
-                            neb_evt_idxs = (max_rp_sim_df.loc[
-                                back_idx:forw_idx, neb_stn] <= rp).values
+                            neb_evt_idxs = (max_ep_sim_df.loc[
+                                back_idx:forw_idx, neb_stn] <= ep).values
 
                             neb_evt_sum = neb_evt_idxs.sum()
                             if not neb_evt_sum:
@@ -390,7 +390,7 @@ class SimultaneousExtremesFrequencyComputerMP:
                             neb_evt_ctrs[tw] += 1
 
                     for tw_idx, tw in enumerate(self._tws):
-                        freqs_arr[sim_no, rp_idx, tw_idx] = neb_evt_ctrs[tw]
+                        freqs_arr[sim_no, ep_idx, tw_idx] = neb_evt_ctrs[tw]
 
         if self._save_sim_sers_flag:
             arrs_dict.update(self._get_stats_dict(

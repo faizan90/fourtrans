@@ -20,13 +20,13 @@ def main():
 
     in_file = r'neckar_daily_discharge_1961_2015.csv'
 
-    out_dir = 'test_simultexts_extend_03'
+    out_dir = 'test_simultexts_name_chng_02'
 
     out_h5 = os.path.join(out_dir, 'simultexts_db.hdf5')
 
     stns = ['420', '427', '454']
 
-    return_periods = [0.001, 0.005, 0.0001, 0.0005, 0.00001]
+    excd_probs = [0.001, 0.005, 0.0001, 0.0005, 0.00001]
 
     time_windows = [2, 10, 1, 3, 0]
 
@@ -47,12 +47,12 @@ def main():
 
     verbose_flag = True
     overwrite_flag = True
-#     cmpt_simultexts_flag = True
-#     save_sim_sers_flag = True
-#     plot_freqs_flag = True
-#     plot_dendrs_flag = True
-#     plot_sim_cdfs_flag = True
-#     plot_sim_auto_corrs = True
+    cmpt_simultexts_flag = True
+    save_sim_sers_flag = True
+    plot_freqs_flag = True
+    plot_dendrs_flag = True
+    plot_sim_cdfs_flag = True
+    plot_sim_auto_corrs = True
 
     in_df = pd.read_csv(in_file, sep=';', index_col=0)
 
@@ -68,7 +68,7 @@ def main():
         SE.set_outputs_directory(out_dir)
         SE.set_output_hdf5_path(out_h5)
 
-        SE.set_return_periods(np.array(return_periods))
+        SE.set_exceedance_probabilities(np.array(excd_probs))
 
         SE.set_time_windows(np.array(time_windows))
 
