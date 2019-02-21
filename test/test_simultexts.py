@@ -20,7 +20,7 @@ def main():
 
     in_file = r'neckar_daily_discharge_1961_2015.csv'
 
-    out_dir = 'test_simultexts_name_chng_02'
+    out_dir = 'test_simultexts_add_info_03'
 
     out_h5 = os.path.join(out_dir, 'simultexts_db.hdf5')
 
@@ -30,29 +30,35 @@ def main():
 
     time_windows = [2, 10, 1, 3, 0]
 
-    n_sims = 2
+    n_sims = 5
 
-    n_cpus = 'auto'
+    n_cpus = 1  # 'auto'
 
     n_steps_extend = int(4e4)
 
     verbose_flag = False
     overwrite_flag = False
     cmpt_simultexts_flag = False
-    save_sim_sers_flag = False
+    save_sim_cdfs_flag = False
+    save_sim_corrs_flag = False
+    save_sim_ft_cumm_corrs_flag = False
     plot_freqs_flag = False
     plot_dendrs_flag = False
     plot_sim_cdfs_flag = False
-    plot_sim_auto_corrs = False
+    plot_sim_auto_corrs_flag = False
+    plot_sim_ft_corrs_flag = False
 
     verbose_flag = True
     overwrite_flag = True
-    cmpt_simultexts_flag = True
-    save_sim_sers_flag = True
-    plot_freqs_flag = True
+#     cmpt_simultexts_flag = True
+#     save_sim_cdfs_flag = True
+#     save_sim_corrs_flag = True
+#     save_sim_ft_cumm_corrs_flag = True
+#     plot_freqs_flag = True
     plot_dendrs_flag = True
-    plot_sim_cdfs_flag = True
-    plot_sim_auto_corrs = True
+#     plot_sim_cdfs_flag = True
+#     plot_sim_auto_corrs_flag = True
+#     plot_sim_ft_corrs_flag = True
 
     in_df = pd.read_csv(in_file, sep=';', index_col=0)
 
@@ -74,10 +80,12 @@ def main():
 
         SE.set_number_of_simulations(n_sims)
 
-        SE.set_misc_settings(
-            n_cpus,
-            save_sim_sers_flag,
-            n_steps_extend)
+        SE.set_more_data_flags(
+            save_sim_cdfs_flag,
+            save_sim_corrs_flag,
+            save_sim_ft_cumm_corrs_flag)
+
+        SE.set_misc_settings(n_cpus, n_steps_extend)
 
         SE.verify()
 
@@ -89,7 +97,8 @@ def main():
         plot_freqs_flag,
         plot_dendrs_flag,
         plot_sim_cdfs_flag,
-        plot_sim_auto_corrs]):
+        plot_sim_auto_corrs_flag,
+        plot_sim_ft_corrs_flag]):
 
         SEP = SimultaneousExtremesPlot(verbose_flag)
 
@@ -103,7 +112,8 @@ def main():
             plot_freqs_flag,
             plot_dendrs_flag,
             plot_sim_cdfs_flag,
-            plot_sim_auto_corrs)
+            plot_sim_auto_corrs_flag,
+            plot_sim_ft_corrs_flag)
 
         SEP.verify()
 

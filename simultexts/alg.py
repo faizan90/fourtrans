@@ -86,12 +86,7 @@ class SimultaneousExtremesAlgorithm(SEDS):
 
             self._h5_hdl.flush()
 
-        self._h5_hdl.close()
-        self._h5_hdl = None
-
-        if self._mp_pool is not None:
-            self._mp_pool.join()
-            self._mp_pool = None
+        self._finalize()
 
         if self._vb:
             print_sl()
@@ -100,6 +95,28 @@ class SimultaneousExtremesAlgorithm(SEDS):
                 f'Total simulation time was: '
                 f'{default_timer() - main_sim_beg_time:0.3f} seconds')
             print_el()
+        return
+
+    def _finalize(self):
+
+        self._h5_hdl['excd_probs'] = self._eps
+        self._h5_hdl['time_windows'] = self._tws
+        self._h5_hdl['n_sims'] = self._n_sims
+        self._h5_hdl['n_stn_combs'] = len(self._stn_combs)
+
+        self._h5_hdl['save_sim_cdfs_flag'] = int(self._save_sim_cdfs_flag)
+        self._h5_hdl['save_sim_acorrs_flag'] = int(self._save_sim_acorrs_flag)
+        self._h5_hdl['save_ft_cumm_corrs_flag'] = (
+            int(self._save_sim_ft_cumm_corrs_flag))
+
+        self._h5_hdl.flush()
+
+        self._h5_hdl.close()
+        self._h5_hdl = None
+
+        if self._mp_pool is not None:
+            self._mp_pool.join()
+            self._mp_pool = None
         return
 
     def _prepare(self):
@@ -118,13 +135,6 @@ class SimultaneousExtremesAlgorithm(SEDS):
 
         else:
             self._h5_hdl = h5py.File(self._h5_path, mode='r+', driver='core')
-
-        self._h5_hdl['excd_probs'] = self._eps
-        self._h5_hdl['time_windows'] = self._tws
-        self._h5_hdl['n_sims'] = self._n_sims
-        self._h5_hdl['n_stn_combs'] = n_stn_combs
-
-        self._h5_hdl.flush()
 
         if n_stn_combs < self._n_cpus:
             if self._vb:
@@ -156,7 +166,9 @@ class SimultaneousExtremesFrequencyComputerMP:
             '_tws',
             '_n_sims',
             '_n_cpus',
-            '_save_sim_sers_flag',
+            '_save_sim_cdfs_flag',
+            '_save_sim_acorrs_flag',
+            '_save_sim_ft_cumm_corrs_flag',
             '_ext_steps',
             '_max_acorr_steps',
             ]
@@ -281,12 +293,12 @@ class SimultaneousExtremesFrequencyComputerMP:
 
         arrs_dict = {
             **{f'neb_evts_{stn}':
-                np.full(
-                    (self._n_sims + 1,
-                     len(self._eps),
-                     len(self._tws)),
-                    np.nan,
-                    dtype=int)
+                    np.full(
+                        (self._n_sims + 1,
+                         len(self._eps),
+                         len(self._tws)),
+                        np.nan,
+                        dtype=int)
                 for stn in stn_comb},
 
             'ref_evts':np.array(self._eps * n_steps, dtype=int),
@@ -295,14 +307,26 @@ class SimultaneousExtremesFrequencyComputerMP:
             'n_steps_ext': n_steps_ext,
             }
 
-        if self._save_sim_sers_flag:
+        if self._save_sim_cdfs_flag or self._save_sim_acorrs_flag:
             stns_sims_dict = {
                 f'sim_sers_{stn}':
-                np.full(
-                    (self._n_sims + 1, n_steps_ext),
-                    np.nan,
-                    dtype=float)
+                    np.full(
+                        (self._n_sims + 1, n_steps_ext),
+                        np.nan,
+                        dtype=float)
                 for stn in stn_comb}
+
+        if self._save_sim_ft_cumm_corrs_flag:
+            ft_sims_ctr = 0
+
+            n_ft_sims = (self._n_sims * (n_steps_ext // n_steps)) + 1
+
+            stns_ft_ccorrs_dict = {
+                f'ft_ccorrs_{stn}':
+                    np.full((n_ft_sims, ft_steps - 2), np.nan, dtype=float)
+                for stn in stn_comb}
+
+            arrs_dict.update(stns_ft_ccorrs_dict)
 
         _stn_idxs_swth = (1, 0)  # never change this
 
@@ -341,6 +365,16 @@ class SimultaneousExtremesFrequencyComputerMP:
                         ext_step_idx:ext_step_idx + n_steps, i] = (
                             np.fft.irfft(sim_ft_df.iloc[:, i]))
 
+                if self._save_sim_ft_cumm_corrs_flag:
+                    for stn in stn_comb:
+                        stns_ft_ccorrs_dict[
+                            f'ft_ccorrs_{stn}'][ft_sims_ctr, :] = (
+                                self._get_ft_cumm_corrs(
+                                    sim_vals_df[stn].iloc[
+                        ext_step_idx:ext_step_idx + n_steps]))
+
+                    ft_sims_ctr += 1
+
                 if not sim_no:
                     sim_vals_df.iloc[n_steps:, :] = np.nan
                     break
@@ -353,7 +387,7 @@ class SimultaneousExtremesFrequencyComputerMP:
                 sim_vals_probs_df = sim_vals_df.rank(
                     ascending=False) / (n_steps_ext + 1.0)
 
-            if self._save_sim_sers_flag:
+            if self._save_sim_cdfs_flag or self._save_sim_acorrs_flag:
                 for i in range(n_combs):
                     key = f'sim_sers_{stn_comb[i]}'
                     stns_sims_dict[key][sim_no, :] = (
@@ -392,7 +426,7 @@ class SimultaneousExtremesFrequencyComputerMP:
                     for tw_idx, tw in enumerate(self._tws):
                         freqs_arr[sim_no, ep_idx, tw_idx] = neb_evt_ctrs[tw]
 
-        if self._save_sim_sers_flag:
+        if self._save_sim_cdfs_flag or self._save_sim_acorrs_flag:
             arrs_dict.update(self._get_stats_dict(
                 stn_comb, stns_sims_dict, n_steps, n_steps_ext))
 
@@ -407,68 +441,95 @@ class SimultaneousExtremesFrequencyComputerMP:
             print_el()
         return stn_comb, arrs_dict
 
+    def _get_ft_cumm_corrs(self, vals_ser):
+
+        n_steps = vals_ser.shape[0]
+
+        ft = np.fft.rfft(vals_ser)[1:n_steps // 2]
+
+        mags = np.absolute(ft)
+
+        cov_arr = mags ** 2
+
+        tot_cov = cov_arr.sum()
+
+        cumm_pcorr = np.cumsum(cov_arr) / tot_cov
+
+        return cumm_pcorr
+
     def _get_stats_dict(
             self, stn_comb, stns_sims_dict, n_steps, n_steps_ext):
+
+        assert any([self._save_sim_cdfs_flag, self._save_sim_acorrs_flag])
 
         stn_stats_dict = {}
 
         for stn in stn_comb:
-            key = f'sim_sers_{stn}'
+            sims_key = f'sim_sers_{stn}'
 
-            stn_sims = stns_sims_dict[key]
+            stn_sims = stns_sims_dict[sims_key]
+
             stn_refr_ser = stn_sims[0, :]
             stn_sim_sers = stn_sims[1:, :]
 
-            sort_stn_refr_ser = np.sort(stn_refr_ser[:n_steps])
-            sort_stn_sim_sers = np.sort(stn_sim_sers)
-            sort_avg_stn_sim_sers = sort_stn_sim_sers.mean(axis=0)
-            sort_min_stn_sim_sers = sort_stn_sim_sers.min(axis=0)
-            sort_max_stn_sim_sers = sort_stn_sim_sers.max(axis=0)
+            if self._save_sim_cdfs_flag:
+                sort_stn_refr_ser = np.sort(stn_refr_ser[:n_steps])
+                sort_stn_sim_sers = np.sort(stn_sim_sers)
+                sort_avg_stn_sim_sers = sort_stn_sim_sers.mean(axis=0)
+                sort_min_stn_sim_sers = sort_stn_sim_sers.min(axis=0)
+                sort_max_stn_sim_sers = sort_stn_sim_sers.max(axis=0)
 
-            # for now, just a few steps
-            n_corr_steps = min(self._max_acorr_steps, n_steps)
+                # mins, means and maxs sortred values (cdfs)
+                cdfs_arr = np.full((4, n_steps_ext), np.nan, dtype=float)
+                cdfs_arr[0, :n_steps] = sort_stn_refr_ser
+                cdfs_arr[1, :] = sort_avg_stn_sim_sers
+                cdfs_arr[2, :] = sort_min_stn_sim_sers
+                cdfs_arr[3, :] = sort_max_stn_sim_sers
 
-            auto_pcorrs = np.full((self._n_sims + 1, n_corr_steps), np.nan)
-            auto_scorrs = auto_pcorrs.copy()
+                stn_stats_dict[f'sim_cdfs_{stn}'] = cdfs_arr
 
-            for i in range(self._n_sims + 1):
-                sim_ser = stn_sims[i, :]
+                sort_stn_sim_sers = None
 
-                if not i:
-                    sim_ser = sim_ser[:n_steps]
+            if self._save_sim_acorrs_flag:
+                n_corr_steps = min(self._max_acorr_steps, n_steps)
 
-                rank_sim = rankdata(sim_ser)
+                auto_pcorrs = np.full(
+                    (self._n_sims + 1, n_corr_steps), np.nan)
 
-                for j in range(n_corr_steps):
-                    auto_pcorrs[i, j] = np.corrcoef(
-                        sim_ser, np.roll(sim_ser, j))[0, 1]
+                auto_scorrs = auto_pcorrs.copy()
 
-                    auto_scorrs[i, j] = np.corrcoef(
-                        rank_sim, np.roll(rank_sim, j))[0, 1]
+                for i in range(self._n_sims + 1):
+                    sim_ser = stn_sims[i, :]
 
-            stats_arr = np.full((12, n_steps_ext), np.nan, dtype=float)
+                    if not i:
+                        sim_ser = sim_ser[:n_steps]
 
-            # regular stats
-            stats_arr[0, :n_steps] = sort_stn_refr_ser
-            stats_arr[1, :] = sort_avg_stn_sim_sers
-            stats_arr[2, :] = sort_min_stn_sim_sers
-            stats_arr[3, :] = sort_max_stn_sim_sers
+                    rank_sim = rankdata(sim_ser)
 
-            # pearson
-            stats_arr[4, :n_corr_steps] = auto_pcorrs[0, :]
-            stats_arr[5, :n_corr_steps] = auto_pcorrs[1:, :].mean(axis=0)
-            stats_arr[6, :n_corr_steps] = auto_pcorrs[1:, :].min(axis=0)
-            stats_arr[7, :n_corr_steps] = auto_pcorrs[1:, :].max(axis=0)
+                    for j in range(n_corr_steps):
+                        auto_pcorrs[i, j] = np.corrcoef(
+                            sim_ser, np.roll(sim_ser, j))[0, 1]
 
-            # spearman
-            stats_arr[8, :n_corr_steps] = auto_scorrs[0, :]
-            stats_arr[9, :n_corr_steps] = auto_scorrs[1:, :].mean(axis=0)
-            stats_arr[10, :n_corr_steps] = auto_scorrs[1:, :].min(axis=0)
-            stats_arr[11, :n_corr_steps] = auto_scorrs[1:, :].max(axis=0)
+                        auto_scorrs[i, j] = np.corrcoef(
+                            rank_sim, np.roll(rank_sim, j))[0, 1]
 
-            stn_stats_dict[f'sim_stats_{stn}'] = stats_arr
+                acorrs_arr = np.full((8, n_steps_ext), np.nan, dtype=float)
 
-            stns_sims_dict[key] = None
-            stn_refr_ser = stn_sim_sers = sort_stn_sim_sers = None
+                # pearson
+                acorrs_arr[0, :n_corr_steps] = auto_pcorrs[0, :]
+                acorrs_arr[1, :n_corr_steps] = auto_pcorrs[1:, :].mean(axis=0)
+                acorrs_arr[2, :n_corr_steps] = auto_pcorrs[1:, :].min(axis=0)
+                acorrs_arr[3, :n_corr_steps] = auto_pcorrs[1:, :].max(axis=0)
+
+                # spearman
+                acorrs_arr[4, :n_corr_steps] = auto_scorrs[0, :]
+                acorrs_arr[5, :n_corr_steps] = auto_scorrs[1:, :].mean(axis=0)
+                acorrs_arr[6, :n_corr_steps] = auto_scorrs[1:, :].min(axis=0)
+                acorrs_arr[7, :n_corr_steps] = auto_scorrs[1:, :].max(axis=0)
+
+                stn_stats_dict[f'sim_acorrs_{stn}'] = acorrs_arr
+
+            stns_sims_dict[sims_key] = None
+            stn_refr_ser = stn_sim_sers = None
 
         return stn_stats_dict

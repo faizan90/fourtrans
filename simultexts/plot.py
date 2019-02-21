@@ -37,6 +37,7 @@ class SimultaneousExtremesPlot:
         self._plot_dendrs_flag = False
         self._plot_sim_cdfs_flag = False
         self._plot_auto_corrs_flag = False
+        self._plot_ft_cumm_corrs_flag = False
 
         self._out_dirs_dict = {}
 
@@ -116,7 +117,8 @@ class SimultaneousExtremesPlot:
             frequencies_flag=False,
             dendrograms_flag=False,
             sim_cdfs_flag=False,
-            sim_auto_corrs_flag=False):
+            sim_auto_corrs_flag=False,
+            sim_ft_corrs_flag=False):
 
         assert isinstance(frequencies_flag, bool), (
             'frequencies_flag not a boolean value!')
@@ -130,10 +132,14 @@ class SimultaneousExtremesPlot:
         assert isinstance(sim_auto_corrs_flag, bool), (
             'sim_auto_corrs_flag not a boolean value!')
 
+        assert isinstance(sim_ft_corrs_flag, bool), (
+            'sim_ft_corrs_flag not a boolean value!')
+
         self._plot_freqs_flag = frequencies_flag
         self._plot_dendrs_flag = dendrograms_flag
         self._plot_sim_cdfs_flag = sim_cdfs_flag
         self._plot_auto_corrs_flag = sim_auto_corrs_flag
+        self._plot_ft_cumm_corrs_flag = sim_ft_corrs_flag
 
         if self._vb:
             print_sl()
@@ -144,7 +150,9 @@ class SimultaneousExtremesPlot:
                 f'\tPlot dendrograms flag: {self._plot_dendrs_flag}\n',
                 f'\tPlot simulation CDFs flag: {self._plot_sim_cdfs_flag}\n',
                 f'\tPlot simulation auto corrs flag: '
-                f'{self._plot_auto_corrs_flag}')
+                f'{self._plot_auto_corrs_flag}\n',
+                f'\tPlot Fourier cummulative correlations: '
+                f'{self._plot_ft_cumm_corrs_flag}')
 
             print_el()
         return
@@ -158,7 +166,8 @@ class SimultaneousExtremesPlot:
             self._plot_freqs_flag,
             self._plot_dendrs_flag,
             self._plot_sim_cdfs_flag,
-            self._plot_auto_corrs_flag]), (
+            self._plot_auto_corrs_flag,
+            self._plot_ft_cumm_corrs_flag]), (
                 'None of the plotting flags are True!')
 
         self._set_plot_verify_flag = True
@@ -262,6 +271,14 @@ class SimultaneousExtremesPlot:
         self._tws = self._h5_hdl['time_windows'][...]
         self._n_sims = self._h5_hdl['n_sims'][...]
 
+        saved_sim_cdfs_flag = bool(self._h5_hdl['save_sim_cdfs_flag'][...])
+
+        saved_sim_acorrs_flag = bool(
+            self._h5_hdl['save_sim_acorrs_flag'][...])
+
+        saved_sim_ft_cumm_corrs_flag = bool(
+            self._h5_hdl['save_ft_cumm_corrs_flag'][...])
+
         if self._plot_freqs_flag:
             self._out_dirs_dict['freq_figs'] = (
                 self._out_dir / 'simultexts_freqs_figs')
@@ -280,12 +297,18 @@ class SimultaneousExtremesPlot:
             self._out_dirs_dict['dend_figs'].mkdir(exist_ok=True)
 
         if self._plot_sim_cdfs_flag:
+            assert saved_sim_cdfs_flag, (
+                'CDFs data not saved inside the HDF5!')
+
             self._out_dirs_dict['cdfs_figs'] = (
                 self._out_dir / 'simultexts_sim_cdfs_figs')
 
             self._out_dirs_dict['cdfs_figs'].mkdir(exist_ok=True)
 
         if self._plot_auto_corrs_flag:
+            assert saved_sim_acorrs_flag, (
+                'Auto correlation data not saved inside the HDF5!')
+
             self._out_dirs_dict['pcorr_figs'] = (
                 self._out_dir / 'simultexts_sim_pcorr_figs')
 
@@ -295,6 +318,15 @@ class SimultaneousExtremesPlot:
                 self._out_dir / 'simultexts_sim_scorr_figs')
 
             self._out_dirs_dict['scorr_figs'].mkdir(exist_ok=True)
+
+        if self._plot_ft_cumm_corrs_flag:
+            assert saved_sim_ft_cumm_corrs_flag, (
+                'Fourier cummulative correlation not saved inside HDF5!')
+
+            self._out_dirs_dict['ft_ccorr_figs'] = (
+                self._out_dir / 'simultexts_ft_cumm_pcorr_figs')
+
+            self._out_dirs_dict['ft_ccorr_figs'].mkdir(exist_ok=True)
 
         return
 
@@ -321,6 +353,7 @@ class PlotSimultaneousExtremesMP:
             '_plot_dendrs_flag',
             '_plot_sim_cdfs_flag',
             '_plot_auto_corrs_flag',
+            '_plot_ft_cumm_corrs_flag',
             ]
 
         for _var in take_sep_cls_var_labs:
@@ -330,7 +363,8 @@ class PlotSimultaneousExtremesMP:
             self._plot_freqs_flag,
             self._plot_dendrs_flag,
             self._plot_sim_cdfs_flag,
-            self._plot_auto_corrs_flag]), (
+            self._plot_auto_corrs_flag,
+            self._plot_ft_cumm_corrs_flag]), (
                 'None of the plotting flags are True!')
 
         self._stn_idxs_swth = (1, 0)
@@ -372,6 +406,9 @@ class PlotSimultaneousExtremesMP:
 
         if self._plot_sim_cdfs_flag or self._plot_auto_corrs_flag:
             self._plot_sim_cdfs__corrs()
+
+        if self._plot_ft_cumm_corrs_flag:
+            self._plot_ft_cumm_corrs()
 
         if self._n_cpus > 1:
             self._h5_hdl.close()
@@ -544,6 +581,60 @@ class PlotSimultaneousExtremesMP:
 
         return ep_tw_dicts
 
+    def _plot_ft_cumm_corrs(self):
+
+        fig_size = (15, 6)
+
+        stn_comb_grp = self._h5_hdl['simultexts_sims'][self._stn_comb]
+
+        for stn in self._stn_labs:
+            ft_ccorrs_arr = stn_comb_grp[f'ft_ccorrs_{stn}'][...]
+
+            n_ft_sims, n_ft_corrs = ft_ccorrs_arr.shape
+
+            obs_corrs = ft_ccorrs_arr[0, :]
+            sim_corrs = ft_ccorrs_arr[1:, :]
+
+            plt.figure(figsize=fig_size)
+
+            for i in range(n_ft_sims - 1):
+                sim_plt = plt.plot(
+                    sim_corrs[i, :], color='b', alpha=0.9, lw=1.5)
+
+            obs_plt = plt.plot(obs_corrs, color='r', alpha=0.9, lw=1)
+
+            plt.xlabel('Frequency (steps)')
+            plt.ylabel('Cummulative correlation (-)')
+
+            plt.legend(handles=(obs_plt + sim_plt), labels=['obs.', 'sim.'])
+            plt.grid()
+
+            plt.title(
+                f'Cummulative Fourier transform pearson correlations '
+                f'for observed and simulated series of station {stn} '
+                f'in combination {self._stn_labs[0]} and '
+                f'{self._stn_labs[1]}\n'
+                f'No. of common steps: {self._n_steps}, '
+                f'No. of extended steps: {self._n_steps_ext}, '
+                f'No. of simulations: {self._n_sims}\n'
+                f'Total no. of simulated series: {n_ft_sims - 1}, '
+                f'No. of frequencies: {n_ft_corrs}')
+
+            plt.tight_layout()
+
+            fig_name = (
+                f'simult_ext_ft_cumm_coors_'
+                f'({self._stn_labs[0]}_{self._stn_labs[1]})_'
+                f'{stn}.png')
+
+            plt.savefig(
+                str(self._out_dirs_dict['ft_ccorr_figs'] / fig_name),
+                bbox_inches='tight')
+
+            plt.close()
+
+        return
+
     def _plot_sim_cdfs__corrs(self):
 
         fig_size = (15, 6)
@@ -559,17 +650,14 @@ class PlotSimultaneousExtremesMP:
             (self._n_steps_ext + 1))
 
         for stn in self._stn_labs:
-            assert f'sim_stats_{stn}' in stn_comb_grp, (
-                f'Required variable sim_sers_{stn} not in the input HDF5!')
-
-            stats_arr = stn_comb_grp[f'sim_stats_{stn}']
-
             if self._plot_sim_cdfs_flag:
+                cdfs_arr = stn_comb_grp[f'sim_cdfs_{stn}'][...]
+
                 # mean, minima and maxima
-                sort_stn_refr_ser = stats_arr[0, :][...]
-                sort_avg_stn_sim_sers = stats_arr[1, :][...]
-                sort_min_stn_sim_sers = stats_arr[2, :][...]
-                sort_max_stn_sim_sers = stats_arr[3, :][...]
+                sort_stn_refr_ser = cdfs_arr[0, :]
+                sort_avg_stn_sim_sers = cdfs_arr[1, :]
+                sort_min_stn_sim_sers = cdfs_arr[2, :]
+                sort_max_stn_sim_sers = cdfs_arr[3, :]
 
                 plt.figure(figsize=fig_size)
 
@@ -632,11 +720,13 @@ class PlotSimultaneousExtremesMP:
                 plt.close()
 
             if self._plot_auto_corrs_flag:
+                acorrs_arr = stn_comb_grp[f'sim_acorrs_{stn}'][...]
+
                 # pearson corr
-                stn_refr_pcorr = stats_arr[4, :][...]
-                avg_stn_sim_pcorr = stats_arr[5, :][...]
-                min_stn_sim_pcorr = stats_arr[6, :][...]
-                max_stn_sim_pcorr = stats_arr[7, :][...]
+                stn_refr_pcorr = acorrs_arr[0, :]
+                avg_stn_sim_pcorr = acorrs_arr[1, :]
+                min_stn_sim_pcorr = acorrs_arr[2, :]
+                max_stn_sim_pcorr = acorrs_arr[3, :]
 
                 plt.figure(figsize=fig_size)
 
@@ -695,10 +785,10 @@ class PlotSimultaneousExtremesMP:
                 plt.close()
 
                 # spearman corr
-                stn_refr_scorr = stats_arr[8, :][...]
-                avg_stn_sim_scorr = stats_arr[9, :][...]
-                min_stn_sim_scorr = stats_arr[10, :][...]
-                max_stn_sim_scorr = stats_arr[11, :][...]
+                stn_refr_scorr = acorrs_arr[4, :]
+                avg_stn_sim_scorr = acorrs_arr[5, :]
+                min_stn_sim_scorr = acorrs_arr[6, :]
+                max_stn_sim_scorr = acorrs_arr[7, :]
 
                 plt.figure(figsize=fig_size)
 

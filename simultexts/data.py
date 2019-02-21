@@ -20,8 +20,11 @@ class SimultaneousExtremesDataAndSettings:
         self._vb = bool(verbose)
 
         self._n_cpus = 1
-        self._save_sim_sers_flag = False
         self._ext_steps = 0
+
+        self._save_sim_cdfs_flag = False
+        self._save_sim_acorrs_flag = False
+        self._save_sim_ft_cumm_corrs_flag = False
 
         self._set_data_flag = False
         self._set_out_dir_flag = False
@@ -152,7 +155,7 @@ class SimultaneousExtremesDataAndSettings:
                 '\t',
                 f'Number of exceedance probabilities: {self._eps.shape[0]}')
 
-            print('\t', f'{self._eps}')
+            print('\t', f'Exceedance probabilities: {self._eps}')
 
             print_el()
 
@@ -186,7 +189,7 @@ class SimultaneousExtremesDataAndSettings:
 
             print('INFO: Set the time windows as following:')
             print('\t', f'Number of time windows: {self._tws.shape[0]}')
-            print('\t', f'{self._tws}')
+            print('\t', f'Time windows: {self._tws}')
 
             print_el()
 
@@ -211,8 +214,49 @@ class SimultaneousExtremesDataAndSettings:
         self._set_n_sims_flag = True
         return
 
-    def set_misc_settings(
-            self, n_cpus=1, save_sim_sers_flag=False, extend_steps=0):
+    def set_more_data_flags(
+            self,
+            sim_cdfs_flag,
+            sim_auto_corrs_flag,
+            sim_ft_cumm_corrs_flag):
+
+        assert isinstance(sim_cdfs_flag, bool), (
+            'sim_cdfs_flag not a boolean value!')
+
+        assert isinstance(sim_auto_corrs_flag, bool), (
+            'sim_auto_corrs_flag not a boolean value!')
+
+        assert isinstance(sim_ft_cumm_corrs_flag, bool), (
+            'sim_ft_corrs_flag not a boolean value!')
+
+        self._save_sim_cdfs_flag = sim_cdfs_flag
+        self._save_sim_acorrs_flag = sim_auto_corrs_flag
+        self._save_sim_ft_cumm_corrs_flag = sim_ft_cumm_corrs_flag
+
+        if self._vb:
+            print_sl()
+
+            print(
+                f'INFO: Set the following additional information '
+                f'computation flags:')
+
+            print(
+                '\t',
+                f'Set sim_cdfs_flag to {self._save_sim_cdfs_flag}')
+
+            print(
+                '\t',
+                f'Set sim_auto_corrs_flag to {self._save_sim_acorrs_flag}')
+
+            print(
+                '\t',
+                f'Set sim_ft_cumm_corrs_flag to '
+                f'{self._save_sim_ft_cumm_corrs_flag}')
+
+            print_el()
+        return
+
+    def set_misc_settings(self, n_cpus=1, extend_steps=0):
 
         if isinstance(n_cpus, int):
             assert n_cpus > 0, 'n_cpus has to be one or more!'
@@ -225,14 +269,10 @@ class SimultaneousExtremesDataAndSettings:
         else:
             raise AssertionError('n_cpus can be an integer or \'auto\' only!')
 
-        assert isinstance(save_sim_sers_flag, bool), (
-            'save_sim_sers_flag not a boolean value!')
-
         assert isinstance(extend_steps, int)
         assert extend_steps >= 0, 'extend_steps can not be less than zero!'
 
         self._n_cpus = n_cpus
-        self._save_sim_sers_flag = save_sim_sers_flag
         self._ext_steps = extend_steps
 
         if self._vb:
@@ -241,10 +281,6 @@ class SimultaneousExtremesDataAndSettings:
             print(f'INFO: Set the following misc. settings:')
 
             print('\t', f'Number of parallel processes: {self._n_cpus}')
-
-            print(
-                '\t',
-                f'Simulation statistics flag: {self._save_sim_sers_flag}')
 
             print('\t', f'Extend each simulation to {self._ext_steps} steps')
 
