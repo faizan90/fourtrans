@@ -11,8 +11,10 @@ from collections import namedtuple
 import h5py
 import numpy as np
 import pandas as pd
+import shapefile as shpf
 from parse import search
 import matplotlib.pyplot as plt
+from descartes import PolygonPatch
 from scipy.cluster import hierarchy
 from pathos.multiprocessing import ProcessPool
 
@@ -40,6 +42,8 @@ class SimultaneousExtremesPlot:
         self._plot_ft_cumm_corrs_flag = False
 
         self._out_dirs_dict = {}
+        self._dendro_shp_loc = None
+        self._dendro_shp_fld = None
 
         self._set_out_dir_flag = False
         self._h5_path_set_flag = False
@@ -153,6 +157,31 @@ class SimultaneousExtremesPlot:
                 f'{self._plot_auto_corrs_flag}\n',
                 f'\tPlot Fourier cummulative correlations: '
                 f'{self._plot_ft_cumm_corrs_flag}')
+
+            print_el()
+        return
+
+    def set_dendrogram_shapefile_path(self, path_to_shapefile, label_field):
+
+        assert isinstance(path_to_shapefile, (str, Path)), (
+            'path_to_shapefile not a string or a pathlib.Path object!')
+
+        path_to_shapefile = Path(path_to_shapefile).absolute()
+
+        assert path_to_shapefile.exists(), (
+            'path_to_shapefile does not exist!')
+
+        assert isinstance(label_field, str), 'label_field not a string!'
+
+        self._dendro_shp_loc = path_to_shapefile
+        self._dendro_shp_fld = label_field
+
+        if self._vb:
+            print_sl()
+
+            print(
+                f'INFO: Set the path to dendrogram shapefile as: '
+                f'{self._dendro_shp_loc}')
 
             print_el()
         return
@@ -296,6 +325,12 @@ class SimultaneousExtremesPlot:
 
             self._out_dirs_dict['dend_figs'].mkdir(exist_ok=True)
 
+            if self._dendro_shp_loc is not None:
+                self._out_dirs_dict['dend_2d_figs'] = (
+                    self._out_dir / 'simultexts_dendro_2d_figs')
+
+                self._out_dirs_dict['dend_2d_figs'].mkdir(exist_ok=True)
+
         if self._plot_sim_cdfs_flag:
             assert saved_sim_cdfs_flag, (
                 'CDFs data not saved inside the HDF5!')
@@ -354,6 +389,8 @@ class PlotSimultaneousExtremesMP:
             '_plot_sim_cdfs_flag',
             '_plot_auto_corrs_flag',
             '_plot_ft_cumm_corrs_flag',
+            '_dendro_shp_loc',
+            '_dendro_shp_fld',
             ]
 
         for _var in take_sep_cls_var_labs:
@@ -369,6 +406,8 @@ class PlotSimultaneousExtremesMP:
 
         self._stn_idxs_swth = (1, 0)
 
+        self._dendr_2d_dict = None
+
         if self._n_cpus > 1:
             self._vb = False
             self._h5_hdl = None
@@ -383,6 +422,7 @@ class PlotSimultaneousExtremesMP:
                 'avg_probs',
                 'min_probs',
                 'max_probs'))
+
         return
 
     def plot(self, stn_comb):
@@ -418,6 +458,9 @@ class PlotSimultaneousExtremesMP:
     def plot_dendrograms(self, stn_combs_data_dict):
 
         ep_tw_dicts = self._get_ep_tw_dicts(stn_combs_data_dict)
+
+        if self._plot_dendrs_flag and (self._dendro_shp_loc is not None):
+            self._prep_dendr_shp()
 
         self._plot_dendros(ep_tw_dicts)
         return
@@ -559,6 +602,48 @@ class PlotSimultaneousExtremesMP:
                         self._out_dirs_dict['freq_tabs'] / tab_name,
                         sep=';',
                         float_format='%0.8f')
+
+        return
+
+    def _prep_dendr_shp(self):
+
+        shp_ds = shpf.Reader(str(self._dendro_shp_loc))
+        shp_fields = [str(field[0]) for field in shp_ds.fields[1:]]
+
+        lab_fld_idx = shp_fields.index(self._dendro_shp_fld)
+
+        assert shp_fields
+
+        shp_xx = {}
+        shp_yy = {}
+        patches = {}
+
+        names = []
+
+        for shape in shp_ds.shapeRecords():
+            assert 'Polygon' in shape.shape.__geo_interface__['type'], (
+                'Shape not a polygon!')
+
+            name = str(shape.record[lab_fld_idx])
+
+            names.append(name)
+
+            shp_xx[name] = np.array([i[0] for i in shape.shape.points[:]])
+            shp_yy[name] = np.array([i[1] for i in shape.shape.points[:]])
+            patches[name] = shape.shape.__geo_interface__
+
+        self._dendr_2d_dict = {
+            'xx': shp_xx,
+            'yy': shp_yy,
+            'names':names,
+            'patches':patches,
+            'xx_mean': {name:shp_xx[name].mean() for name in names},
+            'yy_mean': {name:shp_yy[name].mean() for name in names}}
+
+        shp_ds = None
+
+        assert self._dendro_shp_fld in shp_fields, (
+            'Given label_field not in the shapefile!')
         return
 
     def _get_ep_tw_dicts(self, stn_combs_data_dict):
@@ -574,8 +659,13 @@ class PlotSimultaneousExtremesMP:
                         crd_val = (stn_combs_data_dict[
                             stn_comb][stn].avg_probs[ep_idx, tw_idx])
 
+#                         dendro_dict[
+#                             f'{stn_comb}_{stn}_{crd_val:0.3f}'] = crd_val
+
                         dendro_dict[
-                            f'{stn_comb}_{stn}_{crd_val:0.3f}'] = crd_val
+                            f'{stn_comb}_{crd_val:0.3f}'] = crd_val
+
+                        break
 
                 ep_tw_dicts[f'{ep}_{tw}'] = dendro_dict
 
@@ -851,21 +941,35 @@ class PlotSimultaneousExtremesMP:
 
         fig_size = (16, 8)
 
-        _prs_pt = '(\'{}\', \'{}\')_{}_{:0.3f}'
+#         _prs_pt = '(\'{}\', \'{}\')_{}_{:0.3f}'
+        _prs_pt = '(\'{}\', \'{}\')_{:0.3f}'
 
         for ep_tw_comb in ep_tw_dicts:
             dendro_labs = []
 
             for stn_comb_mean_prob in ep_tw_dicts[ep_tw_comb].keys():
-                stn_1, stn_2, ref_stn, mean_prob = search(
+#                 stn_1, stn_2, ref_stn, mean_prob = search(
+#                     _prs_pt, stn_comb_mean_prob)
+#
+#                 dendro_labs.append(
+#                     f'{stn_1} & {stn_2} ({ref_stn}, {mean_prob})')
+
+                stn_1, stn_2, mean_prob = search(
                     _prs_pt, stn_comb_mean_prob)
 
                 dendro_labs.append(
-                    f'{stn_1} & {stn_2} ({ref_stn}, {mean_prob})')
+                    f'{stn_1} & {stn_2} ({mean_prob})')
 
             mean_probs = np.array(list(ep_tw_dicts[ep_tw_comb].values()))
+            dendro_labs = np.array(dendro_labs)
 
-            linkage = hierarchy.linkage(mean_probs.reshape(-1, 1), 'median')
+            linkage = hierarchy.linkage(
+                mean_probs.reshape(-1, 1), 'median', optimal_ordering=True)
+
+            ep, tw = ep_tw_comb.split('_')
+
+            if self._dendro_shp_loc is not None:
+                self._plot_dendro_2d(dendro_labs, mean_probs, ep, tw)
 
             plt.figure(figsize=fig_size)
 
@@ -881,8 +985,6 @@ class PlotSimultaneousExtremesMP:
 
             plt.ylabel('Linkage distance')
 
-            ep, tw = ep_tw_comb.split('_')
-
             ep = f'{float(ep):0.16f}'.rstrip('0')
 
             plt.title(
@@ -897,6 +999,155 @@ class PlotSimultaneousExtremesMP:
 
             plt.savefig(fig_path, bbox_inches='tight')
             plt.close()
+        return
+
+    def _plot_dendro_2d(self, dendro_labs, probs, ep, tw):
+
+        fig_size = (15, 6)
+
+        n_pts = len(dendro_labs)
+
+        assert n_pts > 2
+
+        prob_idxs_sort = np.argsort(probs)
+
+        probs_sort = probs[prob_idxs_sort]
+
+        dendro_labs_sort = dendro_labs[prob_idxs_sort]
+
+        # two clusters, one with low and other with high coincidence
+        probs_diff = probs_sort[1:] - probs_sort[:-1]
+
+        max_diff_idx = max(1, min(np.argmax(probs_diff), n_pts - 2))
+
+        assert 0 < max_diff_idx < n_pts - 1
+
+        _prs_pt = '{} & {} ({:0.3f})'
+
+        n_clusters = 2
+
+        clusters = []
+
+        cluster_labs = ['Low', 'High']
+
+        all_stns = []
+
+        for idx, i in enumerate([0, max_diff_idx]):
+            unq_stns = []
+            unq_probs = []
+
+            pairs = []
+
+            if not i:
+                hi_idx = max_diff_idx
+
+            else:
+                hi_idx = n_pts
+
+            for lab in dendro_labs_sort[i:i + hi_idx + 1]:
+                stn_1, stn_2, prob = search(_prs_pt, lab)
+
+                if stn_1 not in unq_stns:
+                    unq_stns.append(stn_1)
+
+                if stn_2 not in unq_stns:
+                    unq_stns.append(stn_2)
+
+                if prob not in unq_probs:
+                    unq_probs.append(prob)
+
+                all_stns.extend([stn_1, stn_2])
+
+                pairs.append([stn_1, stn_2, prob])
+
+            assert unq_stns
+            assert unq_probs
+
+            clusters.append(
+                [idx, cluster_labs[idx], unq_stns, unq_probs, pairs])
+
+        assert len(clusters) == n_clusters
+
+        all_stns = np.unique(all_stns)
+
+        fig = plt.figure(figsize=fig_size)
+
+        axs = (
+            plt.subplot2grid((1, 25), (0, 0), 1, 11, fig=fig),
+            plt.subplot2grid((1, 25), (0, 12), 1, 11, fig=fig),
+            plt.subplot2grid((1, 25), (0, 24), 1, 1, fig=fig))
+
+        cmap = plt.get_cmap('hsv')
+
+        cmap_mappable = plt.cm.ScalarMappable(cmap=cmap)
+        cmap_mappable.set_array([])
+
+        for i, cluster in enumerate(clusters):
+            for stn in cluster[2]:
+                axs[i].add_patch(
+                    PolygonPatch(self._dendr_2d_dict['patches'][stn],
+                    alpha=0.5,
+                    fc='#999999',
+                    ec='#999999'))
+
+            for stn in all_stns:
+                axs[i].plot(
+                    self._dendr_2d_dict['xx'][stn],
+                    self._dendr_2d_dict['yy'][stn],
+                    alpha=0.5,
+                    color='grey')
+
+            for pair in cluster[4]:
+                _cb_ax = axs[i].plot(
+                    [self._dendr_2d_dict['xx_mean'][pair[0]],
+                     self._dendr_2d_dict['xx_mean'][pair[1]]],
+                    [self._dendr_2d_dict['yy_mean'][pair[0]],
+                     self._dendr_2d_dict['yy_mean'][pair[1]]],
+                    lw=3,
+                    color=cmap(pair[2]),
+                    alpha=0.5,
+                    marker='o')
+
+            for stn in all_stns:
+                axs[i].text(
+                    self._dendr_2d_dict['xx_mean'][stn],
+                    self._dendr_2d_dict['yy_mean'][stn],
+                    stn,
+                    alpha=1.0,
+                    color='k')
+
+            axs[i].set_xlabel('X-Coordinates')
+
+            if not i:
+                axs[i].set_ylabel('Y-Coordinates')
+
+            else:
+                axs[i].set_yticklabels([])
+
+            axs[i].grid()
+
+            axs[i].set_aspect('equal', 'datalim')
+
+            axs[i].tick_params(axis='x', labelrotation=90)
+
+            axs[i].set_title(f'Relatively {cluster[1]} extremes dependence')
+
+        cb = plt.colorbar(
+            cmap_mappable, cax=axs[n_clusters], orientation='vertical')
+
+        cb.set_label('Extremes\' dependence mean simulated probability')
+
+        plt.suptitle(
+            f'Clusters with for event exeecedance probability: {ep} '
+            f'and time window: {tw} steps')
+
+        fig_name = f'dendrogram_2d_EP{ep}_TW{tw}.png'
+
+        plt.savefig(
+            str(self._out_dirs_dict['dend_2d_figs'] / fig_name),
+            bbox_inches='tight')
+
+        plt.close()
         return
 
     def _plot_frequencies(self):

@@ -20,21 +20,24 @@ def main():
 
     in_file = r'neckar_daily_discharge_1961_2015.csv'
 
-    out_dir = 'test_simultexts_add_info_03'
+    dendr_shp = r'P:\Synchronize\IWS\QGIS_Neckar\raster\taudem_out_spate_rockenau\watersheds.shp'
+    dendr_shp_fld = 'DN'
+
+    out_dir = 'test_simultexts_2d_dender'
 
     out_h5 = os.path.join(out_dir, 'simultexts_db.hdf5')
 
-    stns = ['420', '427', '454']
+    stns = ['420', '427', '454', '3470', '3465', '3421']
 
-    excd_probs = [0.001, 0.005, 0.0001, 0.0005, 0.00001]
+    excd_probs = [0.001, 0.005]  # [0.001, 0.005, 0.0001, 0.0005, 0.00001]
 
-    time_windows = [2, 10, 1, 3, 0]
+    time_windows = [1, 3, 0]  # [2, 10, 1, 3, 0]
 
-    n_sims = 5
+    n_sims = 100
 
     n_cpus = 1  # 'auto'
 
-    n_steps_extend = int(4e4)
+    n_steps_extend = 0  # int(4e4)
 
     verbose_flag = False
     overwrite_flag = False
@@ -114,6 +117,9 @@ def main():
             plot_sim_cdfs_flag,
             plot_sim_auto_corrs_flag,
             plot_sim_ft_corrs_flag)
+
+        if plot_dendrs_flag:
+            SEP.set_dendrogram_shapefile_path(dendr_shp, dendr_shp_fld)
 
         SEP.verify()
 
