@@ -9,9 +9,10 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 from scipy.stats import norm, rankdata
 from scipy.interpolate import interp1d
-import matplotlib.pyplot as plt
 
 plt.ioff()
 
@@ -39,7 +40,7 @@ def main():
     n_corr_lags = 30
 
     figs_dir = 'test_surr_gen'
-    fig_size = (15, 7)
+    fig_size = (20, 9)
 
     data = pd.read_csv(in_file, sep=';', index_col=0)['454'].values[:n_vals]
 
@@ -135,23 +136,27 @@ def main():
     if not figs_dir.exists():
         figs_dir.mkdir(exist_ok=True)
 
+    mpl.rc('font', size=16)
+
     # Reference vs. surrogate
     plt.figure(figsize=fig_size)
     plt.plot(data, alpha=0.5, label='Ref.')
     plt.plot(surr, alpha=0.5, label='Surr.')
 
-    plt.title(
-        f'Reference vs. surrogate comparison\n'
-        f'ref. min: {data.min():0.3f}, '
-        f'ref. max: {data.max():0.3f}, '
-        f'ref. mean: {data.mean():0.3f}, '
-        f'ref. std: {data.std():0.3f}\n'
-        f'surr. min: {surr.min():0.3f}, '
-        f'surr. max: {surr.max():0.3f}, '
-        f'surr. mean: {surr.mean():0.3f} '
-        f'surr std: {surr.std():0.3f}'
-        )
+#     plt.title(
+#         f'Reference vs. surrogate comparison\n'
+#         f'ref. min: {data.min():0.3f}, '
+#         f'ref. max: {data.max():0.3f}, '
+#         f'ref. mean: {data.mean():0.3f}, '
+#         f'ref. std: {data.std():0.3f}\n'
+#         f'surr. min: {surr.min():0.3f}, '
+#         f'surr. max: {surr.max():0.3f}, '
+#         f'surr. mean: {surr.mean():0.3f} '
+#         f'surr std: {surr.std():0.3f}'
+#         )
 
+    plt.ylabel('Discharge (m$^3$/s)')
+    plt.xlabel('Time Step (days)')
     plt.grid()
     plt.legend()
 
@@ -372,6 +377,8 @@ def main():
 
     plt.savefig(str(figs_dir / 'keep_phase_wave.png'), bbox_inches='tight')
     plt.close()
+
+    mpl.rcdefaults()
 
     return
 
