@@ -33,11 +33,11 @@ def main():
 
     time_windows = [2, 10, 1, 3, 0]  # [1, 3, 0]  #
 
-    n_sims = 1000
+    n_sims = 10
 
     n_cpus = 'auto'
 
-    n_steps_extend = int(6e4)
+    n_steps_extend = 0  # int(6e4)
 
     verbose_flag = False
     overwrite_flag = False
@@ -53,7 +53,7 @@ def main():
 
     verbose_flag = True
     overwrite_flag = True
-    cmpt_simultexts_flag = True
+#     cmpt_simultexts_flag = True
 #     save_sim_cdfs_flag = True
 #     save_sim_corrs_flag = True
 #     save_sim_ft_cumm_corrs_flag = True

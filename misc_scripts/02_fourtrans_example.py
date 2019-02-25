@@ -26,7 +26,6 @@ def main():
     ft = np.fft.rfft(ref_arr)
 
     phas = np.angle(ft)
-    mags = np.absolute(ft)
 
     n_frows, n_fcols = 2, 2
     _fig, axes = plt.subplots(n_frows, n_fcols, figsize=(20, 9))
@@ -39,12 +38,6 @@ def main():
     ift_wave_sum = np.zeros(ref_arr.shape[0])
 
     for i in range(ft.shape[0]):
-        mult_vec = np.zeros(ft.shape[0], dtype=float)
-
-        mult_vec[i] = 1
-
-#         i_mags = mags * mult_vec
-
         i_ft = np.zeros(ft.shape[0], dtype=complex)
 
         i_ft[i] = ft[i]
@@ -111,7 +104,7 @@ def main():
 
 #     plt.show()
 
-    plt.savefig('four_trans_example.png', bbox_inches='tight')
+    plt.savefig('test_four_trans_example.png', bbox_inches='tight')
     plt.close()
 
     mpl.rcdefaults()

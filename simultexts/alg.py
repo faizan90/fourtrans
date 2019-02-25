@@ -140,7 +140,8 @@ class SimultaneousExtremesAlgorithm(SEDS):
             if self._vb:
                 print_sl()
 
-                print(f'INFO: Reduced the number of running processes from '
+                print(
+                    f'INFO: Reduced the number of running processes from '
                     f'{self._n_cpus} to {n_stn_combs}')
 
                 print_el()
@@ -188,6 +189,7 @@ class SimultaneousExtremesFrequencyComputerMP:
         return self._get_stn_comb_freqs(obs_vals_df)
 
     def _get_stn_comb_freqs(self, obs_vals_df):
+
         # hard coded for 2D!
 
         assert isinstance(obs_vals_df, pd.DataFrame)
