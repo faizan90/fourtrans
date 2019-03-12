@@ -210,7 +210,7 @@ class SimultaneousExtremesFrequencyComputerMP:
         assert np.any(obs_vals_df.count().values)
 
         if self._ext_steps:
-            n_steps_ext = n_steps * int(np.ceil(self._ext_steps / n_steps))
+            n_steps_ext = int(n_steps * np.ceil(self._ext_steps / n_steps))
 
         else:
             n_steps_ext = n_steps
@@ -268,8 +268,11 @@ class SimultaneousExtremesFrequencyComputerMP:
             data=np.full((ft_steps, len(stn_comb)), np.nan, dtype=complex),
             columns=stn_comb)
 
+        # Ascending has to be True here to behave like inputs
+        obs_probs_df = obs_vals_df.rank(ascending=True) / (n_steps + 1.0)
+
         for i in range(n_combs):
-            obs_ft_df.iloc[:, i] = np.fft.rfft(obs_vals_df.iloc[:, i])
+            obs_ft_df.iloc[:, i] = np.fft.rfft(obs_probs_df.iloc[:, i])
 
         obs_ft_mags_df = pd.DataFrame(
             data=np.abs(obs_ft_df.values), columns=stn_comb)

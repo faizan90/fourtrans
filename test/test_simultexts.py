@@ -23,19 +23,19 @@ def main():
     dendr_shp = r'P:\Synchronize\IWS\QGIS_Neckar\raster\taudem_out_spate_rockenau\watersheds.shp'
     dendr_shp_fld = 'DN'
 
-    out_dir = 'simultexts_spate_extend'
+    out_dir = 'test_simultexts_ranks_fft'
 
     out_h5 = os.path.join(out_dir, 'simultexts_db.hdf5')
 
-    stns = ['420', '427', '454', '3470', '3465', '3421']
+    stns = ['420', '427', '454']  # , '3470', '3465', '3421'
 
-    excd_probs = [0.001, 0.005, 0.0001, 0.0005, 0.00001]  # [0.001, 0.005]  #
+    excd_probs = [0.001, 0.005]  # [0.001, 0.005, 0.0001, 0.0005, 0.00001]  #
 
-    time_windows = [2, 10, 1, 3, 0]  # [1, 3, 0]  #
+    time_windows = [1, 3, 0]  # [2, 10, 1, 3, 0]  #
 
-    n_sims = 10
+    n_sims = 1000
 
-    n_cpus = 1  # 'auto'
+    n_cpus = 'auto'
 
     n_steps_extend = 0  # int(6e4)
 
@@ -53,14 +53,14 @@ def main():
 
     verbose_flag = True
     overwrite_flag = True
-#     cmpt_simultexts_flag = True
+    cmpt_simultexts_flag = True
 #     save_sim_cdfs_flag = True
-#     save_sim_corrs_flag = True
+    save_sim_corrs_flag = True
 #     save_sim_ft_cumm_corrs_flag = True
     plot_freqs_flag = True
 #     plot_dendrs_flag = True
 #     plot_sim_cdfs_flag = True
-#     plot_sim_auto_corrs_flag = True
+    plot_sim_auto_corrs_flag = True
 #     plot_sim_ft_corrs_flag = True
 
     in_df = pd.read_csv(in_file, sep=';', index_col=0)
