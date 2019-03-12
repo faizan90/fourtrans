@@ -17,6 +17,195 @@ from scipy.interpolate import interp1d
 plt.ioff()
 
 
+def get_rank_auto_corrs(data, n_corr_lags):
+
+    ranks = rankdata(data)
+
+    # Normed reference vs. surrogate autocorrelation
+    rank_auto_corrs = [1.0]
+
+    for i in range(1, n_corr_lags):
+        rank_auto_corrs.append(np.corrcoef(ranks, np.roll(ranks, i))[0, 1])
+
+    rank_auto_corrs = np.array(rank_auto_corrs)
+    return rank_auto_corrs
+
+
+def get_exp_tfm_auto_corrs(data, n_corr_lags, lam):
+
+    ranks = rankdata(data) / (data.shape[0] + 1.0)
+
+    tfm_data = -np.log(1 - ranks) / lam
+
+    # Normed reference vs. surrogate autocorrelation
+    auto_corrs = [1.0]
+
+    for i in range(1, n_corr_lags + 1):
+        auto_corrs.append(
+            np.corrcoef(tfm_data, np.roll(tfm_data, i))[0, 1])
+
+    auto_corrs = np.array(auto_corrs)
+    return auto_corrs
+
+
+def get_norm_tfm_auto_corrs(data, n_corr_lags, mu, sig):
+
+    probs = rankdata(data) / (data.shape[0] + 1.0)
+
+    tfm_data = norm.ppf(probs, loc=mu, scale=sig)
+
+    # Normed reference vs. surrogate autocorrelation
+    auto_corrs = [1.0]
+
+    for i in range(1, n_corr_lags + 1):
+        auto_corrs.append(
+            np.corrcoef(tfm_data, np.roll(tfm_data, i))[0, 1])
+
+    auto_corrs = np.array(auto_corrs)
+    return auto_corrs
+
+
+def plot_rank_vs_valu_corrs(
+        data,
+        data_orig,
+        n_corr_lags,
+        fig_size,
+        figs_dir,
+        keep_phases_idx,
+        n_vals,
+        data_normed_angls,
+        data_normed_ampts,
+        data_normed):
+
+    plt.figure(figsize=fig_size)
+    ranks_auto_corrs_orig = get_rank_auto_corrs(data_orig, n_corr_lags)
+    auto_corrs_orig = [1.0]
+
+    for i in range(1, n_corr_lags):
+        auto_corrs_orig.append(
+            np.corrcoef(data_orig, np.roll(data_orig, i))[0, 1])
+
+    auto_corrs_orig = np.array(auto_corrs_orig)
+
+    sim_auto_corrs = []
+    sim_rank_corrs = []
+
+    for _i in range(10):
+        if keep_phases_idx:
+            n_rands = (n_vals // 2) - keep_phases_idx
+            if n_rands > 0:
+                rands = np.random.random(n_rands)
+
+            else:
+                rands = np.array([])
+
+            rand_angls = np.concatenate((
+                data_normed_angls[1:keep_phases_idx],
+                -np.pi + (2 * np.pi * rands)))
+
+        else:
+            rands = np.random.random((n_vals // 2) - 1)
+            rand_angls = -np.pi + (2 * np.pi * rands)
+
+        ph_rand_angls = np.concatenate((
+            [data_normed_angls[0]],
+            rand_angls,
+            [data_normed_angls[n_vals // 2]],
+            rand_angls[::-1] * -1))
+
+        assert ph_rand_angls.shape[0] == n_vals
+
+        normed_ft = np.full(n_vals, np.nan, dtype=complex)
+        normed_ft.real = data_normed_ampts * np.cos(ph_rand_angls)
+        normed_ft.imag = data_normed_ampts * np.sin(ph_rand_angls)
+
+        normed_ift = np.fft.ifft(normed_ft).real
+        assert np.all(np.isfinite(normed_ift))
+
+        assert np.isclose(normed_ift.mean(), data_normed.mean())
+        assert np.isclose(normed_ift.std(), data_normed.std())
+
+        normed_ift_ranks = rankdata(normed_ift)
+
+        surr = np.sort(data)[(normed_ift_ranks - 1).astype(int)]
+        assert np.all(np.isfinite(surr))
+
+        auto_corrs = [1.0]
+        rank_auto_corrs = [1.0]
+
+        for i in range(1, n_corr_lags):
+            auto_corrs.append(np.corrcoef(surr, np.roll(surr, i))[0, 1])
+
+            rank_auto_corrs.append(
+                np.corrcoef(
+                    normed_ift_ranks,
+                    np.roll(normed_ift_ranks, i))[0, 1])
+
+        auto_corrs = np.array(auto_corrs)
+        rank_auto_corrs = np.array(rank_auto_corrs)
+
+        sim_auto_corrs.append(auto_corrs)
+        sim_rank_corrs.append(rank_auto_corrs)
+
+    sim_auto_corrs = np.array(sim_auto_corrs)
+    sim_rank_corrs = np.array(sim_rank_corrs)
+
+    auto_corrs_mins = sim_auto_corrs.min(axis=0)
+    auto_corrs_maxs = sim_auto_corrs.max(axis=0)
+
+    rank_auto_corrs_mins = sim_rank_corrs.min(axis=0)
+    rank_auto_corrs_maxs = sim_rank_corrs.max(axis=0)
+
+    plt.fill_between(
+        np.arange(n_corr_lags),
+        auto_corrs_mins,
+        auto_corrs_maxs,
+        alpha=0.2,
+        color='r',
+        label='sim_pcorr')
+
+    plt.fill_between(
+        np.arange(n_corr_lags),
+        rank_auto_corrs_mins,
+        rank_auto_corrs_maxs,
+        alpha=0.2,
+        color='b',
+        label='sim_scorr')
+
+    plt.plot(
+        sim_auto_corrs.mean(axis=0),
+        alpha=0.5,
+        color='r',
+        label='mean_sim_pcorr',
+        lw=1.5)
+
+    plt.plot(
+        sim_rank_corrs.mean(axis=0),
+        alpha=0.5,
+        color='b',
+        label='mean_sim_scorr',
+        lw=1.5)
+
+    plt.plot(
+        auto_corrs_orig, alpha=0.8, color='r', label='orig_pcorr', lw=2)
+
+    plt.plot(
+        ranks_auto_corrs_orig, alpha=0.8, color='b', label='orig_scorr', lw=2)
+
+    plt.xlabel('Lag')
+    plt.ylabel('Correlation')
+
+    plt.grid()
+
+    plt.legend()
+
+    plt.savefig(
+        str(figs_dir / 'fft_tfm_auto_corrs.png'), bbox_inches='tight')
+
+    plt.close()
+    return
+
+
 def target_to_probs(trgt_arr):
 
     assert isinstance(trgt_arr, np.ndarray)
@@ -37,9 +226,9 @@ def main():
     in_file = Path(r'P:\Synchronize\IWS\QGIS_Neckar\hydmod\input_hyd_data\neckar_daily_discharge_1961_2015.csv')
 
     n_vals = 365 * 20
-    n_corr_lags = 30
+    n_corr_lags = 60
 
-    figs_dir = 'test_surr_gen'
+    figs_dir = 'test_surr_ranks_tfm'
     fig_size = (20, 9)
 
     data = pd.read_csv(in_file, sep=';', index_col=0)['454'].values[:n_vals]
@@ -52,14 +241,12 @@ def main():
         data = data[:-1]
         n_vals -= 1
 
-#     data = data - 0.001 + (0.002 * np.random.random(n_vals) * data)
-
     assert n_vals >= 4
     assert n_vals > n_corr_lags
 
     data_probs = target_to_probs(data)
 
-    data_normed = norm.ppf(data_probs)
+    data_normed = data_probs  # norm.ppf(data_probs)
 
     data_normed_ft = np.fft.fft(data_normed)
 
@@ -136,6 +323,20 @@ def main():
     if not figs_dir.exists():
         figs_dir.mkdir(exist_ok=True)
 
+    plot_rank_vs_valu_corrs(
+            surr,
+            data,
+            n_corr_lags,
+            fig_size,
+            figs_dir,
+            keep_phases_idx,
+            n_vals,
+            data_normed_angls,
+            data_normed_ampts,
+            data_normed)
+
+#     plot_rank_vs_valu_corrs(surr, n_corr_lags, fig_size, figs_dir)
+
     mpl.rc('font', size=16)
 
     # Reference vs. surrogate
@@ -143,17 +344,17 @@ def main():
     plt.plot(data, alpha=0.5, label='Ref.')
     plt.plot(surr, alpha=0.5, label='Surr.')
 
-#     plt.title(
-#         f'Reference vs. surrogate comparison\n'
-#         f'ref. min: {data.min():0.3f}, '
-#         f'ref. max: {data.max():0.3f}, '
-#         f'ref. mean: {data.mean():0.3f}, '
-#         f'ref. std: {data.std():0.3f}\n'
-#         f'surr. min: {surr.min():0.3f}, '
-#         f'surr. max: {surr.max():0.3f}, '
-#         f'surr. mean: {surr.mean():0.3f} '
-#         f'surr std: {surr.std():0.3f}'
-#         )
+    plt.title(
+        f'Reference vs. surrogate comparison\n'
+        f'ref. min: {data.min():0.3f}, '
+        f'ref. max: {data.max():0.3f}, '
+        f'ref. mean: {data.mean():0.3f}, '
+        f'ref. std: {data.std():0.3f}\n'
+        f'surr. min: {surr.min():0.3f}, '
+        f'surr. max: {surr.max():0.3f}, '
+        f'surr. mean: {surr.mean():0.3f} '
+        f'surr std: {surr.std():0.3f}'
+        )
 
     plt.ylabel('Discharge (m$^3$/s)')
     plt.xlabel('Time Step (days)')
@@ -227,9 +428,9 @@ def main():
     # Reference vs. surrogate autocorrelation
     data_auto_corrs = [1.0]
     surr_auto_corrs = [1.0]
-    for i in range(1, n_corr_lags + 1):
-        data_auto_corrs.append(np.corrcoef(data[:-i], data[i:])[0, 1])
-        surr_auto_corrs.append(np.corrcoef(surr[:-i], surr[i:])[0, 1])
+    for i in range(1, n_corr_lags):
+        data_auto_corrs.append(np.corrcoef(data, np.roll(data, i))[0, 1])
+        surr_auto_corrs.append(np.corrcoef(surr, np.roll(surr, i))[0, 1])
 
     data_auto_corrs = np.array(data_auto_corrs)
     surr_auto_corrs = np.array(surr_auto_corrs)
@@ -257,12 +458,12 @@ def main():
     # Normed reference vs. surrogate autocorrelation
     norm_auto_corrs = [1.0]
     norm_ift_auto_corrs = [1.0]
-    for i in range(1, n_corr_lags + 1):
+    for i in range(1, n_corr_lags):
         norm_auto_corrs.append(
-            np.corrcoef(data_normed[:-i], data_normed[i:])[0, 1])
+            np.corrcoef(data_normed, np.roll(data_normed, i))[0, 1])
 
         norm_ift_auto_corrs.append(
-            np.corrcoef(normed_ift[:-i], normed_ift[i:])[0, 1])
+            np.corrcoef(normed_ift, np.roll(normed_ift, i))[0, 1])
 
     norm_auto_corrs = np.array(norm_auto_corrs)
     norm_ift_auto_corrs = np.array(norm_ift_auto_corrs)
@@ -317,12 +518,13 @@ def main():
     # Reference vs. surrogate angle autocorrelation
     data_angle_auto_corrs = [1.0]
     surr_angle_auto_corrs = [1.0]
-    for i in range(1, n_corr_lags + 1):
+    for i in range(1, n_corr_lags):
         data_angle_auto_corrs.append(
-            np.corrcoef(data_normed_angls[:-i], data_normed_angls[i:])[0, 1])
+            np.corrcoef(
+                data_normed_angls, np.roll(data_normed_angls, i))[0, 1])
 
         surr_angle_auto_corrs.append(
-            np.corrcoef(ph_rand_angls[:-i], ph_rand_angls[i:])[0, 1])
+            np.corrcoef(ph_rand_angls, np.roll(ph_rand_angls, i))[0, 1])
 
     data_angle_auto_corrs = np.array(data_angle_auto_corrs)
     surr_angle_auto_corrs = np.array(surr_angle_auto_corrs)
@@ -332,7 +534,7 @@ def main():
     plt.plot(surr_angle_auto_corrs, alpha=0.5, label='Surr.')
 
     plt.title(
-        f'Reference vs. surrogate auto correlation comparison\n'
+        f'Reference vs. surrogate phase auto correlation comparison\n'
         f'ref. min: {data_angle_auto_corrs[1:].min():0.3f}, '
         f'ref. max: {data_angle_auto_corrs[1:].max():0.3f}, '
         f'ref. mean: {data_angle_auto_corrs[1:].mean():0.3f}\n'
@@ -379,7 +581,6 @@ def main():
     plt.close()
 
     mpl.rcdefaults()
-
     return
 
 

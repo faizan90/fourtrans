@@ -35,7 +35,7 @@ def main():
 
     n_sims = 10
 
-    n_cpus = 'auto'
+    n_cpus = 1  # 'auto'
 
     n_steps_extend = 0  # int(6e4)
 
@@ -58,7 +58,7 @@ def main():
 #     save_sim_corrs_flag = True
 #     save_sim_ft_cumm_corrs_flag = True
     plot_freqs_flag = True
-    plot_dendrs_flag = True
+#     plot_dendrs_flag = True
 #     plot_sim_cdfs_flag = True
 #     plot_sim_auto_corrs_flag = True
 #     plot_sim_ft_corrs_flag = True
