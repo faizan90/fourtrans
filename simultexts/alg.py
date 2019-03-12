@@ -389,8 +389,7 @@ class SimultaneousExtremesFrequencyComputerMP:
                 if not sim_no:
                     break
 
-            sim_ranks_df = sim_vals_df.rank(
-                ascending=True, na_option='bottom').astype(int)
+            sim_ranks_df = sim_vals_df.rank(ascending=True, method='max')
 
             if not sim_no:
                 sim_vals_probs_df = (
@@ -398,7 +397,7 @@ class SimultaneousExtremesFrequencyComputerMP:
 
             else:
                 sim_vals_probs_df = (
-                    n_steps - sim_ranks_df + 1) / (n_steps_ext + 1.0)
+                    n_steps_ext - sim_ranks_df + 1) / (n_steps_ext + 1.0)
 
             if self._save_sim_cdfs_flag or self._save_sim_acorrs_flag:
                 for i in range(n_combs):

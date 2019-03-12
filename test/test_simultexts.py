@@ -35,9 +35,9 @@ def main():
 
     n_sims = 5
 
-    n_cpus = 'auto'
+    n_cpus = 1  # 'auto'
 
-    n_steps_extend = int(1e5)
+    n_steps_extend = int(3e4)
 
     verbose_flag = False
     overwrite_flag = False
