@@ -535,19 +535,19 @@ class SimultaneousExtremesFrequencyComputerMP:
                         auto_scorrs[i, j] = np.corrcoef(
                             rank_sim, np.roll(rank_sim, j))[0, 1]
 
-                acorrs_arr = np.full((8, n_steps_ext), np.nan, dtype=float)
+                acorrs_arr = np.full((8, n_corr_steps), np.nan, dtype=float)
 
                 # pearson
-                acorrs_arr[0, :n_corr_steps] = auto_pcorrs[0, :]
-                acorrs_arr[1, :n_corr_steps] = auto_pcorrs[1:, :].mean(axis=0)
-                acorrs_arr[2, :n_corr_steps] = auto_pcorrs[1:, :].min(axis=0)
-                acorrs_arr[3, :n_corr_steps] = auto_pcorrs[1:, :].max(axis=0)
+                acorrs_arr[0] = auto_pcorrs[0, :]
+                acorrs_arr[1] = auto_pcorrs[1:, :].mean(axis=0)
+                acorrs_arr[2] = auto_pcorrs[1:, :].min(axis=0)
+                acorrs_arr[3] = auto_pcorrs[1:, :].max(axis=0)
 
                 # spearman
-                acorrs_arr[4, :n_corr_steps] = auto_scorrs[0, :]
-                acorrs_arr[5, :n_corr_steps] = auto_scorrs[1:, :].mean(axis=0)
-                acorrs_arr[6, :n_corr_steps] = auto_scorrs[1:, :].min(axis=0)
-                acorrs_arr[7, :n_corr_steps] = auto_scorrs[1:, :].max(axis=0)
+                acorrs_arr[4] = auto_scorrs[0, :]
+                acorrs_arr[5] = auto_scorrs[1:, :].mean(axis=0)
+                acorrs_arr[6] = auto_scorrs[1:, :].min(axis=0)
+                acorrs_arr[7] = auto_scorrs[1:, :].max(axis=0)
 
                 stn_stats_dict[f'sim_acorrs_{stn}'] = acorrs_arr
 

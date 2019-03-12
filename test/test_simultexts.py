@@ -53,13 +53,13 @@ def main():
 
     verbose_flag = True
     overwrite_flag = True
-    cmpt_simultexts_flag = True
-    save_sim_cdfs_flag = True
-    save_sim_corrs_flag = True
+#     cmpt_simultexts_flag = True
+#     save_sim_cdfs_flag = True
+#     save_sim_corrs_flag = True
 #     save_sim_ft_cumm_corrs_flag = True
-    plot_freqs_flag = True
-    plot_dendrs_flag = True
-    plot_sim_cdfs_flag = True
+#     plot_freqs_flag = True
+#     plot_dendrs_flag = True
+#     plot_sim_cdfs_flag = True
     plot_sim_auto_corrs_flag = True
 #     plot_sim_ft_corrs_flag = True
 

@@ -727,7 +727,7 @@ class PlotSimultaneousExtremesMP:
 
     def _plot_sim_cdfs__corrs(self):
 
-        fig_size = (15, 6)
+        fig_size = (15, 8)
 
         stn_comb_grp = self._h5_hdl['simultexts_sims'][self._stn_comb]
 
@@ -818,43 +818,56 @@ class PlotSimultaneousExtremesMP:
                 min_stn_sim_pcorr = acorrs_arr[2, :]
                 max_stn_sim_pcorr = acorrs_arr[3, :]
 
-                plt.figure(figsize=fig_size)
+                pcorr_within_bds_arr = np.ones_like(stn_refr_pcorr, dtype=int)
+                pcorr_within_bds_arr[stn_refr_pcorr < min_stn_sim_pcorr] = 0
+                pcorr_within_bds_arr[stn_refr_pcorr > max_stn_sim_pcorr] = 2
 
-                plt.plot(
+                fig = plt.figure(figsize=fig_size)
+
+                axs = (
+                    plt.subplot2grid((6, 1), (0, 0), 5, 1, fig=fig),
+                    plt.subplot2grid((6, 1), (5, 0), 1, 1, fig=fig))
+
+                axs[0].fill_between(
+                    np.arange(min_stn_sim_pcorr.shape[0]),
                     min_stn_sim_pcorr,
-                    color='C0',
-                    alpha=0.5,
-                    label='min_sim',
-                    lw=1)
-
-                plt.plot(
                     max_stn_sim_pcorr,
-                    color='C1',
-                    alpha=0.5,
-                    label='max_sim',
+                    color='C0',
+                    alpha=0.3,
+                    label='sim_bds',
                     lw=1)
 
-                plt.plot(
+                axs[0].plot(
                     avg_stn_sim_pcorr,
                     color='b',
                     alpha=0.7,
-                    label='mean_sim',
+                    label='sim_mean',
                     lw=1.5)
 
-                plt.plot(
+                axs[0].plot(
                     stn_refr_pcorr,
                     color='r',
                     alpha=0.7,
                     label='obs',
                     lw=1.5)
 
-                plt.xlabel('Lag (step)')
-                plt.ylabel('Pearson correlation')
+                axs[0].set_xticklabels([])
 
-                plt.legend()
-                plt.grid()
+                axs[0].set_ylabel('Pearson correlation')
 
-                plt.title(
+                axs[0].legend()
+                axs[0].grid()
+
+                axs[1].plot(pcorr_within_bds_arr, color='C0', alpha=0.7, lw=1)
+                axs[1].set_yticks(np.arange(3))
+                axs[1].set_yticklabels(
+                    ['Obs. below sim.', 'Obs. within sim.', 'Obs. above sim.'])
+
+                axs[1].grid()
+
+                axs[1].set_xlabel('Lag (step)')
+
+                axs[0].set_title(
                     f'Pearson autocorrelations for observed and simulated '
                     f'series of station {stn} for the combination '
                     f'{self._stn_labs[0]} and {self._stn_labs[1]}\n'
@@ -880,43 +893,56 @@ class PlotSimultaneousExtremesMP:
                 min_stn_sim_scorr = acorrs_arr[6, :]
                 max_stn_sim_scorr = acorrs_arr[7, :]
 
-                plt.figure(figsize=fig_size)
+                scorr_within_bds_arr = np.ones_like(stn_refr_scorr, dtype=int)
+                scorr_within_bds_arr[stn_refr_scorr < min_stn_sim_scorr] = 0
+                scorr_within_bds_arr[stn_refr_scorr > max_stn_sim_scorr] = 2
 
-                plt.plot(
+                fig = plt.figure(figsize=fig_size)
+
+                axs = (
+                    plt.subplot2grid((6, 1), (0, 0), 5, 1, fig=fig),
+                    plt.subplot2grid((6, 1), (5, 0), 1, 1, fig=fig))
+
+                axs[0].fill_between(
+                    np.arange(min_stn_sim_scorr.shape[0]),
                     min_stn_sim_scorr,
-                    color='C0',
-                    alpha=0.5,
-                    label='min_sim',
-                    lw=1)
-
-                plt.plot(
                     max_stn_sim_scorr,
-                    color='C1',
-                    alpha=0.5,
-                    label='max_sim',
+                    color='C0',
+                    alpha=0.3,
+                    label='sim_bds',
                     lw=1)
 
-                plt.plot(
+                axs[0].plot(
                     avg_stn_sim_scorr,
                     color='b',
                     alpha=0.7,
-                    label='mean_sim',
+                    label='sim_mean',
                     lw=1.5)
 
-                plt.plot(
+                axs[0].plot(
                     stn_refr_scorr,
                     color='r',
                     alpha=0.7,
                     label='obs',
                     lw=1.5)
 
-                plt.xlabel('Lag (step)')
-                plt.ylabel('Spearman correlation')
+                axs[0].set_xticklabels([])
 
-                plt.legend()
-                plt.grid()
+                axs[0].set_ylabel('Spearman correlation')
 
-                plt.title(
+                axs[0].legend()
+                axs[0].grid()
+
+                axs[1].plot(scorr_within_bds_arr, color='C0', alpha=0.7, lw=1)
+                axs[1].set_yticks(np.arange(3))
+                axs[1].set_yticklabels(
+                    ['Obs. below sim.', 'Obs. within sim.', 'Obs. above sim.'])
+
+                axs[1].grid()
+
+                axs[1].set_xlabel('Lag (step)')
+
+                axs[0].set_title(
                     f'Spearman autocorrelations for observed and simulated '
                     f'series of station {stn} for the combination '
                     f'{self._stn_labs[0]} and {self._stn_labs[1]}\n'
