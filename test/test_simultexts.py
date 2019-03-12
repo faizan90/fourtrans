@@ -33,11 +33,11 @@ def main():
 
     time_windows = [1, 3, 0]  # [2, 10, 1, 3, 0]  #
 
-    n_sims = 50
+    n_sims = 5
 
     n_cpus = 'auto'
 
-    n_steps_extend = 0  # int(6e4)
+    n_steps_extend = int(1e5)
 
     verbose_flag = False
     overwrite_flag = False

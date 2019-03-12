@@ -345,7 +345,7 @@ class SimultaneousExtremesFrequencyComputerMP:
                 # first sim is the observed data
                 if not sim_no:
                     sim_vals_df.iloc[:n_steps, :] = obs_vals_df.values
-                    sim_vals_df.iloc[n_steps:, :] = 0
+                    sim_vals_df.iloc[n_steps:, :] = np.nan
 
                 else:
                     sim_phases = -np.pi + (
@@ -390,7 +390,7 @@ class SimultaneousExtremesFrequencyComputerMP:
                     break
 
             sim_ranks_df = sim_vals_df.rank(
-                ascending=True, na_option='bottom')
+                ascending=True, na_option='bottom').astype(int)
 
             if not sim_no:
                 sim_vals_probs_df = (
@@ -404,7 +404,7 @@ class SimultaneousExtremesFrequencyComputerMP:
                 for i in range(n_combs):
                     key = f'sim_sers_{stn_comb[i]}'
 
-                    if (not sim_no) and (n_steps_ext == n_steps):
+                    if not sim_no:
                         stns_sims_dict[key][sim_no, :n_steps] = (
                             obs_vals_df.iloc[:, i])
 
