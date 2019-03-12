@@ -215,6 +215,12 @@ class SimultaneousExtremesFrequencyComputerMP:
         else:
             n_steps_ext = n_steps
 
+        _obs_vals_tile = np.tile(
+            obs_vals_df.values, (n_steps_ext // n_steps, 1))
+
+        obs_sort_df = pd.DataFrame(
+            data=np.sort(_obs_vals_tile, axis=0), columns=stn_comb)
+
         if self._vb:
             print_sl()
 
@@ -268,7 +274,6 @@ class SimultaneousExtremesFrequencyComputerMP:
             data=np.full((ft_steps, len(stn_comb)), np.nan, dtype=complex),
             columns=stn_comb)
 
-        # Ascending has to be True here to behave like inputs
         obs_probs_df = obs_vals_df.rank(ascending=True) / (n_steps + 1.0)
 
         for i in range(n_combs):
@@ -339,7 +344,8 @@ class SimultaneousExtremesFrequencyComputerMP:
             for ext_step_idx in range(0, n_steps_ext, n_steps):
                 # first sim is the observed data
                 if not sim_no:
-                    sim_ft_phas_df = obs_ft_phas_df
+                    sim_vals_df.iloc[:n_steps, :] = obs_vals_df.values
+                    sim_vals_df.iloc[n_steps:, :] = 0
 
                 else:
                     sim_phases = -np.pi + (
@@ -350,25 +356,25 @@ class SimultaneousExtremesFrequencyComputerMP:
                     sim_ft_phas_df = obs_ft_phas_df.apply(
                         lambda x: x + sim_phases)
 
-                sim_ft_phas_cos_df = np.cos(sim_ft_phas_df)
-                sim_ft_phas_sin_df = np.sin(sim_ft_phas_df)
+                    sim_ft_phas_cos_df = np.cos(sim_ft_phas_df)
+                    sim_ft_phas_sin_df = np.sin(sim_ft_phas_df)
 
-                for i in range(n_combs):
-                    reals = (
-                        obs_ft_mags_df.iloc[:, i] *
-                        sim_ft_phas_cos_df.iloc[:, i]).values
+                    for i in range(n_combs):
+                        reals = (
+                            obs_ft_mags_df.iloc[:, i] *
+                            sim_ft_phas_cos_df.iloc[:, i]).values
 
-                    imags = (
-                        obs_ft_mags_df.iloc[:, i] *
-                        sim_ft_phas_sin_df.iloc[:, i]).values
+                        imags = (
+                            obs_ft_mags_df.iloc[:, i] *
+                            sim_ft_phas_sin_df.iloc[:, i]).values
 
-                    sim_ft_df.iloc[:, i].values.real = reals
-                    sim_ft_df.iloc[:, i].values.imag = imags
+                        sim_ft_df.iloc[:, i].values.real = reals
+                        sim_ft_df.iloc[:, i].values.imag = imags
 
-                for i in range(n_combs):
-                    sim_vals_df.iloc[
-                        ext_step_idx:ext_step_idx + n_steps, i] = (
-                            np.fft.irfft(sim_ft_df.iloc[:, i]))
+                    for i in range(n_combs):
+                        sim_vals_df.iloc[
+                            ext_step_idx:ext_step_idx + n_steps, i] = (
+                                np.fft.irfft(sim_ft_df.iloc[:, i]))
 
                 if self._save_sim_ft_cumm_corrs_flag:
                     for stn in stn_comb:
@@ -381,22 +387,34 @@ class SimultaneousExtremesFrequencyComputerMP:
                     ft_sims_ctr += 1
 
                 if not sim_no:
-                    sim_vals_df.iloc[n_steps:, :] = np.nan
                     break
 
+            sim_ranks_df = sim_vals_df.rank(
+                ascending=True, na_option='bottom')
+
             if not sim_no:
-                sim_vals_probs_df = sim_vals_df.rank(
-                    ascending=False) / (n_steps + 1.0)
+                sim_vals_probs_df = (
+                    n_steps - sim_ranks_df + 1) / (n_steps + 1.0)
 
             else:
-                sim_vals_probs_df = sim_vals_df.rank(
-                    ascending=False) / (n_steps_ext + 1.0)
+                sim_vals_probs_df = (
+                    n_steps - sim_ranks_df + 1) / (n_steps_ext + 1.0)
 
             if self._save_sim_cdfs_flag or self._save_sim_acorrs_flag:
                 for i in range(n_combs):
                     key = f'sim_sers_{stn_comb[i]}'
-                    stns_sims_dict[key][sim_no, :] = (
-                        sim_vals_df.iloc[:, i].values)
+
+                    if (not sim_no) and (n_steps_ext == n_steps):
+                        stns_sims_dict[key][sim_no, :n_steps] = (
+                            obs_vals_df.iloc[:, i])
+
+                    else:
+                        _vals = obs_sort_df.iloc[:, i][
+                            sim_ranks_df.iloc[:, i].values - 1]
+
+                        assert np.all(np.isfinite(_vals))
+
+                        stns_sims_dict[key][sim_no, :] = _vals
 
             for ref_stn_idx, ref_stn in enumerate(stn_comb):
                 max_ep_ge_idxs = (

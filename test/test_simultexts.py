@@ -23,7 +23,7 @@ def main():
     dendr_shp = r'P:\Synchronize\IWS\QGIS_Neckar\raster\taudem_out_spate_rockenau\watersheds.shp'
     dendr_shp_fld = 'DN'
 
-    out_dir = 'test_simultexts_ranks_fft'
+    out_dir = 'test_simultexts_ranks_fft_3'
 
     out_h5 = os.path.join(out_dir, 'simultexts_db.hdf5')
 
@@ -33,7 +33,7 @@ def main():
 
     time_windows = [1, 3, 0]  # [2, 10, 1, 3, 0]  #
 
-    n_sims = 1000
+    n_sims = 50
 
     n_cpus = 'auto'
 
@@ -54,12 +54,12 @@ def main():
     verbose_flag = True
     overwrite_flag = True
     cmpt_simultexts_flag = True
-#     save_sim_cdfs_flag = True
+    save_sim_cdfs_flag = True
     save_sim_corrs_flag = True
 #     save_sim_ft_cumm_corrs_flag = True
     plot_freqs_flag = True
-#     plot_dendrs_flag = True
-#     plot_sim_cdfs_flag = True
+    plot_dendrs_flag = True
+    plot_sim_cdfs_flag = True
     plot_sim_auto_corrs_flag = True
 #     plot_sim_ft_corrs_flag = True
 
