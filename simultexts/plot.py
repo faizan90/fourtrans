@@ -12,10 +12,8 @@ import h5py
 import numpy as np
 import pandas as pd
 import shapefile as shpf
-from parse import search
 import matplotlib.pyplot as plt
 from descartes import PolygonPatch
-from scipy.cluster import hierarchy
 from pathos.multiprocessing import ProcessPool
 
 from .misc import print_sl, print_el
@@ -36,14 +34,14 @@ class SimultaneousExtremesPlot:
         self._mp_pool = None
 
         self._plot_freqs_flag = False
-        self._plot_dendrs_flag = False
+        self._plot_clusters_flag = False
         self._plot_sim_cdfs_flag = False
         self._plot_auto_corrs_flag = False
         self._plot_ft_cumm_corrs_flag = False
 
         self._out_dirs_dict = {}
-        self._dendro_shp_loc = None
-        self._dendro_shp_fld = None
+        self._clusters_shp_loc = None
+        self._clusters_shp_fld = None
 
         self._set_out_dir_flag = False
         self._h5_path_set_flag = False
@@ -119,16 +117,12 @@ class SimultaneousExtremesPlot:
     def set_plot_type_flags(
             self,
             frequencies_flag=False,
-            dendrograms_flag=False,
             sim_cdfs_flag=False,
             sim_auto_corrs_flag=False,
             sim_ft_corrs_flag=False):
 
         assert isinstance(frequencies_flag, bool), (
             'frequencies_flag not a boolean value!')
-
-        assert isinstance(dendrograms_flag, bool), (
-            'dendrograms_flag not a boolean value!')
 
         assert isinstance(sim_cdfs_flag, bool), (
             'sim_cdfs_flag not a boolean value!')
@@ -140,7 +134,6 @@ class SimultaneousExtremesPlot:
             'sim_ft_corrs_flag not a boolean value!')
 
         self._plot_freqs_flag = frequencies_flag
-        self._plot_dendrs_flag = dendrograms_flag
         self._plot_sim_cdfs_flag = sim_cdfs_flag
         self._plot_auto_corrs_flag = sim_auto_corrs_flag
         self._plot_ft_cumm_corrs_flag = sim_ft_corrs_flag
@@ -151,7 +144,6 @@ class SimultaneousExtremesPlot:
             print(
                 f'INFO: Set the following plot flags:\n'
                 f'\tPlot frequencies flag: {self._plot_freqs_flag}\n',
-                f'\tPlot dendrograms flag: {self._plot_dendrs_flag}\n',
                 f'\tPlot simulation CDFs flag: {self._plot_sim_cdfs_flag}\n',
                 f'\tPlot simulation auto corrs flag: '
                 f'{self._plot_auto_corrs_flag}\n',
@@ -161,7 +153,7 @@ class SimultaneousExtremesPlot:
             print_el()
         return
 
-    def set_dendrogram_shapefile_path(self, path_to_shapefile, label_field):
+    def set_clusters_shapefile_path(self, path_to_shapefile, label_field):
 
         assert isinstance(path_to_shapefile, (str, Path)), (
             'path_to_shapefile not a string or a pathlib.Path object!')
@@ -173,17 +165,19 @@ class SimultaneousExtremesPlot:
 
         assert isinstance(label_field, str), 'label_field not a string!'
 
-        self._dendro_shp_loc = path_to_shapefile
-        self._dendro_shp_fld = label_field
+        self._clusters_shp_loc = path_to_shapefile
+        self._clusters_shp_fld = label_field
 
         if self._vb:
             print_sl()
 
             print(
-                f'INFO: Set the path to dendrogram shapefile as: '
-                f'{self._dendro_shp_loc}')
+                f'INFO: Set the path to clusters shapefile as: '
+                f'{self._clusters_shp_loc}')
 
             print_el()
+
+        self._plot_clusters_flag = True
         return
 
     def verify(self):
@@ -193,7 +187,7 @@ class SimultaneousExtremesPlot:
 
         assert any([
             self._plot_freqs_flag,
-            self._plot_dendrs_flag,
+            self._plot_clusters_flag,
             self._plot_sim_cdfs_flag,
             self._plot_auto_corrs_flag,
             self._plot_ft_cumm_corrs_flag]), (
@@ -231,13 +225,13 @@ class SimultaneousExtremesPlot:
         else:
             plot_rets = list(map(PSE.plot, PSE_gen))
 
-        if self._plot_dendrs_flag:
+        if self._plot_clusters_flag:
             plot_ret_dict = {}
 
             for plot_ret in plot_rets:
                 plot_ret_dict.update(plot_ret)
 
-            PSE.plot_dendrograms(plot_ret_dict)
+            PSE.plot_clusters(plot_ret_dict)
 
         self._h5_hdl.close()
         self._h5_hdl = None
@@ -319,17 +313,11 @@ class SimultaneousExtremesPlot:
 
             self._out_dirs_dict['freq_tabs'].mkdir(exist_ok=True)
 
-        if self._plot_dendrs_flag:
-            self._out_dirs_dict['dend_figs'] = (
-                self._out_dir / 'simultexts_dendro_figs')
+        if self._plot_clusters_flag:
+            self._out_dirs_dict['cluster_figs'] = (
+                self._out_dir / 'simultexts_cluster_figs')
 
-            self._out_dirs_dict['dend_figs'].mkdir(exist_ok=True)
-
-            if self._dendro_shp_loc is not None:
-                self._out_dirs_dict['dend_2d_figs'] = (
-                    self._out_dir / 'simultexts_dendro_2d_figs')
-
-                self._out_dirs_dict['dend_2d_figs'].mkdir(exist_ok=True)
+            self._out_dirs_dict['cluster_figs'].mkdir(exist_ok=True)
 
         if self._plot_sim_cdfs_flag:
             assert saved_sim_cdfs_flag, (
@@ -385,12 +373,12 @@ class PlotSimultaneousExtremesMP:
             '_h5_hdl',
             '_out_dirs_dict',
             '_plot_freqs_flag',
-            '_plot_dendrs_flag',
+            '_plot_clusters_flag',
             '_plot_sim_cdfs_flag',
             '_plot_auto_corrs_flag',
             '_plot_ft_cumm_corrs_flag',
-            '_dendro_shp_loc',
-            '_dendro_shp_fld',
+            '_clusters_shp_loc',
+            '_clusters_shp_fld',
             ]
 
         for _var in take_sep_cls_var_labs:
@@ -398,15 +386,17 @@ class PlotSimultaneousExtremesMP:
 
         assert any([
             self._plot_freqs_flag,
-            self._plot_dendrs_flag,
+            self._plot_clusters_flag,
             self._plot_sim_cdfs_flag,
             self._plot_auto_corrs_flag,
             self._plot_ft_cumm_corrs_flag]), (
                 'None of the plotting flags are True!')
 
-        self._stn_idxs_swth = (1, 0)
+        self._stn_idxs_swth = None  # (1, 0)
 
-        self._dendr_2d_dict = None
+        self._cluster_feats_dict = None
+
+        self._stn_idxs_swth_dict = None
 
         if self._n_cpus > 1:
             self._vb = False
@@ -430,7 +420,13 @@ class PlotSimultaneousExtremesMP:
         self._stn_comb = stn_comb
         self._stn_labs = eval(self._stn_comb)
 
-        assert len(self._stn_labs) == 2, 'Only configured for pairs!'
+        self._stn_idxs_swth_dict = {}
+        for i, stn in enumerate(self._stn_labs):
+            bools = np.ones(len(self._stn_labs), dtype=bool)
+            bools[i] = False
+            self._stn_idxs_swth_dict[stn] = np.array(self._stn_labs)[bools]
+
+        assert len(self._stn_labs) >= 2
 
         if self._h5_hdl is None:
             self._h5_hdl = h5py.File(self._h5_path, 'r', driver='core')
@@ -441,7 +437,7 @@ class PlotSimultaneousExtremesMP:
             self._plot_frequencies()
 
         plot_ret = None
-        if self._plot_dendrs_flag:
+        if self._plot_clusters_flag:
             plot_ret = {self._stn_comb:self._freqs_tups}
 
         if self._plot_sim_cdfs_flag or self._plot_auto_corrs_flag:
@@ -455,24 +451,107 @@ class PlotSimultaneousExtremesMP:
             self._h5_hdl = None
         return plot_ret
 
-    def plot_dendrograms(self, stn_combs_data_dict):
+    def plot_clusters(self, stn_combs_data_dict):
 
-        ep_tw_dicts = self._get_ep_tw_dicts(stn_combs_data_dict)
+        self._prep_clusters_shp()
 
-        if self._plot_dendrs_flag and (self._dendro_shp_loc is not None):
-            self._prep_dendr_shp()
+        fig_size = (13, 10)
 
-        self._plot_dendros(ep_tw_dicts)
+        cmap = plt.get_cmap('Blues')
+
+        cmap_mappable = plt.cm.ScalarMappable(cmap=cmap)
+        cmap_mappable.set_array([])
+
+        for ep_i, ep in enumerate(self._eps):
+            for tw_i, tw in enumerate(self._tws):
+                for ref_stn in self._stn_labs:
+                    neb_stns = self._stn_idxs_swth_dict[ref_stn]
+
+                    probs = [
+                        stn_combs_data_dict[self._stn_comb][
+                            (ref_stn, neb_stn)].avg_probs[ep_i, tw_i]
+                        for neb_stn in neb_stns]
+
+                    fig = plt.figure(figsize=fig_size)
+
+                    map_ax = plt.subplot2grid((1, 25), (0, 0), 1, 24, fig=fig)
+                    cb_ax = plt.subplot2grid((1, 25), (0, 24), 1, 1, fig=fig)
+
+                    for neb_stn_i, neb_stn in enumerate(neb_stns):
+                        map_ax.add_patch(
+                            PolygonPatch(self._cluster_feats_dict['patches'][neb_stn],
+                            alpha=0.9,
+                            fc=cmap(probs[neb_stn_i]),
+                            ec='#999999'))
+
+                        map_ax.plot(
+                            self._cluster_feats_dict['xx'][neb_stn],
+                            self._cluster_feats_dict['yy'][neb_stn],
+                            alpha=0.5,
+                            color='grey')
+
+                        map_ax.text(
+                            self._cluster_feats_dict['xx_mean'][neb_stn],
+                            self._cluster_feats_dict['yy_mean'][neb_stn],
+                            f'{neb_stn}\n({probs[neb_stn_i]})',
+                            alpha=1.0,
+                            color='k')
+
+                    map_ax.add_patch(
+                        PolygonPatch(self._cluster_feats_dict['patches'][ref_stn],
+                        alpha=0.9,
+                        fc='#999999',
+                        ec='#999999'))
+
+                    map_ax.plot(
+                        self._cluster_feats_dict['xx'][ref_stn],
+                        self._cluster_feats_dict['yy'][ref_stn],
+                        alpha=0.9,
+                        color='black')
+
+                    map_ax.text(
+                        self._cluster_feats_dict['xx_mean'][ref_stn],
+                        self._cluster_feats_dict['yy_mean'][ref_stn],
+                        f'{ref_stn}\n(ref.)',
+                        ha='center',
+                        va='center',
+                        alpha=1.0,
+                        color='k')
+
+                    map_ax.grid()
+
+                    map_ax.set_aspect('equal', 'datalim')
+
+                    map_ax.tick_params(axis='x', labelrotation=90)
+
+                    cb = plt.colorbar(
+                        cmap_mappable, cax=cb_ax, orientation='vertical', fraction=0.1)
+
+                    cb.set_label('Mean simulated probability')
+
+                    map_ax.set_title(
+                        f'Station {ref_stn} mean extremes simulated '
+                        f'probability for event '
+                        f'exeecedance probability: {ep} '
+                        f'and time window: {tw} steps')
+
+                    fig_name = f'clusters_{ref_stn}_EP{ep}_TW{tw}.png'
+
+                    plt.savefig(
+                        str(self._out_dirs_dict['cluster_figs'] / fig_name),
+                        bbox_inches='tight')
+
+                    plt.close()
         return
 
     def _prepare_data(self):
 
         '''
-        Called only when freqs or dendro flags are True.
+        Called only when freqs or clusters flags are True.
 
         The data is for a given combination only. Each call gets there own
         space. The combined output for each combination can then be used
-        by plot_dendrograms.
+        by plot_clusters.
         '''
 
         assert self._stn_comb in self._h5_hdl['simultexts_sims'], (
@@ -502,27 +581,27 @@ class PlotSimultaneousExtremesMP:
         self._n_steps = self._stn_comb_grp['n_steps'][...]
         self._n_steps_ext = self._stn_comb_grp['n_steps_ext'][...]
 
-        if self._plot_freqs_flag:
-            # eight tables
+        if not(self._plot_freqs_flag or self._plot_clusters_flag):
+            return
 
-            _tab_labs = [
-                'obs_frq',
-                'avg_sim_freq',
-                'min_sim_freq',
-                'max_sim_freq',
-                'std_sim_freq',
-                'avg_sim_prob',
-                'min_sim_prob',
-                'max_sim_prob']
+        _tab_labs = [
+            'obs_frq',
+            'avg_sim_freq',
+            'min_sim_freq',
+            'max_sim_freq',
+            'std_sim_freq',
+            'avg_sim_prob',
+            'min_sim_prob',
+            'max_sim_prob']
 
-            tws_tile = np.tile(self._tws, len(_tab_labs))
-            tws_rpt = np.repeat(_tab_labs, self._tws.shape[0])
+        tws_tile = np.tile(self._tws, len(_tab_labs))
+        tws_rpt = np.repeat(_tab_labs, self._tws.shape[0])
 
-            assert tws_rpt.shape[0] == tws_tile.shape[0]
+        assert tws_rpt.shape[0] == tws_tile.shape[0]
 
-            tab_header = ['exd_prob', 'n_ref_evts', 'n_ref_ext_evts'] + [
-                f'{tws_rpt[i]}_TW{tws_tile[i]}'
-                for i in range(tws_tile.shape[0])]
+        tab_header = ['exd_prob', 'n_ref_evts', 'n_ref_ext_evts'] + [
+            f'{tws_rpt[i]}_TW{tws_tile[i]}'
+            for i in range(tws_tile.shape[0])]
 
         ref_evts_rshp = self._ref_evts_arr.reshape(-1, 1).copy()
         ref_evts_rshp[~ref_evts_rshp.astype(bool)] = 1
@@ -532,41 +611,41 @@ class PlotSimultaneousExtremesMP:
         ref_evts_ext_scl_rshp[~np.isfinite(ref_evts_ext_scl_rshp)] = 1
         ref_evts_ext_scl_rshp[~ref_evts_ext_scl_rshp.astype(bool)] = 1
 
-        if self._plot_freqs_flag or self._plot_dendrs_flag:
-            self._freqs_tups = {}
+        self._freqs_tups = {}
 
-            for stn_idx, stn in enumerate(self._stn_labs):
-                assert f'neb_evts_{stn}' in self._stn_comb_grp, (
-                    f'Required variable neb_evts_{stn} not in the '
-                    f'input HDF5!')
+        for stn in self._stn_labs:
+            assert f'neb_evts_{stn}' in self._stn_comb_grp, (
+                f'Required variable neb_evts_{stn} not in the '
+                f'input HDF5!')
 
-                neb_evts_arr = self._stn_comb_grp[f'neb_evts_{stn}'][...]
+            neb_evts_arr = self._stn_comb_grp[f'neb_evts_{stn}'][...]
 
-                neb_stn = self._stn_labs[self._stn_idxs_swth[stn_idx]]
+            for neb_stn_i, neb_stn in enumerate(
+                self._stn_idxs_swth_dict[stn]):
 
-                obs_vals = neb_evts_arr[0]
+                obs_vals = neb_evts_arr[0, neb_stn_i]
 
                 sim_avgs = np.round(
-                    neb_evts_arr[1:].mean(axis=0) /
+                    neb_evts_arr[1:, neb_stn_i].mean(axis=0) /
                     ref_evts_ext_scl_rshp).astype(int)
 
                 sim_maxs = np.round(
-                    neb_evts_arr[1:].max(axis=0) /
+                    neb_evts_arr[1:, neb_stn_i].max(axis=0) /
                     ref_evts_ext_scl_rshp).astype(int)
 
                 sim_mins = np.round(
-                    neb_evts_arr[1:].min(axis=0) /
+                    neb_evts_arr[1:, neb_stn_i].min(axis=0) /
                     ref_evts_ext_scl_rshp).astype(int)
 
                 sim_stds = np.round(
-                    neb_evts_arr[1:].std(axis=0) /
+                    neb_evts_arr[1:, neb_stn_i].std(axis=0) /
                      ref_evts_ext_scl_rshp, 2)
 
                 avg_probs = np.round(sim_avgs / ref_evts_rshp , 3)
                 min_probs = np.round(sim_mins / ref_evts_rshp , 3)
                 max_probs = np.round(sim_maxs / ref_evts_rshp , 3)
 
-                self._freqs_tups[stn] = self._FreqTup(
+                self._freqs_tups[(stn, neb_stn)] = self._FreqTup(
                     obs_vals,
                     sim_avgs,
                     sim_maxs,
@@ -577,40 +656,42 @@ class PlotSimultaneousExtremesMP:
                     max_probs,
                     )
 
-                if self._plot_freqs_flag:
-                    table_concat = np.concatenate((
-                        self._eps.reshape(-1, 1),
-                        self._ref_evts_arr.reshape(-1, 1),
-                        self._ref_evts_ext_arr.reshape(-1, 1),
-                        obs_vals,
-                        sim_avgs,
-                        sim_mins,
-                        sim_maxs,
-                        sim_stds,
-                        avg_probs,
-                        min_probs,
-                        max_probs,
-                        ), axis=1)
+                if not self._plot_freqs_flag:
+                    continue
 
-                    out_stats_df = pd.DataFrame(
-                        data=table_concat,
-                        columns=tab_header)
+                table_concat = np.concatenate((
+                    self._eps.reshape(-1, 1),
+                    self._ref_evts_arr.reshape(-1, 1),
+                    self._ref_evts_ext_arr.reshape(-1, 1),
+                    obs_vals,
+                    sim_avgs,
+                    sim_mins,
+                    sim_maxs,
+                    sim_stds,
+                    avg_probs,
+                    min_probs,
+                    max_probs,
+                    ), axis=1)
 
-                    tab_name = f'simult_ext_stats_{stn}_{neb_stn}.csv'
+                out_stats_df = pd.DataFrame(
+                    data=table_concat,
+                    columns=tab_header)
 
-                    out_stats_df.to_csv(
-                        self._out_dirs_dict['freq_tabs'] / tab_name,
-                        sep=';',
-                        float_format='%0.8f')
+                tab_name = f'simult_ext_stats_{stn}_{neb_stn}.csv'
+
+                out_stats_df.to_csv(
+                    self._out_dirs_dict['freq_tabs'] / tab_name,
+                    sep=';',
+                    float_format='%0.8f')
 
         return
 
-    def _prep_dendr_shp(self):
+    def _prep_clusters_shp(self):
 
-        shp_ds = shpf.Reader(str(self._dendro_shp_loc))
+        shp_ds = shpf.Reader(str(self._clusters_shp_loc))
         shp_fields = [str(field[0]) for field in shp_ds.fields[1:]]
 
-        lab_fld_idx = shp_fields.index(self._dendro_shp_fld)
+        lab_fld_idx = shp_fields.index(self._clusters_shp_fld)
 
         assert shp_fields
 
@@ -632,44 +713,19 @@ class PlotSimultaneousExtremesMP:
             shp_yy[name] = np.array([i[1] for i in shape.shape.points[:]])
             patches[name] = shape.shape.__geo_interface__
 
-        self._dendr_2d_dict = {
+        self._cluster_feats_dict = {
             'xx': shp_xx,
             'yy': shp_yy,
-            'names':names,
-            'patches':patches,
-            'xx_mean': {name:shp_xx[name].mean() for name in names},
-            'yy_mean': {name:shp_yy[name].mean() for name in names}}
+            'names': names,
+            'patches': patches,
+            'xx_mean': {name:np.median(shp_xx[name]) for name in names},
+            'yy_mean': {name:np.median(shp_yy[name]) for name in names}}
 
         shp_ds = None
 
-        assert self._dendro_shp_fld in shp_fields, (
+        assert self._clusters_shp_fld in shp_fields, (
             'Given label_field not in the shapefile!')
         return
-
-    def _get_ep_tw_dicts(self, stn_combs_data_dict):
-
-        ep_tw_dicts = {}
-
-        for ep_idx, ep in enumerate(self._eps):
-            for tw_idx, tw in enumerate(self._tws):
-
-                dendro_dict = {}
-                for stn_comb in stn_combs_data_dict:
-                    for stn in stn_combs_data_dict[stn_comb]:
-                        crd_val = (stn_combs_data_dict[
-                            stn_comb][stn].avg_probs[ep_idx, tw_idx])
-
-#                         dendro_dict[
-#                             f'{stn_comb}_{stn}_{crd_val:0.3f}'] = crd_val
-
-                        dendro_dict[
-                            f'{stn_comb}_{crd_val:0.3f}'] = crd_val
-
-                        break
-
-                ep_tw_dicts[f'{ep}_{tw}'] = dendro_dict
-
-        return ep_tw_dicts
 
     def _plot_ft_cumm_corrs(self):
 
@@ -683,27 +739,43 @@ class PlotSimultaneousExtremesMP:
             n_ft_sims, n_ft_corrs = ft_ccorrs_arr.shape
 
             obs_corrs = ft_ccorrs_arr[0, :]
-            sim_corrs = ft_ccorrs_arr[1:, :]
+            sim_corrs = ft_ccorrs_arr[1:, :].reshape(-1, n_ft_corrs)
+
+            min_sim_corrs = sim_corrs.min(axis=0)
+            max_sim_corrs = sim_corrs.max(axis=0)
+            mean_sim_corrs = sim_corrs.mean(axis=0)
 
             plt.figure(figsize=fig_size)
 
-            for i in range(n_ft_sims - 1):
-                sim_plt = plt.plot(
-                    sim_corrs[i, :], color='b', alpha=0.9, lw=1.5)
+            plt.plot(
+                obs_corrs, color='r', alpha=0.9, lw=1, label='obs.', zorder=3)
 
-            obs_plt = plt.plot(obs_corrs, color='r', alpha=0.9, lw=1)
+            plt.plot(
+                mean_sim_corrs,
+                color='b',
+                alpha=0.6,
+                lw=2.0,
+                label='sim_mean',
+                zorder=2)
+
+            plt.fill_between(
+                np.arange(n_ft_corrs),
+                min_sim_corrs,
+                max_sim_corrs,
+                color='b',
+                alpha=0.3,
+                label='sim_bds',
+                zorder=1)
 
             plt.xlabel('Frequency (steps)')
             plt.ylabel('Cummulative correlation (-)')
 
-            plt.legend(handles=(obs_plt + sim_plt), labels=['obs.', 'sim.'])
+            plt.legend()
             plt.grid()
 
             plt.title(
                 f'Cummulative Fourier transform pearson correlations '
-                f'for observed and simulated series of station {stn} '
-                f'in combination {self._stn_labs[0]} and '
-                f'{self._stn_labs[1]}\n'
+                f'for observed and simulated series of station {stn}\n'
                 f'No. of common steps: {self._n_steps}, '
                 f'No. of extended steps: {self._n_steps_ext}, '
                 f'No. of simulations: {self._n_sims}\n'
@@ -712,17 +784,13 @@ class PlotSimultaneousExtremesMP:
 
             plt.tight_layout()
 
-            fig_name = (
-                f'simult_ext_ft_cumm_coors_'
-                f'({self._stn_labs[0]}_{self._stn_labs[1]})_'
-                f'{stn}.png')
+            fig_name = f'simult_ext_ft_cumm_coors_{stn}.png'
 
             plt.savefig(
                 str(self._out_dirs_dict['ft_ccorr_figs'] / fig_name),
                 bbox_inches='tight')
 
             plt.close()
-
         return
 
     def _plot_sim_cdfs__corrs(self):
@@ -791,17 +859,14 @@ class PlotSimultaneousExtremesMP:
 
                 plt.title(
                     f'CDFs for observed and simulated series of station '
-                    f'{stn} for the combination '
-                    f'{self._stn_labs[0]} and {self._stn_labs[1]}\n'
+                    f'{stn}\n'
                     f'No. of common steps: {self._n_steps}, '
                     f'No. of extended steps: {self._n_steps_ext}, '
                     f'No. of simulations: {self._n_sims}')
 
                 plt.tight_layout()
 
-                fig_name = (
-                    f'simult_ext_cdfs_({self._stn_labs[0]}_'
-                    f'{self._stn_labs[1]})_{stn}.png')
+                fig_name = f'simult_ext_cdfs_{stn}.png'
 
                 plt.savefig(
                     str(self._out_dirs_dict['cdfs_figs'] / fig_name),
@@ -869,17 +934,14 @@ class PlotSimultaneousExtremesMP:
 
                 axs[0].set_title(
                     f'Pearson autocorrelations for observed and simulated '
-                    f'series of station {stn} for the combination '
-                    f'{self._stn_labs[0]} and {self._stn_labs[1]}\n'
+                    f'series of station {stn}\n'
                     f'No. of common steps: {self._n_steps}, '
                     f'No. of extended steps: {self._n_steps_ext}, '
                     f'No. of simulations: {self._n_sims}')
 
                 plt.tight_layout()
 
-                fig_name = (
-                    f'simult_ext_pcorrs_({self._stn_labs[0]}_'
-                    f'{self._stn_labs[1]})_{stn}.png')
+                fig_name = f'simult_ext_pcorrs_{stn}.png'
 
                 plt.savefig(
                     str(self._out_dirs_dict['pcorr_figs'] / fig_name),
@@ -944,236 +1006,20 @@ class PlotSimultaneousExtremesMP:
 
                 axs[0].set_title(
                     f'Spearman autocorrelations for observed and simulated '
-                    f'series of station {stn} for the combination '
-                    f'{self._stn_labs[0]} and {self._stn_labs[1]}\n'
+                    f'series of station {stn}\n'
                     f'No. of common steps: {self._n_steps}, '
                     f'No. of extended steps: {self._n_steps_ext}, '
                     f'No. of simulations: {self._n_sims}')
 
                 plt.tight_layout()
 
-                fig_name = (
-                    f'simult_ext_scorrs_({self._stn_labs[0]}_'
-                    f'{self._stn_labs[1]})_{stn}.png')
+                fig_name = f'simult_ext_scorrs_{stn}.png'
 
                 plt.savefig(
                     str(self._out_dirs_dict['scorr_figs'] / fig_name),
                     bbox_inches='tight')
 
                 plt.close()
-        return
-
-    def _plot_dendros(self, ep_tw_dicts):
-
-        fig_size = (16, 8)
-
-#         _prs_pt = '(\'{}\', \'{}\')_{}_{:0.3f}'
-        _prs_pt = '(\'{}\', \'{}\')_{:0.3f}'
-
-        for ep_tw_comb in ep_tw_dicts:
-            dendro_labs = []
-
-            for stn_comb_mean_prob in ep_tw_dicts[ep_tw_comb].keys():
-#                 stn_1, stn_2, ref_stn, mean_prob = search(
-#                     _prs_pt, stn_comb_mean_prob)
-#
-#                 dendro_labs.append(
-#                     f'{stn_1} & {stn_2} ({ref_stn}, {mean_prob})')
-
-                stn_1, stn_2, mean_prob = search(
-                    _prs_pt, stn_comb_mean_prob)
-
-                dendro_labs.append(
-                    f'{stn_1} & {stn_2} ({mean_prob})')
-
-            mean_probs = np.array(list(ep_tw_dicts[ep_tw_comb].values()))
-            dendro_labs = np.array(dendro_labs)
-
-            linkage = hierarchy.linkage(
-                mean_probs.reshape(-1, 1), 'median', optimal_ordering=True)
-
-            ep, tw = ep_tw_comb.split('_')
-
-            if self._dendro_shp_loc is not None:
-                self._plot_dendro_2d(dendro_labs, mean_probs, ep, tw)
-
-            plt.figure(figsize=fig_size)
-
-            _dendro = hierarchy.dendrogram(
-                linkage,
-                labels=dendro_labs,
-                leaf_rotation=90,
-                )
-
-            plt.xlabel(
-                'Station combination '
-                '(reference station, simulated probability)')
-
-            plt.ylabel('Linkage distance')
-
-            ep = f'{float(ep):0.16f}'.rstrip('0')
-
-            plt.title(
-                f'Simulated simultaneous extreme event occurence clusters '
-                f'for event exeecedance probability: {ep} and time window: '
-                f'{tw} steps')
-
-            fig_name = f'dendrogram_EP{ep}_TW{tw}.png'
-            fig_path = str(self._out_dirs_dict['dend_figs'] / fig_name)
-
-            plt.tight_layout()
-
-            plt.savefig(fig_path, bbox_inches='tight')
-            plt.close()
-        return
-
-    def _plot_dendro_2d(self, dendro_labs, probs, ep, tw):
-
-        fig_size = (15, 6)
-
-        n_pts = len(dendro_labs)
-
-        assert n_pts > 2
-
-        prob_idxs_sort = np.argsort(probs)
-
-        probs_sort = probs[prob_idxs_sort]
-
-        dendro_labs_sort = dendro_labs[prob_idxs_sort]
-
-        # two clusters, one with low and other with high coincidence
-        probs_diff = probs_sort[1:] - probs_sort[:-1]
-
-        max_diff_idx = max(1, min(np.argmax(probs_diff), n_pts - 2))
-
-        assert 0 < max_diff_idx < n_pts - 1
-
-        _prs_pt = '{} & {} ({:0.3f})'
-
-        n_clusters = 2
-
-        clusters = []
-
-        cluster_labs = ['Low', 'High']
-
-        all_stns = []
-
-        for idx, i in enumerate([0, max_diff_idx]):
-            unq_stns = []
-            unq_probs = []
-
-            pairs = []
-
-            if not i:
-                hi_idx = max_diff_idx
-
-            else:
-                hi_idx = n_pts
-
-            for lab in dendro_labs_sort[i:i + hi_idx + 1]:
-                stn_1, stn_2, prob = search(_prs_pt, lab)
-
-                if stn_1 not in unq_stns:
-                    unq_stns.append(stn_1)
-
-                if stn_2 not in unq_stns:
-                    unq_stns.append(stn_2)
-
-                if prob not in unq_probs:
-                    unq_probs.append(prob)
-
-                all_stns.extend([stn_1, stn_2])
-
-                pairs.append([stn_1, stn_2, prob])
-
-            assert unq_stns
-            assert unq_probs
-
-            clusters.append(
-                [idx, cluster_labs[idx], unq_stns, unq_probs, pairs])
-
-        assert len(clusters) == n_clusters
-
-        all_stns = np.unique(all_stns)
-
-        fig = plt.figure(figsize=fig_size)
-
-        axs = (
-            plt.subplot2grid((1, 25), (0, 0), 1, 11, fig=fig),
-            plt.subplot2grid((1, 25), (0, 12), 1, 11, fig=fig),
-            plt.subplot2grid((1, 25), (0, 24), 1, 1, fig=fig))
-
-        cmap = plt.get_cmap('hsv')
-
-        cmap_mappable = plt.cm.ScalarMappable(cmap=cmap)
-        cmap_mappable.set_array([])
-
-        for i, cluster in enumerate(clusters):
-            for stn in cluster[2]:
-                axs[i].add_patch(
-                    PolygonPatch(self._dendr_2d_dict['patches'][stn],
-                    alpha=0.5,
-                    fc='#999999',
-                    ec='#999999'))
-
-            for stn in all_stns:
-                axs[i].plot(
-                    self._dendr_2d_dict['xx'][stn],
-                    self._dendr_2d_dict['yy'][stn],
-                    alpha=0.5,
-                    color='grey')
-
-            for pair in cluster[4]:
-                _cb_ax = axs[i].plot(
-                    [self._dendr_2d_dict['xx_mean'][pair[0]],
-                     self._dendr_2d_dict['xx_mean'][pair[1]]],
-                    [self._dendr_2d_dict['yy_mean'][pair[0]],
-                     self._dendr_2d_dict['yy_mean'][pair[1]]],
-                    lw=3,
-                    color=cmap(pair[2]),
-                    alpha=0.5,
-                    marker='o')
-
-            for stn in all_stns:
-                axs[i].text(
-                    self._dendr_2d_dict['xx_mean'][stn],
-                    self._dendr_2d_dict['yy_mean'][stn],
-                    stn,
-                    alpha=1.0,
-                    color='k')
-
-            axs[i].set_xlabel('X-Coordinates')
-
-            if not i:
-                axs[i].set_ylabel('Y-Coordinates')
-
-            else:
-                axs[i].set_yticklabels([])
-
-            axs[i].grid()
-
-            axs[i].set_aspect('equal', 'datalim')
-
-            axs[i].tick_params(axis='x', labelrotation=90)
-
-            axs[i].set_title(f'Relatively {cluster[1]} extremes dependence')
-
-        cb = plt.colorbar(
-            cmap_mappable, cax=axs[n_clusters], orientation='vertical')
-
-        cb.set_label('Extremes\' dependence mean simulated probability')
-
-        plt.suptitle(
-            f'Clusters with for event exeecedance probability: {ep} '
-            f'and time window: {tw} steps')
-
-        fig_name = f'dendrogram_2d_EP{ep}_TW{tw}.png'
-
-        plt.savefig(
-            str(self._out_dirs_dict['dend_2d_figs'] / fig_name),
-            bbox_inches='tight')
-
-        plt.close()
         return
 
     def _plot_frequencies(self):
@@ -1194,111 +1040,110 @@ class PlotSimultaneousExtremesMP:
 
         max_tab_rows = self._eps.shape[0]
 
-        for stn_idx, stn in enumerate(self._stn_labs):
+        for stn in self._stn_labs:
+            for neb_stn in self._stn_idxs_swth_dict[stn]:
 
-            neb_stn = self._stn_labs[self._stn_idxs_swth[stn_idx]]
+                obs_vals = self._freqs_tups[(stn, neb_stn)].obs_vals
 
-            obs_vals = self._freqs_tups[stn].obs_vals
+                sim_avgs = self._freqs_tups[(stn, neb_stn)].sim_avgs
+                sim_maxs = self._freqs_tups[(stn, neb_stn)].sim_maxs
+                sim_mins = self._freqs_tups[(stn, neb_stn)].sim_mins
+                sim_stds = self._freqs_tups[(stn, neb_stn)].sim_stds
 
-            sim_avgs = self._freqs_tups[stn].sim_avgs
-            sim_maxs = self._freqs_tups[stn].sim_maxs
-            sim_mins = self._freqs_tups[stn].sim_mins
-            sim_stds = self._freqs_tups[stn].sim_stds
+                avg_probs = self._freqs_tups[(stn, neb_stn)].avg_probs
+                min_probs = self._freqs_tups[(stn, neb_stn)].min_probs
+                max_probs = self._freqs_tups[(stn, neb_stn)].max_probs
 
-            avg_probs = self._freqs_tups[stn].avg_probs
-            min_probs = self._freqs_tups[stn].min_probs
-            max_probs = self._freqs_tups[stn].max_probs
+                ax_arr = plt.subplots(
+                    nrows=n_fig_rows,
+                    ncols=n_fig_cols,
+                    sharex=True,
+                    sharey=True,
+                    figsize=fig_size)[1]
 
-            ax_arr = plt.subplots(
-                nrows=n_fig_rows,
-                ncols=n_fig_cols,
-                sharex=True,
-                sharey=True,
-                figsize=fig_size)[1]
+                tbls = [
+                    TableTup(0, 0, obs_vals, 'Observed frequency'),
+                    TableTup(0, 1, sim_avgs, 'Mean simulated frequency'),
+                    TableTup(0, 2, avg_probs, 'Mean simulated probability'),
+                    TableTup(1, 0, sim_mins, 'Minimum simulated frequency'),
+                    TableTup(1, 1, sim_maxs, 'Maximum simulated frequency'),
+                    TableTup(1, 2, sim_stds, 'Simulated frequencies\' Std.'),
+                    TableTup(0, 3, min_probs, 'Min. simulated probability'),
+                    TableTup(1, 3, max_probs, 'Max. simulated probability'),
+                    ]
 
-            tbls = [
-                TableTup(0, 0, obs_vals, 'Observed frequency'),
-                TableTup(0, 1, sim_avgs, 'Mean simulated frequency'),
-                TableTup(0, 2, avg_probs, 'Mean simulated probability'),
-                TableTup(1, 0, sim_mins, 'Minimum simulated frequency'),
-                TableTup(1, 1, sim_maxs, 'Maximum simulated frequency'),
-                TableTup(1, 2, sim_stds, 'Simulated frequencies\' Std.'),
-                TableTup(0, 3, min_probs, 'Min. simulated probability'),
-                TableTup(1, 3, max_probs, 'Max. simulated probability'),
-                ]
+                for tbl in tbls:
+                    ax = ax_arr[tbl.i, tbl.j]
 
-            for tbl in tbls:
-                ax = ax_arr[tbl.i, tbl.j]
+                    if not tbl.i:
+                        tcol_labs = self._tws
+                        x_label = None
+                        col_colors = col_hdr_clrs
+                        n_tab_rows = self._eps.shape[0] + 1
 
-                if not tbl.i:
-                    tcol_labs = self._tws
-                    x_label = None
-                    col_colors = col_hdr_clrs
-                    n_tab_rows = self._eps.shape[0] + 1
+                    else:
+                        tcol_labs = None
+                        x_label = 'Time window'
+                        col_colors = None
 
-                else:
-                    tcol_labs = None
-                    x_label = 'Time window'
-                    col_colors = None
+                        n_tab_rows = self._eps.shape[0]
 
-                    n_tab_rows = self._eps.shape[0]
+                    if not tbl.j:
+                        trow_labs = row_lab_strs
+                        row_colors = row_hdr_clrs
 
-                if not tbl.j:
-                    trow_labs = row_lab_strs
-                    row_colors = row_hdr_clrs
+                    else:
+                        trow_labs = None
+                        row_colors = None
 
-                else:
-                    trow_labs = None
-                    row_colors = None
+                    if tbl.j == (n_fig_cols - 1):
+                        y_label = (
+                            'Exceedance Probability\n(No. of common events,\n'
+                            'No. of extended common events)')
 
-                if tbl.j == (n_fig_cols - 1):
-                    y_label = (
-                        'Exceedance Probability\n(No. of common events,\n'
-                        'No. of extended common events)')
+                    else:
+                        y_label = None
 
-                else:
-                    y_label = None
+                    ax.table(
+                        cellText=tbl.tbl,
+                        loc='center',
+                        bbox=[0, 0, 1.0, n_tab_rows / max_tab_rows],
+                        rowLabels=trow_labs,
+                        colLabels=tcol_labs,
+                        rowColours=row_colors,
+                        colColours=col_colors,
+                        )
 
-                ax.table(
-                    cellText=tbl.tbl,
-                    loc='center',
-                    bbox=[0, 0, 1.0, n_tab_rows / max_tab_rows],
-                    rowLabels=trow_labs,
-                    colLabels=tcol_labs,
-                    rowColours=row_colors,
-                    colColours=col_colors,
-                    )
+                    ax.set_xlabel(x_label)
+                    ax.set_ylabel(y_label)
 
-                ax.set_xlabel(x_label)
-                ax.set_ylabel(y_label)
+                    ax.set_xticks([])
+                    ax.set_yticks([])
 
-                ax.set_xticks([])
-                ax.set_yticks([])
+                    ttl = ax.set_title(tbl.lab)
+                    ttl.set_position(
+                        (ttl.get_position()[0], n_tab_rows / max_tab_rows))
 
-                ttl = ax.set_title(tbl.lab)
-                ttl.set_position(
-                    (ttl.get_position()[0], n_tab_rows / max_tab_rows))
+                    ax.yaxis.set_label_position('right')
 
-                ax.yaxis.set_label_position('right')
+                    [ax.spines[spine].set_visible(False)
+                     for spine in ax.spines]
 
-                [ax.spines[spine].set_visible(False)
-                 for spine in ax.spines]
+                plt.suptitle(
+                    f'Reference station: {stn}, Nebor station: {neb_stn}\n'
+                    f'No. of common steps: {self._n_steps}, '
+                    f'No. of extended steps: {self._n_steps_ext}, '
+                    f'No. of simulations: {self._n_sims}',
+                    x=0.5,
+                    y=n_tab_rows / max_tab_rows,
+                    va='bottom')
 
-            plt.suptitle(
-                f'Reference station: {stn}, Nebor station: {neb_stn}\n'
-                f'No. of common steps: {self._n_steps}, '
-                f'No. of extended steps: {self._n_steps_ext}, '
-                f'No. of simulations: {self._n_sims}',
-                x=0.5,
-                y=n_tab_rows / max_tab_rows,
-                va='bottom')
+                plt.tight_layout()
 
-            plt.tight_layout()
+                sim_freq_fig_name = f'simult_ext_stats_{stn}_{neb_stn}.png'
 
-            sim_freq_fig_name = f'simult_ext_stats_{stn}_{neb_stn}.png'
-
-            plt.savefig(
-                str(self._out_dirs_dict['freq_figs'] / sim_freq_fig_name),
-                bbox_inches='tight')
-            plt.close()
+                plt.savefig(
+                    str(self._out_dirs_dict['freq_figs'] / sim_freq_fig_name),
+                    bbox_inches='tight')
+                plt.close()
         return

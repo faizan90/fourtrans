@@ -4,12 +4,11 @@ Created on Feb 4, 2019
 @author: Faizan-Uni
 '''
 from timeit import default_timer
-from itertools import combinations
 
 import h5py
 import numpy as np
 import pandas as pd
-from scipy.stats import rankdata
+from scipy.stats import rankdata, norm
 from pathos.multiprocessing import ProcessPool
 
 from .misc import print_sl, print_el
@@ -121,12 +120,14 @@ class SimultaneousExtremesAlgorithm(SEDS):
 
     def _prepare(self):
 
-        self._stn_combs = tuple(combinations(self._data_df.columns, 2))
+#         self._stn_combs = tuple(combinations(self._data_df.columns, 2))
+
+        self._stn_combs = (self._data_df.columns,)
 
         n_stn_combs = len(self._stn_combs)
 
-        assert all([len(stn_comb) == 2 for stn_comb in self._stn_combs]), (
-            'Only configured for combinations of two series!')
+#         assert all([len(stn_comb) == 2 for stn_comb in self._stn_combs]), (
+#             'Only configured for combinations of two series!')
 
         self._out_dir.mkdir(exist_ok=True)
 
@@ -157,7 +158,7 @@ class SimultaneousExtremesAlgorithm(SEDS):
 
 class SimultaneousExtremesFrequencyComputerMP:
 
-    '''Not meant for use outside of this script'''
+    '''Meant for use by SimultaneousExtremesAlgorithm only'''
 
     def __init__(self, SEA_cls):
 
@@ -190,8 +191,6 @@ class SimultaneousExtremesFrequencyComputerMP:
 
     def _get_stn_comb_freqs(self, obs_vals_df):
 
-        # hard coded for 2D!
-
         assert isinstance(obs_vals_df, pd.DataFrame)
 
         sim_beg_time = default_timer()
@@ -200,14 +199,14 @@ class SimultaneousExtremesFrequencyComputerMP:
 
         n_combs = obs_vals_df.shape[1]
 
-        assert len(stn_comb) == 2
+#         assert len(stn_comb) == 2
 
         if obs_vals_df.shape[0] % 2:
             obs_vals_df = obs_vals_df.iloc[:-1]
 
         n_steps = obs_vals_df.shape[0]
 
-        assert np.any(obs_vals_df.count().values)
+        assert np.all(obs_vals_df.count().values > 0)
 
         if self._ext_steps:
             n_steps_ext = int(n_steps * np.ceil(self._ext_steps / n_steps))
@@ -221,13 +220,18 @@ class SimultaneousExtremesFrequencyComputerMP:
         obs_sort_df = pd.DataFrame(
             data=np.sort(_obs_vals_tile, axis=0), columns=stn_comb)
 
+        del _obs_vals_tile
+
         if self._vb:
             print_sl()
 
-            print(f'INFO: Going through the {stn_comb} combination...')
+            print(f'INFO: {n_combs} stations in this combination')
+
+            if len(stn_comb) < 10:
+                print(f'INFO: Combination {stn_comb}')
 
         if self._vb:
-            print('Commmon steps between these stations:', n_steps)
+            print('Commmon steps among these stations:', n_steps)
 
             if self._ext_steps:
                 print(
@@ -240,7 +244,7 @@ class SimultaneousExtremesFrequencyComputerMP:
         if not obs_vals_df.shape[0] > ((2 * min(self._tws)) + 1):
             if self._vb:
                 print(
-                    'WARNING: No steps to iterate through, in '
+                    'WARNING: Not enough steps to iterate through, in '
                     'this combination!')
             return
 
@@ -271,13 +275,28 @@ class SimultaneousExtremesFrequencyComputerMP:
         ft_steps = 1 + (n_steps // 2)
 
         obs_ft_df = pd.DataFrame(
-            data=np.full((ft_steps, len(stn_comb)), np.nan, dtype=complex),
+            data=np.full((ft_steps, n_combs), np.nan, dtype=complex),
             columns=stn_comb)
 
-        obs_probs_df = obs_vals_df.rank(ascending=True) / (n_steps + 1.0)
+        tfm = 'prob'
+
+        if tfm == 'obs':
+            ft_input_df = obs_vals_df.copy()
+
+        elif tfm == 'prob':
+            ft_input_df = obs_vals_df.rank(ascending=True) / (n_steps + 1.0)
+
+        elif tfm == 'norm':
+            ft_input_df = pd.DataFrame(
+                data=norm.ppf(
+                    obs_vals_df.rank(ascending=True) / (n_steps + 1.0)),
+                columns=stn_comb)
+
+        else:
+            raise ValueError(tfm)
 
         for i in range(n_combs):
-            obs_ft_df.iloc[:, i] = np.fft.rfft(obs_probs_df.iloc[:, i])
+            obs_ft_df.iloc[:, i] = np.fft.rfft(ft_input_df.iloc[:, i])
 
         obs_ft_mags_df = pd.DataFrame(
             data=np.abs(obs_ft_df.values), columns=stn_comb)
@@ -294,25 +313,26 @@ class SimultaneousExtremesFrequencyComputerMP:
         sim_phas_mult_vec[ft_steps - 1] = 0
 
         sim_ft_df = pd.DataFrame(
-            data=np.full((ft_steps, len(stn_comb)), np.nan, dtype=complex),
+            data=np.full((ft_steps, n_combs), np.nan, dtype=complex),
             columns=stn_comb)
 
         sim_vals_df = pd.DataFrame(
-            data=np.full((n_steps_ext, len(stn_comb)), np.nan, dtype=float),
+            data=np.full((n_steps_ext, n_combs), np.nan, dtype=float),
             columns=stn_comb)
 
         arrs_dict = {
             **{f'neb_evts_{stn}':
                     np.full(
                         (self._n_sims + 1,
+                         n_combs - 1,
                          len(self._eps),
                          len(self._tws)),
                         np.nan,
                         dtype=int)
                 for stn in stn_comb},
 
-            'ref_evts':np.array(self._eps * n_steps, dtype=int),
-            'ref_evts_ext':np.array(self._eps * n_steps_ext, dtype=int),
+            'ref_evts': np.array(self._eps * n_steps, dtype=int),
+            'ref_evts_ext': np.array(self._eps * n_steps_ext, dtype=int),
             'n_steps': n_steps,
             'n_steps_ext': n_steps_ext,
             }
@@ -338,13 +358,17 @@ class SimultaneousExtremesFrequencyComputerMP:
 
             arrs_dict.update(stns_ft_ccorrs_dict)
 
-        _stn_idxs_swth = (1, 0)  # never change this
+        stn_idxs_swth_dict = {}
+        for i, stn in enumerate(stn_comb):
+            bools = np.ones(n_combs, dtype=bool)
+            bools[i] = False
+            stn_idxs_swth_dict[stn] = np.array(stn_comb)[bools]
 
         for sim_no in range(self._n_sims + 1):
             for ext_step_idx in range(0, n_steps_ext, n_steps):
                 # first sim is the observed data
                 if not sim_no:
-                    sim_vals_df.iloc[:n_steps, :] = obs_vals_df.values
+                    sim_vals_df.iloc[:n_steps, :] = ft_input_df.values
                     sim_vals_df.iloc[n_steps:, :] = np.nan
 
                 else:
@@ -378,11 +402,21 @@ class SimultaneousExtremesFrequencyComputerMP:
 
                 if self._save_sim_ft_cumm_corrs_flag:
                     for stn in stn_comb:
+                        if not sim_no:
+                            _vals = self._get_ft_cumm_corrs(obs_vals_df[stn])
+
+                        else:
+                            _ranks = sim_vals_df[stn].iloc[
+                                ext_step_idx:ext_step_idx + n_steps].rank(
+                                    ).astype(int).values
+
+                            _sort_obs_ser = obs_vals_df[stn].sort_values()
+
+                            _vals = self._get_ft_cumm_corrs(
+                                _sort_obs_ser.iloc[_ranks - 1])
+
                         stns_ft_ccorrs_dict[
-                            f'ft_ccorrs_{stn}'][ft_sims_ctr, :] = (
-                                self._get_ft_cumm_corrs(
-                                    sim_vals_df[stn].iloc[
-                        ext_step_idx:ext_step_idx + n_steps]))
+                            f'ft_ccorrs_{stn}'][ft_sims_ctr, :] = _vals
 
                     ft_sims_ctr += 1
 
@@ -398,6 +432,9 @@ class SimultaneousExtremesFrequencyComputerMP:
             else:
                 sim_vals_probs_df = (
                     n_steps_ext - sim_ranks_df + 1) / (n_steps_ext + 1.0)
+
+            assert np.all(sim_vals_probs_df.min() > 0)
+            assert np.all(sim_vals_probs_df.max() < 1)
 
             if self._save_sim_cdfs_flag or self._save_sim_acorrs_flag:
                 for i in range(n_combs):
@@ -419,34 +456,38 @@ class SimultaneousExtremesFrequencyComputerMP:
                 max_ep_ge_idxs = (
                     sim_vals_probs_df.iloc[:, ref_stn_idx] <= max_ep).values
 
-                neb_stn = stn_comb[_stn_idxs_swth[ref_stn_idx]]
-
                 max_ep_sim_df = sim_vals_probs_df.loc[max_ep_ge_idxs]
 
                 freqs_arr = arrs_dict[f'neb_evts_{ref_stn}']
 
-                for ep_idx, ep in enumerate(self._eps):
-                    neb_evt_ctrs = {tw:0 for tw in self._tws}
+                for neb_stn_i, neb_stn in enumerate(
+                    stn_idxs_swth_dict[ref_stn]):
 
-                    for evt_idx_i, evt_idx in enumerate(max_ep_sim_df.index):
-                        if max_ep_sim_df.iloc[evt_idx_i, ref_stn_idx] > ep:
-                            continue
+                    for ep_idx, ep in enumerate(self._eps):
+                        neb_evt_ctrs = {tw:0 for tw in self._tws}
 
-                        for tw in self._tws:
-                            back_idx = max(0, evt_idx - tw)
-                            forw_idx = evt_idx + tw
+                        for evt_idx_i, evt_idx in enumerate(
+                            max_ep_sim_df.index):
 
-                            neb_evt_idxs = (max_ep_sim_df.loc[
-                                back_idx:forw_idx, neb_stn] <= ep).values
-
-                            neb_evt_sum = neb_evt_idxs.sum()
-                            if not neb_evt_sum:
+                            if max_ep_sim_df.iloc[evt_idx_i, ref_stn_idx] > ep:
                                 continue
 
-                            neb_evt_ctrs[tw] += 1
+                            for tw in self._tws:
+                                back_idx = max(0, evt_idx - tw)  # can take the end values as well?
+                                forw_idx = evt_idx + tw
 
-                    for tw_idx, tw in enumerate(self._tws):
-                        freqs_arr[sim_no, ep_idx, tw_idx] = neb_evt_ctrs[tw]
+                                neb_evt_idxs = (max_ep_sim_df.loc[
+                                    back_idx:forw_idx, neb_stn] <= ep).values
+
+                                neb_evt_sum = neb_evt_idxs.sum()
+                                if not neb_evt_sum:
+                                    continue
+
+                                neb_evt_ctrs[tw] += 1
+
+                        for tw_idx, tw in enumerate(self._tws):
+                            freqs_arr[sim_no, neb_stn_i, ep_idx, tw_idx] = (
+                                neb_evt_ctrs[tw])
 
         if self._save_sim_cdfs_flag or self._save_sim_acorrs_flag:
             arrs_dict.update(self._get_stats_dict(
@@ -496,12 +537,12 @@ class SimultaneousExtremesFrequencyComputerMP:
 
             if self._save_sim_cdfs_flag:
                 sort_stn_refr_ser = np.sort(stn_refr_ser[:n_steps])
-                sort_stn_sim_sers = np.sort(stn_sim_sers)
+                sort_stn_sim_sers = np.sort(stn_sim_sers, axis=1)
                 sort_avg_stn_sim_sers = sort_stn_sim_sers.mean(axis=0)
                 sort_min_stn_sim_sers = sort_stn_sim_sers.min(axis=0)
                 sort_max_stn_sim_sers = sort_stn_sim_sers.max(axis=0)
 
-                # mins, means and maxs sortred values (cdfs)
+                # mins, means and maxs sorted values (cdfs)
                 cdfs_arr = np.full((4, n_steps_ext), np.nan, dtype=float)
                 cdfs_arr[0, :n_steps] = sort_stn_refr_ser
                 cdfs_arr[1, :] = sort_avg_stn_sim_sers

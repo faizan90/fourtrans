@@ -20,24 +20,26 @@ def main():
 
     in_file = r'neckar_daily_discharge_1961_2015.csv'
 
-    dendr_shp = r'P:\Synchronize\IWS\QGIS_Neckar\raster\taudem_out_spate_rockenau\watersheds.shp'
-    dendr_shp_fld = 'DN'
+    clusters_shp = r'P:\Synchronize\IWS\QGIS_Neckar\raster\taudem_out_spate_rockenau\watersheds.shp'
+    clusters_shp_fld = 'DN'
 
-    out_dir = 'test_simultexts_ranks_fft_3'
+    out_dir = 'test_simultexts_mult_stn_14_rank_vals_fft'
 
     out_h5 = os.path.join(out_dir, 'simultexts_db.hdf5')
 
     stns = ['420', '427', '454']  # , '3470', '3465', '3421'
-
     excd_probs = [0.001, 0.005]  # [0.001, 0.005, 0.0001, 0.0005, 0.00001]  #
-
     time_windows = [1, 3, 0]  # [2, 10, 1, 3, 0]  #
 
-    n_sims = 5
+#     stns = ['420', '427', '454', '3470', '3465', '3421']
+#     excd_probs = [0.001, 0.005, 0.0001, 0.0005]  # , 0.00001]
+#     time_windows = [2, 10, 1, 3, 0]
+
+    n_sims = 100
 
     n_cpus = 1  # 'auto'
 
-    n_steps_extend = int(3e4)
+    n_steps_extend = 0  # int(3e4)
 
     verbose_flag = False
     overwrite_flag = False
@@ -46,22 +48,22 @@ def main():
     save_sim_corrs_flag = False
     save_sim_ft_cumm_corrs_flag = False
     plot_freqs_flag = False
-    plot_dendrs_flag = False
+    plot_clusters_flag = False
     plot_sim_cdfs_flag = False
     plot_sim_auto_corrs_flag = False
     plot_sim_ft_corrs_flag = False
 
     verbose_flag = True
     overwrite_flag = True
-#     cmpt_simultexts_flag = True
-#     save_sim_cdfs_flag = True
-#     save_sim_corrs_flag = True
-#     save_sim_ft_cumm_corrs_flag = True
-#     plot_freqs_flag = True
-#     plot_dendrs_flag = True
-#     plot_sim_cdfs_flag = True
+    cmpt_simultexts_flag = True
+    save_sim_cdfs_flag = True
+    save_sim_corrs_flag = True
+    save_sim_ft_cumm_corrs_flag = True
+    plot_freqs_flag = True
+    plot_clusters_flag = True
+    plot_sim_cdfs_flag = True
     plot_sim_auto_corrs_flag = True
-#     plot_sim_ft_corrs_flag = True
+    plot_sim_ft_corrs_flag = True
 
     in_df = pd.read_csv(in_file, sep=';', index_col=0)
 
@@ -98,7 +100,7 @@ def main():
 
     if any([
         plot_freqs_flag,
-        plot_dendrs_flag,
+        plot_clusters_flag,
         plot_sim_cdfs_flag,
         plot_sim_auto_corrs_flag,
         plot_sim_ft_corrs_flag]):
@@ -113,18 +115,16 @@ def main():
 
         SEP.set_plot_type_flags(
             plot_freqs_flag,
-            plot_dendrs_flag,
             plot_sim_cdfs_flag,
             plot_sim_auto_corrs_flag,
             plot_sim_ft_corrs_flag)
 
-        if plot_dendrs_flag and False:
-            SEP.set_dendrogram_shapefile_path(dendr_shp, dendr_shp_fld)
+        if plot_clusters_flag:
+            SEP.set_clusters_shapefile_path(clusters_shp, clusters_shp_fld)
 
         SEP.verify()
 
         SEP.plot()
-
     return
 
 
