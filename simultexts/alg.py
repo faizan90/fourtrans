@@ -459,6 +459,9 @@ class SimultaneousExtremesFrequencyComputerMP:
                         stns_ft_ccorrs_dict[
                             f'ft_ccorrs_{stn}'][ft_sims_ctr, :] = _vals
 
+                    assert np.all(np.isfinite(stns_ft_ccorrs_dict[
+                        f'ft_ccorrs_{stn}'][ft_sims_ctr, :]))
+
                     ft_sims_ctr += 1
 
                 if not sim_no:
@@ -594,15 +597,18 @@ class SimultaneousExtremesFrequencyComputerMP:
 
                 stn_grp[key] = arrs_dict[key]
 
+            n_steps = stn_grp['n_steps'][...]
+            n_steps_ext = stn_grp['n_steps_ext'][...]
+
             if self._save_sim_ft_cumm_corrs_flag:
                 corrs_key = f'ft_ccorrs_{stn}'
 
-                if corrs_key not in stn_grp:
-                    n_ft_sims = (self._n_sims * (
-                        stn_grp['n_steps_ext'][...] //
-                        stn_grp['n_steps'][...])) + 1
+                idxs_scale = n_steps_ext // n_steps
 
-                    ft_steps = 1 + (stn_grp['n_steps'][...] // 2)
+                if corrs_key not in stn_grp:
+                    n_ft_sims = (self._n_sims * idxs_scale) + 1
+
+                    ft_steps = 1 + (n_steps // 2)
 
                     sim_corrs_ds = stn_grp.create_dataset(
                         corrs_key,
@@ -613,7 +619,8 @@ class SimultaneousExtremesFrequencyComputerMP:
                     sim_corrs_ds = stn_grp[corrs_key]
 
                 sim_corrs_ds[
-                    sim_chunk_idxs[0]:sim_chunk_idxs[1]] = arrs_dict[corrs_key]
+                    sim_chunk_idxs[0] * idxs_scale:
+                    sim_chunk_idxs[1] * idxs_scale] = arrs_dict[corrs_key]
 
                 del arrs_dict[corrs_key]
 
@@ -623,7 +630,7 @@ class SimultaneousExtremesFrequencyComputerMP:
                 if sims_key not in stn_grp:
                     sims_ds = stn_grp.create_dataset(
                         sims_key,
-                        (self._n_sims + 1, stn_grp['n_steps_ext'][...]),
+                        (self._n_sims + 1, n_steps_ext),
                         dtype=float)
 
                 else:
@@ -737,7 +744,7 @@ class SimultaneousExtremesFrequencyComputerMP:
 
                 stn_grp[f'sim_acorrs_{stn}'] = acorrs_arr
 
-            del stn_grp[sims_key]  # remove this to keep the simulations
+            # del stn_grp[sims_key]  # comment this to keep the simulations
             stn_refr_ser = stn_sim_sers = stn_sims = None
 
         h5_hdl.flush()
