@@ -13,8 +13,8 @@ import pandas as pd
 from scipy.stats import rankdata, norm
 from pathos.multiprocessing import ProcessPool
 
-from .misc import print_sl, print_el, ret_mp_idxs
 from .data import SimultaneousExtremesDataAndSettings as SEDS
+from .misc import print_sl, print_el, ret_mp_idxs, get_daily_annual_cycles_df
 
 
 class SimultaneousExtremesAlgorithm(SEDS):
@@ -27,7 +27,7 @@ class SimultaneousExtremesAlgorithm(SEDS):
 
         self._mp_pool = None
 
-        self._max_acorr_steps = 500
+        self._max_acorr_steps = 50
 
         self._n_cpus_extra = 0
 
@@ -128,8 +128,6 @@ class SimultaneousExtremesAlgorithm(SEDS):
 
         if 'simultexts_sims' not in h5_hdl:
             h5_hdl.create_group('simultexts_sims')
-
-            h5_hdl.flush()
 
         h5_hdl.close()
 
@@ -329,8 +327,25 @@ class SimultaneousExtremesFrequencyComputerMP:
                     obs_vals_df.rank(ascending=True) / (n_steps + 1.0)),
                 columns=stn_comb)
 
+        elif tfm == 'prob__no_ann_cyc':
+            # NOTE: ann_cyc_probs_df added to simulated values after irfft
+            assert np.all(((obs_vals_df.index[1:] - obs_vals_df.index[:-1]
+                ).total_seconds()).values == 86400), (
+                    'Configured for daily time series only!')
+
+            ann_cyc_df = get_daily_annual_cycles_df(obs_vals_df)
+
+            ann_cyc_probs_df = ann_cyc_df.rank(
+                ascending=True) / (n_steps + 1.0)
+
+            ft_input_df = obs_vals_df - ann_cyc_df
+
+            ft_input_df = ft_input_df.rank(ascending=True) / (n_steps + 1.0)
+
         else:
             raise ValueError(tfm)
+
+        assert np.all(np.isfinite(ft_input_df.values))
 
         for i in range(n_combs):
             obs_ft_df.iloc[:, i] = np.fft.rfft(ft_input_df.iloc[:, i])
@@ -348,6 +363,8 @@ class SimultaneousExtremesFrequencyComputerMP:
         sim_phas_mult_vec = np.ones(ft_steps, dtype=int)
         sim_phas_mult_vec[0] = 0
         sim_phas_mult_vec[ft_steps - 1] = 0
+
+#         sim_phas_mult_vec[:n_steps // 365] = 0
 
         sim_ft_df = pd.DataFrame(
             data=np.full((ft_steps, n_combs), np.nan, dtype=complex),
@@ -375,6 +392,7 @@ class SimultaneousExtremesFrequencyComputerMP:
             }
 
         if self._save_sim_cdfs_flag or self._save_sim_acorrs_flag:
+            # TODO: save simulated phases as well
             stns_sims_dict = {
                 f'sim_sers_{stn}':
                     np.full(
@@ -416,7 +434,7 @@ class SimultaneousExtremesFrequencyComputerMP:
                     sim_phases = -np.pi + (
                         (2 * np.pi) * np.random.random(ft_steps))
 
-                    sim_phases *= sim_phas_mult_vec
+                    sim_phases = sim_phases * sim_phas_mult_vec
 
                     sim_ft_phas_df = obs_ft_phas_df.apply(
                         lambda x: x + sim_phases)
@@ -440,6 +458,13 @@ class SimultaneousExtremesFrequencyComputerMP:
                         sim_vals_df.iloc[
                             ext_step_idx:ext_step_idx + n_steps, i] = (
                                 np.fft.irfft(sim_ft_df.iloc[:, i]))
+
+                        if tfm == 'prob__no_ann_cyc':
+                            sim_vals_df.iloc[
+                                ext_step_idx:ext_step_idx + n_steps, i] += (
+                                    ann_cyc_probs_df.iloc[:, i].values)
+
+                assert np.all(np.isfinite(sim_vals_df.values))
 
                 if self._save_sim_ft_cumm_corrs_flag:
                     for stn in stn_comb:

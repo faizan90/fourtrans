@@ -23,7 +23,7 @@ def main():
     clusters_shp = r'P:\Synchronize\IWS\QGIS_Neckar\raster\taudem_out_spate_rockenau\watersheds.shp'
     clusters_shp_fld = 'DN'
 
-    out_dir = 'test_simultexts_mult_stn_21_mp'
+    out_dir = 'test_simultexts_mult_stn_26_norm_hi_mean'
 
     out_h5 = os.path.join(out_dir, 'simultexts_db.hdf5')
 
@@ -55,15 +55,15 @@ def main():
 
     verbose_flag = True
     overwrite_flag = True
-    cmpt_simultexts_flag = True
-    save_sim_cdfs_flag = True
-    save_sim_corrs_flag = True
-    save_sim_ft_cumm_corrs_flag = True
-    plot_freqs_flag = True
-    plot_clusters_flag = True
-    plot_sim_cdfs_flag = True
+#     cmpt_simultexts_flag = True
+#     save_sim_cdfs_flag = True
+#     save_sim_corrs_flag = True
+#     save_sim_ft_cumm_corrs_flag = True
+#     plot_freqs_flag = True
+#     plot_clusters_flag = True
+#     plot_sim_cdfs_flag = True
     plot_sim_auto_corrs_flag = True
-    plot_sim_ft_corrs_flag = True
+#     plot_sim_ft_corrs_flag = True
 
     in_df = pd.read_csv(in_file, sep=';', index_col=0)
 
@@ -125,6 +125,8 @@ def main():
         SEP.verify()
 
         SEP.plot()
+
+        SEP = None
     return
 
 

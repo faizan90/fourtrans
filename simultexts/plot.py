@@ -737,13 +737,15 @@ class PlotSimultaneousExtremesMP:
     def _plot_ft_cumm_diff_corrs(
             self, ref_stn, stn_comb_grp, stn_comb_data, corr_type):
 
-        fig_size = (15, 8)
+        fig_size = (18, 8)
 
         comb_lab = stn_comb_data.comb_lab
 
         ft_ccorrs_arr = stn_comb_grp[f'ft_ccorrs_{ref_stn}'][...]
 
         n_ft_sims, n_ft_corrs = ft_ccorrs_arr.shape
+
+        n_zoom_freqs = max(int(0.01 * n_ft_corrs), 2)
 
         obs_corrs = ft_ccorrs_arr[0, :]
         sim_corrs = ft_ccorrs_arr[1:, :].reshape(-1, n_ft_corrs)
@@ -775,11 +777,17 @@ class PlotSimultaneousExtremesMP:
         corr_within_bds_arr[obs_corrs < min_sim_corrs] = 0
         corr_within_bds_arr[obs_corrs > max_sim_corrs] = 2
 
+        pcent_abv_sim = 100 * (corr_within_bds_arr == 2).sum() / n_ft_corrs
+        pcent_within_sim = 100 * (corr_within_bds_arr == 1).sum() / n_ft_corrs
+        pcent_bel_sim = 100 * (corr_within_bds_arr == 0).sum() / n_ft_corrs
+
         fig = plt.figure(figsize=fig_size)
 
         axs = (
-            plt.subplot2grid((6, 1), (0, 0), 5, 1, fig=fig),
-            plt.subplot2grid((6, 1), (5, 0), 1, 1, fig=fig))
+            plt.subplot2grid((6, 2), (0, 0), 5, 1, fig=fig),
+            plt.subplot2grid((6, 2), (5, 0), 1, 1, fig=fig),
+            plt.subplot2grid((6, 2), (0, 1), 5, 1, fig=fig),
+            plt.subplot2grid((6, 2), (5, 1), 1, 1, fig=fig))
 
         axs[0].plot(
             obs_corrs, color='r', alpha=0.9, lw=1, label='obs.', zorder=3)
@@ -808,16 +816,6 @@ class PlotSimultaneousExtremesMP:
         axs[0].legend()
         axs[0].grid()
 
-        axs[0].set_title(
-            f'{type_labs[0]} Fourier transform pearson correlations '
-            f'for observed and simulated series of station {ref_stn} '
-            f'in combination {comb_lab}\n'
-            f'No. of common steps: {stn_comb_data.n_steps}, '
-            f'No. of extended steps: {stn_comb_data.n_steps_ext}, '
-            f'No. of simulations: {self._n_sims}\n'
-            f'Total no. of simulated series: {n_ft_sims - 1}, '
-            f'No. of frequencies: {n_ft_corrs}')
-
         axs[1].plot(corr_within_bds_arr, color='C0', alpha=0.7, lw=1)
         axs[1].set_yticks(np.arange(3))
         axs[1].set_yticklabels(
@@ -826,6 +824,70 @@ class PlotSimultaneousExtremesMP:
         axs[1].grid()
 
         axs[1].set_xlabel('Frequency (steps)')
+
+        axs[2].plot(
+            obs_corrs[:n_zoom_freqs],
+            color='r',
+            alpha=0.9,
+            lw=1,
+            label='obs.',
+            zorder=3)
+
+        axs[2].plot(
+            mean_sim_corrs[:n_zoom_freqs],
+            color='b',
+            alpha=0.6,
+            lw=2.0,
+            label='sim_mean',
+            zorder=2)
+
+        axs[2].fill_between(
+            np.arange(n_zoom_freqs),
+            min_sim_corrs[:n_zoom_freqs],
+            max_sim_corrs[:n_zoom_freqs],
+            color='b',
+            alpha=0.3,
+            label='sim_bds',
+            zorder=1)
+
+        axs[2].set_xticklabels([])
+        axs[2].set_yticklabels([])
+
+        axs[2].grid()
+
+        axs[3].plot(
+            corr_within_bds_arr[:n_zoom_freqs],
+            color='C0',
+            alpha=0.7,
+            lw=1)
+
+        axs[3].set_yticks(np.arange(3))
+        axs[3].set_yticklabels([])
+
+        axs[3].grid()
+
+        axs[3].set_xlabel('Frequency (steps)')
+
+        plt.suptitle(
+            f'{type_labs[0]} Fourier transform pearson correlations '
+            f'for observed and simulated series of station {ref_stn} '
+            f'in combination {comb_lab}\n'
+            f'No. of common steps: {stn_comb_data.n_steps}, '
+            f'No. of extended steps: {stn_comb_data.n_steps_ext}, '
+            f'No. of simulations: {self._n_sims}, '
+            f'Total no. of simulated series: {n_ft_sims - 1}\n'
+            f'Observed {pcent_abv_sim:0.1f}% above, '
+            f'{pcent_within_sim:0.1f}% within and '
+            f'{pcent_bel_sim:0.1f}% below simulation, '
+            f'No. of frequencies: {n_ft_corrs}, '
+            f'Left: All frequencies, '
+            f'Right: Top 1 percent frequencies')
+
+        plt.subplots_adjust(wspace=0.02)
+
+        axs[0].tick_params(bottom=False)
+        axs[2].tick_params(bottom=False, left=False)
+        axs[3].tick_params(left=False)
 
         fig_name = (
             f'simult_ext_ft_{type_labs[1]}_coors_{comb_lab}_{ref_stn}.png')
@@ -855,8 +917,16 @@ class PlotSimultaneousExtremesMP:
             for tw_i, tw in enumerate(self._tws):
                 neb_stns = stn_idxs_swth_dict[ref_stn]
 
-                probs = [
+                mean_probs = [
                     freqs_tups[(ref_stn, neb_stn)].avg_probs[ep_i, tw_i]
+                    for neb_stn in neb_stns]
+
+                min_probs = [
+                    freqs_tups[(ref_stn, neb_stn)].min_probs[ep_i, tw_i]
+                    for neb_stn in neb_stns]
+
+                max_probs = [
+                    freqs_tups[(ref_stn, neb_stn)].max_probs[ep_i, tw_i]
                     for neb_stn in neb_stns]
 
                 fig = plt.figure(figsize=fig_size)
@@ -868,7 +938,7 @@ class PlotSimultaneousExtremesMP:
                     patch = PolygonPatch(
                         self._cluster_feats_dict['patches'][neb_stn],
                         alpha=0.9,
-                        fc=cmap(probs[neb_stn_i]),
+                        fc=cmap(mean_probs[neb_stn_i]),
                         ec='#999999')
 
                     map_ax.add_patch(patch)
@@ -879,10 +949,18 @@ class PlotSimultaneousExtremesMP:
                         alpha=0.5,
                         color='grey')
 
+                    stn_text = (
+                        f'({min_probs[neb_stn_i]}, '
+                        f'{mean_probs[neb_stn_i]}, '
+                        f'{max_probs[neb_stn_i]})'
+                        )
+
                     map_ax.text(
                         self._cluster_feats_dict['xx_mean'][neb_stn],
                         self._cluster_feats_dict['yy_mean'][neb_stn],
-                        f'{neb_stn}\n({probs[neb_stn_i]})',
+                        f'{neb_stn}\n{stn_text}',
+                        ha='center',
+                        va='center',
                         alpha=1.0,
                         color='k')
 
@@ -902,7 +980,7 @@ class PlotSimultaneousExtremesMP:
                 map_ax.text(
                     self._cluster_feats_dict['xx_mean'][ref_stn],
                     self._cluster_feats_dict['yy_mean'][ref_stn],
-                    f'{ref_stn}\n(ref.)',
+                    f'{ref_stn}',
                     ha='center',
                     va='center',
                     alpha=1.0,
@@ -926,11 +1004,10 @@ class PlotSimultaneousExtremesMP:
                 cb.set_label('Mean simulated probability')
 
                 map_ax.set_title(
-                    f'Station {ref_stn} mean extremes simulated '
-                    f'probability for event '
-                    f'exeecedance probability: {ep} '
-                    f'and time window: {tw} steps '
-                    f'in combination {comb_lab}')
+                    f'Mean extremes simulated probability for '
+                    f'station {ref_stn} in combination {comb_lab}\n'
+                    f'Event exeecedance probability: {ep}'
+                    f', time window: {tw} steps')
 
                 fig_name = f'clusters_{comb_lab}_{ref_stn}_EP{ep}_TW{tw}.png'
 
@@ -1030,9 +1107,15 @@ class PlotSimultaneousExtremesMP:
             min_stn_sim_pcorr = acorrs_arr[2, :]
             max_stn_sim_pcorr = acorrs_arr[3, :]
 
+            n_corrs = stn_refr_pcorr.shape[0]
+
             pcorr_within_bds_arr = np.ones_like(stn_refr_pcorr, dtype=int)
             pcorr_within_bds_arr[stn_refr_pcorr < min_stn_sim_pcorr] = 0
             pcorr_within_bds_arr[stn_refr_pcorr > max_stn_sim_pcorr] = 2
+
+            pcent_abv_sim = 100 * (pcorr_within_bds_arr == 2).sum() / n_corrs
+            pcent_within_sim = 100 * (pcorr_within_bds_arr == 1).sum() / n_corrs
+            pcent_bel_sim = 100 * (pcorr_within_bds_arr == 0).sum() / n_corrs
 
             fig = plt.figure(figsize=fig_size)
 
@@ -1087,7 +1170,12 @@ class PlotSimultaneousExtremesMP:
                 f'series of station {ref_stn} in combination {comb_lab}\n'
                 f'No. of common steps: {stn_comb_data.n_steps}, '
                 f'No. of extended steps: {stn_comb_data.n_steps_ext}, '
-                f'No. of simulations: {self._n_sims}')
+                f'No. of simulations: {self._n_sims}, '
+                f'Observed {pcent_abv_sim:0.1f}% above, '
+                f'{pcent_within_sim:0.1f}% within and '
+                f'{pcent_bel_sim:0.1f}% below simulation')
+
+            axs[0].tick_params(bottom=False)
 
             plt.tight_layout()
 
@@ -1108,6 +1196,10 @@ class PlotSimultaneousExtremesMP:
             scorr_within_bds_arr = np.ones_like(stn_refr_scorr, dtype=int)
             scorr_within_bds_arr[stn_refr_scorr < min_stn_sim_scorr] = 0
             scorr_within_bds_arr[stn_refr_scorr > max_stn_sim_scorr] = 2
+
+            pcent_abv_sim = 100 * (scorr_within_bds_arr == 2).sum() / n_corrs
+            pcent_within_sim = 100 * (scorr_within_bds_arr == 1).sum() / n_corrs
+            pcent_bel_sim = 100 * (scorr_within_bds_arr == 0).sum() / n_corrs
 
             fig = plt.figure(figsize=fig_size)
 
@@ -1159,7 +1251,12 @@ class PlotSimultaneousExtremesMP:
                 f'series of station {ref_stn} in combination {comb_lab}\n'
                 f'No. of common steps: {stn_comb_data.n_steps}, '
                 f'No. of extended steps: {stn_comb_data.n_steps_ext}, '
-                f'No. of simulations: {self._n_sims}')
+                f'No. of simulations: {self._n_sims}, '
+                f'Observed {pcent_abv_sim:0.1f}% above, '
+                f'{pcent_within_sim:0.1f}% within and '
+                f'{pcent_bel_sim:0.1f}% below simulation')
+
+            axs[0].tick_params(bottom=False)
 
             plt.tight_layout()
 
