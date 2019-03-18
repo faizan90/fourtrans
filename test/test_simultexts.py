@@ -23,7 +23,7 @@ def main():
     clusters_shp = r'P:\Synchronize\IWS\QGIS_Neckar\raster\taudem_out_spate_rockenau\watersheds.shp'
     clusters_shp_fld = 'DN'
 
-    out_dir = 'test_simultexts_mult_stn_19_mp'
+    out_dir = 'test_simultexts_mult_stn_21_mp'
 
     out_h5 = os.path.join(out_dir, 'simultexts_db.hdf5')
 
@@ -35,9 +35,9 @@ def main():
 #     excd_probs = [0.001, 0.005, 0.0001, 0.0005]  # , 0.00001]
 #     time_windows = [2, 10, 1, 3, 0]
 
-    n_sims = 10
+    n_sims = 100
 
-    n_cpus = 'auto'
+    n_cpus = 1  # 'auto'
 
     n_steps_extend = 0  # int(3e4)
 

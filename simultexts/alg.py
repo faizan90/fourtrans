@@ -87,7 +87,7 @@ class SimultaneousExtremesAlgorithm(SEDS):
 
     def _finalize(self):
 
-        h5_hdl = h5py.File(self._h5_path, mode='r+', driver='core')
+        h5_hdl = h5py.File(self._h5_path, mode='r+', driver=None)
 
         h5_hdl['excd_probs'] = self._eps
         h5_hdl['time_windows'] = self._tws
@@ -121,10 +121,10 @@ class SimultaneousExtremesAlgorithm(SEDS):
         self._out_dir.mkdir(exist_ok=True)
 
         if self._owr_flag or (not self._h5_path.exists()):
-            h5_hdl = h5py.File(self._h5_path, mode='w', driver='core')
+            h5_hdl = h5py.File(self._h5_path, mode='w', driver=None)
 
         else:
-            h5_hdl = h5py.File(self._h5_path, mode='r+', driver='core')
+            h5_hdl = h5py.File(self._h5_path, mode='r+', driver=None)
 
         if 'simultexts_sims' not in h5_hdl:
             h5_hdl.create_group('simultexts_sims')
@@ -559,7 +559,7 @@ class SimultaneousExtremesFrequencyComputerMP:
 
         '''Must be called with a Lock'''
 
-        h5_hdl = h5py.File(self._h5_path, mode='r+', driver='core')
+        h5_hdl = h5py.File(self._h5_path, mode='r+', driver=None)
 
         sims_grp = h5_hdl['simultexts_sims']
 
@@ -669,7 +669,7 @@ class SimultaneousExtremesFrequencyComputerMP:
 
         stn_comb_str = str(stn_comb)
 
-        h5_hdl = h5py.File(self._h5_path, mode='r+', driver='core')
+        h5_hdl = h5py.File(self._h5_path, mode='r+', driver=None)
 
         sims_grp = h5_hdl['simultexts_sims']
 
@@ -703,7 +703,7 @@ class SimultaneousExtremesFrequencyComputerMP:
 
                 stn_grp[f'sim_cdfs_{stn}'] = cdfs_arr
 
-                sort_stn_sim_sers = None
+                sort_stn_sim_sers = stn_sim_sers = None
 
             if self._save_sim_acorrs_flag:
                 n_corr_steps = min(self._max_acorr_steps, n_steps)
@@ -747,6 +747,6 @@ class SimultaneousExtremesFrequencyComputerMP:
             # del stn_grp[sims_key]  # comment this to keep the simulations
             stn_refr_ser = stn_sim_sers = stn_sims = None
 
-        h5_hdl.flush()
+            h5_hdl.flush()
         h5_hdl.close()
         return

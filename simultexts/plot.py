@@ -291,7 +291,7 @@ class SimultaneousExtremesPlot:
             self._out_dir.mkdir(exist_ok=True)
 
         if self._h5_hdl is None:
-            self._h5_hdl = h5py.File(self._h5_path, 'r', driver='core')
+            self._h5_hdl = h5py.File(self._h5_path, 'r', driver=None)
 
         self._var_chk()
 
@@ -406,7 +406,7 @@ class PrepareSimultaneousExtremesPlottingData:
 
     def get_data(self):
 
-        self._h5_hdl = h5py.File(self._h5_path, 'r', driver='core')
+        self._h5_hdl = h5py.File(self._h5_path, 'r', driver=None)
 
         stn_combs = list(self._h5_hdl['simultexts_sims'].keys())
 
@@ -705,7 +705,7 @@ class PlotSimultaneousExtremesMP:
          stn_comb,
          stn_idxs_swth_dict) = args
 
-        h5_hdl = h5py.File(self._h5_path, 'r', driver='core')
+        h5_hdl = h5py.File(self._h5_path, 'r', driver=None)
         stn_comb_grp = h5_hdl['simultexts_sims'][stn_comb]
 
         for ref_stn in ref_stns:
