@@ -319,10 +319,15 @@ class SimultaneousExtremesPlot:
             self._out_dirs_dict['freq_tabs'].mkdir(exist_ok=True)
 
         if self._plot_clusters_flag:
-            self._out_dirs_dict['cluster_figs'] = (
-                self._out_dir / 'simultexts_cluster_figs')
+            self._out_dirs_dict['binary_cluster_figs'] = (
+                self._out_dir / 'simultexts_binary_cluster_figs')
 
-            self._out_dirs_dict['cluster_figs'].mkdir(exist_ok=True)
+            self._out_dirs_dict['binary_cluster_figs'].mkdir(exist_ok=True)
+
+            self._out_dirs_dict['nD_cluster_figs'] = (
+                self._out_dir / 'simultexts_nD_cluster_figs')
+
+            self._out_dirs_dict['nD_cluster_figs'].mkdir(exist_ok=True)
 
         if self._plot_sim_cdfs_flag:
             assert saved_sim_cdfs_flag, (
@@ -653,7 +658,6 @@ class PlotSimultaneousExtremesMP:
             self._vb = False
 
         self._h5_hdl = None
-
         return
 
     def plot(self, stn_comb_data_item):
@@ -696,6 +700,9 @@ class PlotSimultaneousExtremesMP:
 
         else:
             list(map(self._plot, plot_gen))
+
+        if self._plot_clusters_flag:
+            self._plot_nD_clusters((stn_comb, stn_comb_data.comb_lab))
         return
 
     def _plot(self, args):
@@ -714,7 +721,7 @@ class PlotSimultaneousExtremesMP:
                     ref_stn, stn_comb_data, stn_idxs_swth_dict)
 
             if self._plot_clusters_flag:
-                self._plot_clusters(
+                self._plot_binary_clusters(
                     ref_stn,
                     stn_idxs_swth_dict,
                     stn_comb_data.freqs_tups,
@@ -733,6 +740,25 @@ class PlotSimultaneousExtremesMP:
 
         h5_hdl.close()
         return
+
+    def _get_cluster_simult_evts_data(self, stn_comb):
+
+        h5_hdl = h5py.File(self._h5_path, 'r', driver=None)
+        stn_comb_grp = h5_hdl['simultexts_sims'][stn_comb]
+
+        assert 'simult_ext_evts_cts' in stn_comb_grp, (
+            f'Required variable simult_ext_evts_cts for the given '
+            f'combination not in the input HDF5!')
+
+        assert 'all_stn_combs' in stn_comb_grp, (
+            f'Required variable all_stn_combs for the given '
+            f'combination not in the input HDF5!')
+
+        simult_ext_evts_cts = stn_comb_grp['simult_ext_evts_cts'][...]
+        all_stn_combs = stn_comb_grp['all_stn_combs'][...]
+
+        h5_hdl.close()
+        return (simult_ext_evts_cts, all_stn_combs)
 
     def _plot_ft_cumm_diff_corrs(
             self, ref_stn, stn_comb_grp, stn_comb_data, corr_type):
@@ -851,9 +877,10 @@ class PlotSimultaneousExtremesMP:
             zorder=1)
 
         axs[2].set_xticklabels([])
-        axs[2].set_yticklabels([])
 
         axs[2].grid()
+
+        axs[2].yaxis.tick_right()
 
         axs[3].plot(
             corr_within_bds_arr[:n_zoom_freqs],
@@ -886,7 +913,7 @@ class PlotSimultaneousExtremesMP:
         plt.subplots_adjust(wspace=0.02)
 
         axs[0].tick_params(bottom=False)
-        axs[2].tick_params(bottom=False, left=False)
+        axs[2].tick_params(bottom=False, left=False, right=True)
         axs[3].tick_params(left=False)
 
         fig_name = (
@@ -899,7 +926,7 @@ class PlotSimultaneousExtremesMP:
         plt.close()
         return
 
-    def _plot_clusters(
+    def _plot_binary_clusters(
             self,
             ref_stn,
             stn_idxs_swth_dict,
@@ -916,6 +943,8 @@ class PlotSimultaneousExtremesMP:
         for ep_i, ep in enumerate(self._eps):
             for tw_i, tw in enumerate(self._tws):
                 neb_stns = stn_idxs_swth_dict[ref_stn]
+
+                print(ep_i, ep, tw_i, tw)
 
                 mean_probs = [
                     freqs_tups[(ref_stn, neb_stn)].avg_probs[ep_i, tw_i]
@@ -950,9 +979,9 @@ class PlotSimultaneousExtremesMP:
                         color='grey')
 
                     stn_text = (
-                        f'({min_probs[neb_stn_i]}, '
-                        f'{mean_probs[neb_stn_i]}, '
-                        f'{max_probs[neb_stn_i]})'
+                        f'({min_probs[neb_stn_i]:0.2f}, '
+                        f'{mean_probs[neb_stn_i]:0.2f}, '
+                        f'{max_probs[neb_stn_i]:0.2f})'
                         )
 
                     map_ax.text(
@@ -1004,18 +1033,135 @@ class PlotSimultaneousExtremesMP:
                 cb.set_label('Mean simulated probability')
 
                 map_ax.set_title(
-                    f'Mean extremes simulated probability for '
+                    f'Mean extremes binary simulated probability for '
                     f'station {ref_stn} in combination {comb_lab}\n'
                     f'Event exeecedance probability: {ep}'
                     f', time window: {tw} steps')
 
-                fig_name = f'clusters_{comb_lab}_{ref_stn}_EP{ep}_TW{tw}.png'
+                fig_name = (
+                    f'binary_clusters_{comb_lab}_{ref_stn}_EP{ep}_TW{tw}.png')
 
                 plt.savefig(
-                    str(self._out_dirs_dict['cluster_figs'] / fig_name),
+                    str(self._out_dirs_dict['binary_cluster_figs'] / fig_name),
                     bbox_inches='tight')
 
                 plt.close()
+        return
+
+    def _plot_nD_clusters(self, arg):
+
+        stn_comb_str, comb_lab = arg
+
+        stn_comb = eval(stn_comb_str)
+
+        simult_ext_evts_cts, all_stn_combs = (
+            self._get_cluster_simult_evts_data(stn_comb_str))
+
+        fig_size = (13, 10)
+
+        cmap = plt.get_cmap('Blues')
+
+        cmap_mappable = plt.cm.ScalarMappable(cmap=cmap)
+        cmap_mappable.set_array([])
+
+        for ep_i, ep in enumerate(self._eps):
+            for tw_i, tw in enumerate(self._tws):
+                for ep_tw_stn_comb_i, ep_tw_stn_comb_str in enumerate(
+                    all_stn_combs):
+
+                    ep_tw_stn_comb = eval(ep_tw_stn_comb_str)
+
+                    ep_tw_stn_comb_cts = simult_ext_evts_cts[
+                        :, ep_i, tw_i, ep_tw_stn_comb_i]
+
+                    all_probs = np.array([
+                        ep_tw_stn_comb_ct[1]
+                        for ep_tw_stn_comb_ct in ep_tw_stn_comb_cts[1:]])
+
+                    obs_prob = ep_tw_stn_comb_cts[0][1]
+                    min_prob = all_probs.min()
+                    max_prob = all_probs.max()
+                    mean_prob = all_probs.mean()
+
+                    fig = plt.figure(figsize=fig_size)
+
+                    map_ax = plt.subplot2grid((1, 25), (0, 0), 1, 24, fig=fig)
+                    cb_ax = plt.subplot2grid((1, 25), (0, 24), 1, 1, fig=fig)
+
+                    for stn in stn_comb:
+                        if stn in ep_tw_stn_comb:
+                            patch = PolygonPatch(
+                                self._cluster_feats_dict['patches'][stn],
+                                alpha=0.9,
+                                fc=cmap(mean_prob),
+                                ec='#999999')
+
+                            stn_text_clr = 'black'
+
+                        else:
+                            patch = PolygonPatch(
+                                self._cluster_feats_dict['patches'][stn],
+                                alpha=0.2,
+                                fc='#999999',
+                                ec='#999999')
+
+                            stn_text_clr = 'grey'
+
+                        map_ax.add_patch(patch)
+
+                        map_ax.plot(
+                            self._cluster_feats_dict['xx'][stn],
+                            self._cluster_feats_dict['yy'][stn],
+                            alpha=0.5,
+                            color='grey')
+
+                        map_ax.text(
+                            self._cluster_feats_dict['xx_mean'][stn],
+                            self._cluster_feats_dict['yy_mean'][stn],
+                            f'{stn}',
+                            ha='center',
+                            va='center',
+                            alpha=1.0,
+                            color=stn_text_clr)
+
+                    map_ax.grid()
+
+                    map_ax.set_aspect('equal', 'datalim')
+
+                    map_ax.tick_params(axis='x', labelrotation=90)
+
+                    map_ax.set_xlabel('x-coordinates')
+                    map_ax.set_ylabel('y-coordinates')
+
+                    cb = plt.colorbar(
+                        cmap_mappable,
+                        cax=cb_ax,
+                        orientation='vertical',
+                        fraction=0.1)
+
+                    cb.set_label('Mean simulated probability')
+
+                    stns_str = ', '.join(ep_tw_stn_comb)
+
+                    map_ax.set_title(
+                        f'Mean extremes nD simulated probability '
+                        f'in combination {comb_lab}. '
+                        f'Event exeecedance probability: {ep}'
+                        f', time window: {tw} steps\n'
+                        f'Obs. prob: {obs_prob:0.4f}, Simulated min: '
+                        f'{min_prob:0.4f}, mean: {mean_prob:0.4f}, '
+                        f'max: {max_prob:0.4f}\n'
+                        f'Stations: {stns_str}')
+
+                    fig_name = (
+                        f'nD_clusters_{comb_lab}_EP{ep}_TW{tw}_'
+                        f'{ep_tw_stn_comb_i}.png')
+
+                    plt.savefig(
+                        str(self._out_dirs_dict['nD_cluster_figs'] / fig_name),
+                        bbox_inches='tight')
+
+                    plt.close()
         return
 
     def _plot_sim_cdfs__corrs(self, ref_stn, stn_comb_grp, stn_comb_data):

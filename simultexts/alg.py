@@ -6,6 +6,7 @@ Created on Feb 4, 2019
 
 from timeit import default_timer
 from multiprocessing import Manager
+from itertools import combinations
 
 import h5py
 import numpy as np
@@ -374,6 +375,18 @@ class SimultaneousExtremesFrequencyComputerMP:
             data=np.full((n_steps_ext, n_combs), np.nan, dtype=float),
             columns=stn_comb)
 
+        all_stn_combs = []
+
+        for n_stns in range(2, n_combs + 1):
+            ep_tw_stn_combs = combinations(stn_comb, n_stns)
+
+            for ep_tw_stn_comb in ep_tw_stn_combs:
+                all_stn_combs.append(str(ep_tw_stn_comb))
+
+        assert all_stn_combs
+
+        all_stn_combs = np.array(all_stn_combs, dtype=np.unicode_)
+
         arrs_dict = {
             **{f'neb_evts_{stn}':
                     np.full(
@@ -384,6 +397,15 @@ class SimultaneousExtremesFrequencyComputerMP:
                         np.nan,
                         dtype=int)
                 for stn in stn_comb},
+
+            'simult_ext_evts_cts':
+                    np.full(
+                        (n_sims_chunk,
+                         len(self._eps),
+                         len(self._tws),
+                         all_stn_combs.shape[0]),
+                        np.nan,
+                        dtype=('uint32, float64, uint32, uint32')),
 
             'ref_evts': np.array(self._eps * n_steps, dtype=int),
             'ref_evts_ext': np.array(self._eps * n_steps_ext, dtype=int),
@@ -529,8 +551,16 @@ class SimultaneousExtremesFrequencyComputerMP:
                 stn_idxs_swth_dict,
                 sim_no_idx)
 
+            self._fill_simult_freqs_arr(
+                sim_vals_probs_df,
+                max_ep,
+                arrs_dict,
+                sim_no_idx,
+                all_stn_combs)
+
         with mp_lock:
-            self._write_freqs_data_to_hdf5(stn_comb, arrs_dict, sim_chunk_idxs)
+            self._write_freqs_data_to_hdf5(
+                stn_comb, arrs_dict, sim_chunk_idxs, all_stn_combs)
         return
 
     def _fill_freqs_arr(
@@ -542,24 +572,24 @@ class SimultaneousExtremesFrequencyComputerMP:
             stn_idxs_swth_dict,
             sim_no_idx):
 
-        for ref_stn_idx, ref_stn in enumerate(stn_comb):
-            max_ep_ge_idxs = (
-                sim_vals_probs_df.iloc[:, ref_stn_idx] <= max_ep).values
+        for ref_stn_i, ref_stn in enumerate(stn_comb):
+            max_ep_le_idxs = (
+                sim_vals_probs_df.iloc[:, ref_stn_i] <= max_ep).values
 
-            max_ep_sim_df = sim_vals_probs_df.loc[max_ep_ge_idxs]
+            max_ep_sim_df = sim_vals_probs_df.loc[max_ep_le_idxs]
 
             freqs_arr = arrs_dict[f'neb_evts_{ref_stn}']
 
             for neb_stn_i, neb_stn in enumerate(
                 stn_idxs_swth_dict[ref_stn]):
 
-                for ep_idx, ep in enumerate(self._eps):
+                for ep_i, ep in enumerate(self._eps):
                     neb_evt_ctrs = {tw:0 for tw in self._tws}
 
                     for evt_idx_i, evt_idx in enumerate(
                         max_ep_sim_df.index):
 
-                        if max_ep_sim_df.iloc[evt_idx_i, ref_stn_idx] > ep:
+                        if max_ep_sim_df.iloc[evt_idx_i, ref_stn_i] > ep:
                             continue
 
                         for tw in self._tws:
@@ -575,12 +605,69 @@ class SimultaneousExtremesFrequencyComputerMP:
 
                             neb_evt_ctrs[tw] += 1
 
-                    for tw_idx, tw in enumerate(self._tws):
-                        freqs_arr[sim_no_idx, neb_stn_i, ep_idx, tw_idx] = (
+                    for tw_i, tw in enumerate(self._tws):
+                        freqs_arr[sim_no_idx, neb_stn_i, ep_i, tw_i] = (
                             neb_evt_ctrs[tw])
         return
 
-    def _write_freqs_data_to_hdf5(self, stn_comb, arrs_dict, sim_chunk_idxs):
+    def _fill_simult_freqs_arr(
+            self,
+            sim_vals_probs_df,
+            max_ep,
+            arrs_dict,
+            sim_no_idx,
+            all_stn_combs):
+
+        max_ep_bools_df = sim_vals_probs_df <= max_ep
+        max_ep_idxs = max_ep_bools_df.any(axis=1).values
+        max_ep_df = sim_vals_probs_df.loc[max_ep_idxs, :]
+
+        simult_ext_evts_cts = arrs_dict['simult_ext_evts_cts']
+
+        for ep_i, ep in enumerate(self._eps):
+            ep_bools_df = max_ep_df <= ep
+            ep_idxs = (ep_bools_df).any(axis=1).values
+            ep_df = ep_bools_df.loc[ep_idxs]
+
+            for ep_tw_stn_comb_i, ep_tw_stn_comb_str in enumerate(
+                all_stn_combs):
+
+                ep_tw_stn_comb = eval(ep_tw_stn_comb_str)
+
+                comb_ep_df = ep_df.loc[:, ep_tw_stn_comb]
+
+                simult_steps_idxs = comb_ep_df.any(axis=1).values
+
+                simult_ep_df = comb_ep_df.loc[simult_steps_idxs]
+
+                n_tot_steps = simult_ep_df.shape[0]
+
+                for tw_i, tw in enumerate(self._tws):
+                    evt_ctr = 0
+                    for evt_idx in simult_ep_df.index:
+                        back_idx = max(0, evt_idx - tw)
+                        forw_idx = evt_idx + tw
+
+                        simult_ext_evt = simult_ep_df.loc[
+                            back_idx:forw_idx].any(axis=0).all()
+
+                        if simult_ext_evt:
+                            evt_ctr += 1
+
+                    simult_ext_prob = evt_ctr / n_tot_steps
+
+                    assert evt_ctr <= n_tot_steps
+
+                    simult_ext_evts_cts[
+                        sim_no_idx, ep_i, tw_i, ep_tw_stn_comb_i] = (
+                            len(ep_tw_stn_comb),
+                            simult_ext_prob,
+                            evt_ctr,
+                            n_tot_steps)
+        return
+
+    def _write_freqs_data_to_hdf5(
+        self, stn_comb, arrs_dict, sim_chunk_idxs, all_stn_combs):
 
         '''Must be called with a Lock'''
 
@@ -595,6 +682,45 @@ class SimultaneousExtremesFrequencyComputerMP:
 
         else:
             stn_grp = sims_grp[stn_comb_str]
+
+        for key in [
+            'ref_evts',
+            'ref_evts_ext',
+            'n_steps',
+            'n_steps_ext']:
+
+            if key in stn_grp:
+                continue
+
+            stn_grp[key] = arrs_dict[key]
+
+        simult_exts_evts_key = 'simult_ext_evts_cts'
+        if simult_exts_evts_key not in stn_grp:
+            evts_cts_ds = stn_grp.create_dataset(
+                    simult_exts_evts_key,
+                    (self._n_sims + 1,
+                     len(self._eps),
+                     len(self._tws),
+                     all_stn_combs.shape[0]),
+                    dtype=arrs_dict[simult_exts_evts_key].dtype)
+        else:
+            evts_cts_ds = stn_grp[simult_exts_evts_key]
+
+        evts_cts_ds[sim_chunk_idxs[0]:sim_chunk_idxs[1]] = (
+            arrs_dict[simult_exts_evts_key])
+
+        del arrs_dict[simult_exts_evts_key]
+
+        if 'all_stn_combs' not in stn_grp:
+            str_h5_dt = h5py.special_dtype(vlen=bytes)
+
+            stn_comb_labs_ds = stn_grp.create_dataset(
+                'all_stn_combs', all_stn_combs.shape, dtype=str_h5_dt)
+
+            stn_comb_labs_ds[:] = all_stn_combs
+
+        n_steps = stn_grp['n_steps'][...]
+        n_steps_ext = stn_grp['n_steps_ext'][...]
 
         for stn in stn_comb:
             freq_key = f'neb_evts_{stn}'
@@ -615,15 +741,6 @@ class SimultaneousExtremesFrequencyComputerMP:
                 sim_chunk_idxs[0]:sim_chunk_idxs[1]] = arrs_dict[freq_key]
 
             del arrs_dict[freq_key]
-
-            for key in ['ref_evts', 'ref_evts_ext', 'n_steps', 'n_steps_ext']:
-                if key in stn_grp:
-                    continue
-
-                stn_grp[key] = arrs_dict[key]
-
-            n_steps = stn_grp['n_steps'][...]
-            n_steps_ext = stn_grp['n_steps_ext'][...]
 
             if self._save_sim_ft_cumm_corrs_flag:
                 corrs_key = f'ft_ccorrs_{stn}'
