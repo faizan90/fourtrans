@@ -403,7 +403,8 @@ class PrepareSimultaneousExtremesPlottingData:
                 'ref_evts_ext_arr',
                 'n_steps',
                 'n_steps_ext',
-                'comb_lab'))
+                'comb_lab',
+                'n_all_stn_combs'))
 
         self._h5_hdl = None
         self._stn_combs = None
@@ -462,6 +463,12 @@ class PrepareSimultaneousExtremesPlottingData:
         assert 'n_steps_ext' in stn_comb_grp, (
             f'Required variable n_steps_ext for the given combination '
             f'not in the input HDF5!')
+
+        assert 'all_stn_combs' in stn_comb_grp, (
+            f'Required variable all_stn_combs for the given '
+            f'combination not in the input HDF5!')
+
+        n_all_stn_combs = stn_comb_grp['all_stn_combs'].shape[0]
 
         ref_evts_arr = stn_comb_grp['ref_evts'][...]
         ref_evts_ext_arr = stn_comb_grp['ref_evts_ext'][...]
@@ -576,7 +583,8 @@ class PrepareSimultaneousExtremesPlottingData:
             ref_evts_ext_arr,
             n_steps,
             n_steps_ext,
-            comb_lab)
+            comb_lab,
+            n_all_stn_combs)
 
     def get_cluster_plot_data(self):
 
@@ -678,12 +686,18 @@ class PlotSimultaneousExtremesMP:
             stn_chunks_idxs = ret_mp_idxs(
                 len(stn_labs), n_extra_cpus_per_comb)
 
+            all_stn_combs_chunk_idxs = ret_mp_idxs(
+                stn_comb_data.n_all_stn_combs, n_extra_cpus_per_comb)
+
             sub_mp_pool = ProcessPool(n_extra_cpus_per_comb)
 
             self._vb = False
 
         else:
             stn_chunks_idxs = np.array([0, len(stn_labs)])
+
+            all_stn_combs_chunk_idxs = np.array(
+                [0, stn_comb_data.n_all_stn_combs])
 
             sub_mp_pool = None
 
@@ -698,11 +712,31 @@ class PlotSimultaneousExtremesMP:
         if sub_mp_pool is not None:
             list(sub_mp_pool.uimap(self._plot, plot_gen))
 
+            sub_mp_pool.clear()
+
         else:
             list(map(self._plot, plot_gen))
 
         if self._plot_clusters_flag:
-            self._plot_nD_clusters((stn_comb, stn_comb_data.comb_lab))
+            nD_clusters_gen = (
+                (stn_comb,
+                 stn_comb_data.comb_lab,
+                 all_stn_combs_chunk_idxs[i],
+                 all_stn_combs_chunk_idxs[i + 1])
+                for i in range(all_stn_combs_chunk_idxs.shape[0] - 1))
+
+            if sub_mp_pool is not None:
+                list(sub_mp_pool.uimap(
+                    self._plot_nD_clusters, nD_clusters_gen))
+
+                sub_mp_pool.clear()
+
+            else:
+                list(map(self._plot_nD_clusters, nD_clusters_gen))
+
+        if sub_mp_pool is not None:
+            sub_mp_pool.join()
+            sub_mp_pool = None
         return
 
     def _plot(self, args):
@@ -741,7 +775,8 @@ class PlotSimultaneousExtremesMP:
         h5_hdl.close()
         return
 
-    def _get_cluster_simult_evts_data(self, stn_comb):
+    def _get_cluster_simult_evts_data(
+            self, stn_comb, ep_stn_comb_beg_i, ep_stn_comb_end_i):
 
         h5_hdl = h5py.File(self._h5_path, 'r', driver=None)
         stn_comb_grp = h5_hdl['simultexts_sims'][stn_comb]
@@ -755,10 +790,11 @@ class PlotSimultaneousExtremesMP:
             f'combination not in the input HDF5!')
 
         simult_ext_evts_cts = stn_comb_grp['simult_ext_evts_cts'][...]
-        all_stn_combs = stn_comb_grp['all_stn_combs'][...]
+        sub_all_stn_combs = stn_comb_grp['all_stn_combs'][
+            ep_stn_comb_beg_i:ep_stn_comb_end_i]
 
         h5_hdl.close()
-        return (simult_ext_evts_cts, all_stn_combs)
+        return (simult_ext_evts_cts, sub_all_stn_combs)
 
     def _plot_ft_cumm_diff_corrs(
             self, ref_stn, stn_comb_grp, stn_comb_data, corr_type):
@@ -944,8 +980,6 @@ class PlotSimultaneousExtremesMP:
             for tw_i, tw in enumerate(self._tws):
                 neb_stns = stn_idxs_swth_dict[ref_stn]
 
-                print(ep_i, ep, tw_i, tw)
-
                 mean_probs = [
                     freqs_tups[(ref_stn, neb_stn)].avg_probs[ep_i, tw_i]
                     for neb_stn in neb_stns]
@@ -1050,12 +1084,16 @@ class PlotSimultaneousExtremesMP:
 
     def _plot_nD_clusters(self, arg):
 
-        stn_comb_str, comb_lab = arg
+        (stn_comb_str,
+         comb_lab,
+         ep_stn_comb_beg_i,
+         ep_stn_comb_end_i) = arg
 
         stn_comb = eval(stn_comb_str)
 
-        simult_ext_evts_cts, all_stn_combs = (
-            self._get_cluster_simult_evts_data(stn_comb_str))
+        simult_ext_evts_cts, sub_all_stn_combs = (
+            self._get_cluster_simult_evts_data(
+                stn_comb_str, ep_stn_comb_beg_i, ep_stn_comb_end_i))
 
         fig_size = (13, 10)
 
@@ -1066,13 +1104,13 @@ class PlotSimultaneousExtremesMP:
 
         for ep_i, ep in enumerate(self._eps):
             for tw_i, tw in enumerate(self._tws):
-                for ep_tw_stn_comb_i, ep_tw_stn_comb_str in enumerate(
-                    all_stn_combs):
+                for ep_stn_comb_i, ep_tw_stn_comb_str in enumerate(
+                    sub_all_stn_combs, start=ep_stn_comb_beg_i):
 
                     ep_tw_stn_comb = eval(ep_tw_stn_comb_str)
 
                     ep_tw_stn_comb_cts = simult_ext_evts_cts[
-                        :, ep_i, tw_i, ep_tw_stn_comb_i]
+                        :, ep_i, tw_i, ep_stn_comb_i]
 
                     all_probs = np.array([
                         ep_tw_stn_comb_ct[1]
@@ -1155,7 +1193,7 @@ class PlotSimultaneousExtremesMP:
 
                     fig_name = (
                         f'nD_clusters_{comb_lab}_EP{ep}_TW{tw}_'
-                        f'{ep_tw_stn_comb_i}.png')
+                        f'{len(ep_tw_stn_comb)}_{ep_stn_comb_i}.png')
 
                     plt.savefig(
                         str(self._out_dirs_dict['nD_cluster_figs'] / fig_name),

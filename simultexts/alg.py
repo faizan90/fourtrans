@@ -208,6 +208,16 @@ class SimultaneousExtremesFrequencyComputerMP:
         else:
             list(map(self._get_stn_comb_freqs, sim_chunk_gen))
 
+        if self._vb_old:
+            if self._vb_old and not self._vb:
+                print_sl()
+
+            print(
+                f'INFO: Finished in '
+                f'{default_timer() - sim_beg_time:0.3f} seconds.')
+
+            print_el()
+
         if self._save_sim_cdfs_flag or self._save_sim_acorrs_flag:
             with self._mp_lock:
                 self._write_stats_to_hdf5(tuple(obs_vals_df.columns))
@@ -221,6 +231,10 @@ class SimultaneousExtremesFrequencyComputerMP:
                 f'{default_timer() - sim_beg_time:0.3f} seconds.')
 
             print_el()
+
+        if sub_mp_pool is not None:
+            sub_mp_pool.join()
+            sub_mp_pool = None
         return
 
     def _get_stn_comb_freqs(self, args):
@@ -629,12 +643,12 @@ class SimultaneousExtremesFrequencyComputerMP:
             ep_idxs = (ep_bools_df).any(axis=1).values
             ep_df = ep_bools_df.loc[ep_idxs]
 
-            for ep_tw_stn_comb_i, ep_tw_stn_comb_str in enumerate(
+            for ep_stn_comb_i, ep_stn_comb_str in enumerate(
                 all_stn_combs):
 
-                ep_tw_stn_comb = eval(ep_tw_stn_comb_str)
+                ep_stn_comb = eval(ep_stn_comb_str)
 
-                comb_ep_df = ep_df.loc[:, ep_tw_stn_comb]
+                comb_ep_df = ep_df.loc[:, ep_stn_comb]
 
                 simult_steps_idxs = comb_ep_df.any(axis=1).values
 
@@ -643,6 +657,7 @@ class SimultaneousExtremesFrequencyComputerMP:
                 n_tot_steps = simult_ep_df.shape[0]
 
                 for tw_i, tw in enumerate(self._tws):
+
                     evt_ctr = 0
                     for evt_idx in simult_ep_df.index:
                         back_idx = max(0, evt_idx - tw)
@@ -659,8 +674,8 @@ class SimultaneousExtremesFrequencyComputerMP:
                     assert evt_ctr <= n_tot_steps
 
                     simult_ext_evts_cts[
-                        sim_no_idx, ep_i, tw_i, ep_tw_stn_comb_i] = (
-                            len(ep_tw_stn_comb),
+                        sim_no_idx, ep_i, tw_i, ep_stn_comb_i] = (
+                            len(ep_stn_comb),
                             simult_ext_prob,
                             evt_ctr,
                             n_tot_steps)

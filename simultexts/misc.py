@@ -23,7 +23,8 @@ def print_el():
 
 def ret_mp_idxs(n_vals, n_cpus):
 
-    idxs = np.linspace(0, n_vals, n_cpus + 1, endpoint=True, dtype=np.int64)
+    idxs = np.linspace(
+        0, n_vals, min(n_vals + 1, n_cpus + 1), endpoint=True, dtype=np.int64)
 
     idxs = np.unique(idxs)
 
