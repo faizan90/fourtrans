@@ -324,6 +324,12 @@ class SimultaneousExtremesPlot:
 
             self._out_dirs_dict['binary_cluster_figs'].mkdir(exist_ok=True)
 
+            self._out_dirs_dict['binary_cluster_prob_dist_figs'] = (
+                self._out_dir / 'simultexts_binary_cluster_prob_dist_figs')
+
+            self._out_dirs_dict['nD_cluster_prob_dist_figs'].mkdir(
+                exist_ok=True)
+
             self._out_dirs_dict['nD_cluster_figs'] = (
                 self._out_dir / 'simultexts_nD_cluster_figs')
 
@@ -1143,6 +1149,7 @@ class PlotSimultaneousExtremesMP:
                     max_prob = all_probs.max()
                     mean_prob = all_probs.mean()
 
+                    # cluster prob
                     fig = plt.figure(figsize=fig_size)
 
                     map_ax = plt.subplot2grid((1, 25), (0, 0), 1, 24, fig=fig)
@@ -1217,7 +1224,7 @@ class PlotSimultaneousExtremesMP:
 
                     fig_name = (
                         f'nD_clusters_{comb_lab}_EP{ep}_TW{tw}_'
-                        f'{len(ep_tw_stn_comb)}_{ep_stn_comb_i}.png')
+                        f'N{len(ep_tw_stn_comb)}_{ep_stn_comb_i}.png')
 
                     plt.savefig(
                         str(self._out_dirs_dict['nD_cluster_figs'] / fig_name),
@@ -1225,7 +1232,7 @@ class PlotSimultaneousExtremesMP:
 
                     plt.close()
 
-                    # cluster prob dist
+                    # cluster prob hist
                     plt.figure(figsize=fig_size)
 
                     plt.hist(
@@ -1271,7 +1278,7 @@ class PlotSimultaneousExtremesMP:
 
                     fig_name = (
                         f'nD_clusters_sim_prob_hist_{comb_lab}_EP{ep}_TW{tw}_'
-                        f'{len(ep_tw_stn_comb)}_{ep_stn_comb_i}.png')
+                        f'N{len(ep_tw_stn_comb)}_{ep_stn_comb_i}.png')
 
                     plt.savefig(
                         str(self._out_dirs_dict['nD_cluster_prob_dist_figs'] /

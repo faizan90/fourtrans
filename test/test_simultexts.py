@@ -23,7 +23,7 @@ def main():
     clusters_shp = r'P:\Synchronize\IWS\QGIS_Neckar\raster\taudem_out_spate_rockenau\watersheds.shp'
     clusters_shp_fld = 'DN'
 
-    out_dir = 'test_simultexts_simult_ext_clusters_06'
+    out_dir = 'test_simultexts_simult_ext_clusters_07'
 
     out_h5 = os.path.join(out_dir, 'simultexts_db.hdf5')
 
@@ -39,7 +39,7 @@ def main():
     excd_probs = [0.0001, 0.0005]  # , 0.00001]
     time_windows = [2, 1, 0, ]
 
-    n_sims = 1000
+    n_sims = 6
 
     n_cpus = 'auto'
 
@@ -59,7 +59,7 @@ def main():
 
     verbose_flag = True
     overwrite_flag = True
-#     cmpt_simultexts_flag = True
+    cmpt_simultexts_flag = True
 #     save_sim_cdfs_flag = True
 #     save_sim_corrs_flag = True
 #     save_sim_ft_cumm_corrs_flag = True
