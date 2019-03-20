@@ -20,7 +20,17 @@ from .misc import print_sl, print_el, ret_mp_idxs, get_daily_annual_cycles_df
 
 class SimultaneousExtremesAlgorithm(SEDS):
 
+    '''
+    Main class for the computation of simultaneous extremes occurrences
+    probability. It inherits SimultaneousExtremesDataAndSettings.
+    '''
+
     def __init__(self, verbose=True, overwrite=True):
+
+        '''
+        Overwrite the pre-exiting, if any, HDF5 database only if overwrite
+        is True. If False and database exists then append.
+        '''
 
         SEDS.__init__(self, verbose=verbose)
 
@@ -39,12 +49,175 @@ class SimultaneousExtremesAlgorithm(SEDS):
 
     def verify(self):
 
+        '''
+        Call verify before calling cmpt_simult_exts_freqs to check if all
+        required inputs are set.
+        '''
+
         SEDS._SimultaneousExtremesDataAndSettings__verify(self)
 
         self._set_alg_verify_flag = True
         return
 
     def cmpt_simult_exts_freqs(self):
+
+        '''
+        Compute the following (some based on the flags set):
+            1. Transform all the station data based on the specified
+            transformation "tfm" in SimultaneousExtremesFrequencyComputerMP.
+
+            2. Get the magnitude and phase spectrums of the transformed data.
+
+            3. Initialize arrays that will save the binary and nD frequencies
+            of simultaneous extremes. If sim_cdfs_flag or sim_auto_corrs_flag
+            were set to True then an empty array that will hold all the
+            simulations is also initialized. If sim_ft_cumm_corrs_flag is
+            True then an array to hold the cummulative contribution of each
+            Fourier wave for every simulation is also initialized. All
+            possible combinations of stations are also computed. The number
+            of stations in a group can be from two to the the number of
+            stations in the combination.
+
+            4. The first simulation is the observed data. The rest are
+            phase-randomized (Fourier) series. Total simulations
+            are n_sims + 1.
+
+            5. For each simulation, random phases are generated for each
+            wave except the first and the last wave (real fft). Sines
+            and Cosines of these waves are multiplied with the magnitudes
+            of the observed data. Same phase spectrum is used for each
+            station. This keeps the spatial correlation intact (I think).
+            The inverse of Fourier transform of these produces a phase
+            randomized series.
+
+            6. Rank series of the phase randomized series is used to get the
+            phase randomized series of the input data. This is done by using
+            ranks minus one as index on the sorted series of the original
+            input series for each station.
+
+            7. If sim_cdfs_flag or sim_auto_corrs_flag is True then the
+            simulated series is stored.
+
+            8. For each station as a reference, frequency of an event for each
+            exceedance probability and window size with every neighbor is
+            computed. In this case only two stations are considered. The step
+            at which the event occurred in the reference station is used as
+            pivot. The frequency counter is incremented by one if the event
+            on the neighboring station occurs within the time window.
+
+            9. For each possible grouping in the combination, frequency
+            of having a simultaneous event for all the stations in the group
+            is computed. This is different from the binary case in which
+            the number of maximum events depends on the length of the series
+            only. The total number of possible events is the number of steps
+            on which any station has an event. This is dependant on how much
+            the stations are correlated to each other. For a one to one
+            correspondance, it is the product of the exceedance probability
+            and the number of steps in the series.
+            For events not happening on the same steps, it gets interesting.
+            If all events are disjoint then the total number of events is
+            the product of the number of stations, exceedance probability and
+            the total number of steps of the series. In reality we are
+            somewhere in between these two bounds. For each step on which an
+            event has occurred, the frequency counter is incremented by one
+            if events of same magnitude happen within a given time window
+            on ALL stations. The probability of simultaneous extremes for
+            this case is the freqeuncy counter divided by the total
+            number of events.
+
+            10. All the data computed above is written to the HDF5 database.
+
+            11. If sim_auto_corrs_flag is True then the each wave contribution
+            to the total of the observed and simulated are computed and saved
+            to the HDF5 database.
+
+        Structure of the HDF5 database:
+            All data inside the HDF5 database can be plotted by plotting
+            class by setting the appropriate flags to True.
+
+            Datasets:
+                excd_probs: sorted exceedance probabilites array.
+
+                time_windows: sorted time_windows array.
+
+                n_sims: the number of simulations.
+
+                n_stn_combs: the number of combinations used as independent
+                    groups.
+
+                save_sim_cdfs_flag: integer value of sim_cdfs_flag.
+
+                save_sim_acorrs_flag: integer value of sim_auto_corrs_flag.
+
+                save_ft_cumm_corrs_flag: integer value of
+                    sim_ft_cumm_corrs_flag.
+
+            Groups:
+                simultexts_sims: Holds simulated data for each combination.
+                    Total are n_stn_combs.
+
+            Datasets inside simultexts_sims for each combination:
+                ref_evts: Number of events for a corresponding exceedance
+                    probability in a reference station. Depends on the
+                    length of series only.
+
+                ref_evts_ext: Same as ref_evts but for the extended simulated
+                    series.
+
+                n_steps: The number of steps in this combination such that
+                    all stations have valid values at each step.
+
+                n_steps_ext: The number of steps of the simulated series after
+                    it was extended.
+
+                neb_evts_{STATION_LABEL}: The frequency counts of simultaneous
+                    extremes with STATION_LABEL station as the reference.
+                    It's a 4D integer array. First dimension is simulation
+                    number. Second is neighboring station (stations left
+                    after removing the reference station from the combination).
+                    Third is exceedence probability. Forth is time window.
+                    e.g. We have a combination (A, B, C), exceedance
+                    probabilities [0.0001, 0.001, 0.005] and time windows [
+                    0, 1, 3]. Lets call the variable as freqs_arr.
+                    Suppose B is the reference station. We want to know
+                    the frequency for the observed and simulation 5 for the
+                    exceedance probability 0.001 and time window 3 with
+                    station C. The observed frequency is freqs_arr[0, 1, 1, 2]
+                    and the simulated is freqs_arr[5, 1, 1, 2].
+
+                ft_corrs_{STATION_LABEL}: The cummulative contribution of
+                each wave to a given series. It's shape depends on n_steps_ext.
+                The total number is equal to (n_steps_ext * n_sims) + 1. The
+                first one is for the observed and hence the additional 1. Each
+                row represents a simulation.
+
+                sim_sers_{STATION_LABEL}: The simulated series. Each row is
+                a simulation. Total rows are n_sims + 1.
+
+                all_stn_combs: All possible combinations of stations in this
+                combination. Minimum number of stations is 2 and maximum is
+                the total number of stations in the combination.
+                e.g. Suppose the same data from the example in
+                neb_evts_{STATION_LABEL}. all_stn_combs will be [(A, B),
+                (B, C), (A, C), (A, B, C)]. Four combinations in total.
+
+                simult_ext_evts_cts: Frequency data for every simulation,
+                for every exceedance probability, for every time window,
+                for every combination in all_stn_combs. It's a 4D array. The
+                dtype is a mix of integers and a float. First dimension is
+                simulation  number, second is exeedence probability, third is
+                time window and forth is index of the combination in
+                all_stn_combs. Each item holds a tuple.
+                The tuple is (number of stations in the combination, simulated
+                probability, number of events that were simultaneous,
+                total number of events). See bullet 9 for more description.
+                e.g. Suppose the same data from the example in
+                neb_evts_{STATION_LABEL}. Lets say the combination in the
+                main combination (A, B, C) is (A, B) at index 0. Call the
+                events array as evts_cts. For the observed case required
+                tuple is at evts_cts[0, 1, 2, 0] and the simulated case is at
+                evts_cts[5, 1, 2, 0].
+        '''
 
         assert self._set_alg_verify_flag, 'Unverified algorithm state!'
 
@@ -608,7 +781,7 @@ class SimultaneousExtremesFrequencyComputerMP:
 
                         for tw in self._tws:
                             back_idx = max(0, evt_idx - tw)  # can take the end values as well?
-                            forw_idx = evt_idx + tw
+                            forw_idx = evt_idx + tw  # using loc gets all inclusive
 
                             neb_evt_idxs = (max_ep_sim_df.loc[
                                 back_idx:forw_idx, neb_stn] <= ep).values
