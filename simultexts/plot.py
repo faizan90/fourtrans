@@ -329,6 +329,12 @@ class SimultaneousExtremesPlot:
 
             self._out_dirs_dict['nD_cluster_figs'].mkdir(exist_ok=True)
 
+            self._out_dirs_dict['nD_cluster_prob_dist_figs'] = (
+                self._out_dir / 'simultexts_nD_cluster_prob_dist_figs')
+
+            self._out_dirs_dict['nD_cluster_prob_dist_figs'].mkdir(
+                exist_ok=True)
+
         if self._plot_sim_cdfs_flag:
             assert saved_sim_cdfs_flag, (
                 'CDFs data not saved inside the HDF5!')
@@ -721,6 +727,8 @@ class PlotSimultaneousExtremesMP:
             nD_clusters_gen = (
                 (stn_comb,
                  stn_comb_data.comb_lab,
+                 stn_comb_data.n_steps,
+                 stn_comb_data.n_steps_ext,
                  all_stn_combs_chunk_idxs[i],
                  all_stn_combs_chunk_idxs[i + 1])
                 for i in range(all_stn_combs_chunk_idxs.shape[0] - 1))
@@ -759,7 +767,9 @@ class PlotSimultaneousExtremesMP:
                     ref_stn,
                     stn_idxs_swth_dict,
                     stn_comb_data.freqs_tups,
-                    stn_comb_data.comb_lab)
+                    stn_comb_data.comb_lab,
+                    stn_comb_data.n_steps,
+                    stn_comb_data.n_steps_ext)
 
             if self._plot_ft_cumm_corrs_flag:
                 self._plot_ft_cumm_diff_corrs(
@@ -967,7 +977,9 @@ class PlotSimultaneousExtremesMP:
             ref_stn,
             stn_idxs_swth_dict,
             freqs_tups,
-            comb_lab):
+            comb_lab,
+            n_steps,
+            n_steps_ext):
 
         fig_size = (13, 10)
 
@@ -1070,7 +1082,11 @@ class PlotSimultaneousExtremesMP:
                     f'Mean extremes binary simulated probability for '
                     f'station {ref_stn} in combination {comb_lab}\n'
                     f'Event exeecedance probability: {ep}'
-                    f', time window: {tw} steps')
+                    f', time window: {tw} steps\n'
+                    f'No. of common steps: {n_steps}, '
+                    f'No. of extended steps: {n_steps_ext}, '
+                    f'No. of simulations: {self._n_sims}',
+                    loc='right')
 
                 fig_name = (
                     f'binary_clusters_{comb_lab}_{ref_stn}_EP{ep}_TW{tw}.png')
@@ -1086,10 +1102,14 @@ class PlotSimultaneousExtremesMP:
 
         (stn_comb_str,
          comb_lab,
+         n_steps,
+         n_steps_ext,
          ep_stn_comb_beg_i,
          ep_stn_comb_end_i) = arg
 
         stn_comb = eval(stn_comb_str)
+
+        hist_bins = np.linspace(0.0, 1.0, 11)
 
         simult_ext_evts_cts, sub_all_stn_combs = (
             self._get_cluster_simult_evts_data(
@@ -1108,6 +1128,8 @@ class PlotSimultaneousExtremesMP:
                     sub_all_stn_combs, start=ep_stn_comb_beg_i):
 
                     ep_tw_stn_comb = eval(ep_tw_stn_comb_str)
+
+                    stns_str = ', '.join(ep_tw_stn_comb)
 
                     ep_tw_stn_comb_cts = simult_ext_evts_cts[
                         :, ep_i, tw_i, ep_stn_comb_i]
@@ -1179,17 +1201,19 @@ class PlotSimultaneousExtremesMP:
 
                     cb.set_label('Mean simulated probability')
 
-                    stns_str = ', '.join(ep_tw_stn_comb)
-
                     map_ax.set_title(
-                        f'Mean extremes nD simulated probability '
-                        f'in combination {comb_lab}. '
+                        f'Mean simultaneous extremes {len(ep_tw_stn_comb)}D '
+                        f'simulated probability in combination {comb_lab}\n'
                         f'Event exeecedance probability: {ep}'
                         f', time window: {tw} steps\n'
+                        f'No. of common steps: {n_steps}, '
+                        f'No. of extended steps: {n_steps_ext}, '
+                        f'No. of simulations: {self._n_sims}\n'
                         f'Obs. prob: {obs_prob:0.4f}, Simulated min: '
                         f'{min_prob:0.4f}, mean: {mean_prob:0.4f}, '
                         f'max: {max_prob:0.4f}\n'
-                        f'Stations: {stns_str}')
+                        f'Stations: {stns_str}',
+                        loc='right')
 
                     fig_name = (
                         f'nD_clusters_{comb_lab}_EP{ep}_TW{tw}_'
@@ -1197,6 +1221,61 @@ class PlotSimultaneousExtremesMP:
 
                     plt.savefig(
                         str(self._out_dirs_dict['nD_cluster_figs'] / fig_name),
+                        bbox_inches='tight')
+
+                    plt.close()
+
+                    # cluster prob dist
+                    plt.figure(figsize=fig_size)
+
+                    plt.hist(
+                        all_probs,
+                        bins=hist_bins,
+                        label='sim.',
+                        alpha=0.8,
+                        rwidth=0.8,
+                        color='C0')
+
+                    y_min, y_max = plt.ylim()
+
+                    plt.axvline(
+                        obs_prob, y_min, y_max, label='obs.', color='red')
+
+                    plt.axvline(
+                        mean_prob,
+                        y_min,
+                        y_max,
+                        label='sim. mean',
+                        color='limegreen')
+
+                    plt.grid()
+                    plt.legend()
+
+                    plt.xlabel('Simulated Probability')
+                    plt.ylabel('Frequency')
+
+                    plt.title(
+                        f'Simultaneous extremes {len(ep_tw_stn_comb)}D '
+                        f'simulated probability histogram in combination '
+                        f'{comb_lab}\n'
+                        f'Event exeecedance probability: {ep}'
+                        f', time window: {tw} steps\n'
+                        f'No. of common steps: {n_steps}, '
+                        f'No. of extended steps: {n_steps_ext}, '
+                        f'No. of simulations: {self._n_sims}\n'
+                        f'Obs. prob: {obs_prob:0.4f}, Simulated min: '
+                        f'{min_prob:0.4f}, mean: {mean_prob:0.4f}, '
+                        f'max: {max_prob:0.4f}\n'
+                        f'Stations: {stns_str}',
+                        loc='right')
+
+                    fig_name = (
+                        f'nD_clusters_sim_prob_hist_{comb_lab}_EP{ep}_TW{tw}_'
+                        f'{len(ep_tw_stn_comb)}_{ep_stn_comb_i}.png')
+
+                    plt.savefig(
+                        str(self._out_dirs_dict['nD_cluster_prob_dist_figs'] /
+                            fig_name),
                         bbox_inches='tight')
 
                     plt.close()
@@ -1270,7 +1349,8 @@ class PlotSimultaneousExtremesMP:
                 f'{ref_stn} in combination {comb_lab}\n'
                 f'No. of common steps: {stn_comb_data.n_steps}, '
                 f'No. of extended steps: {stn_comb_data.n_steps_ext}, '
-                f'No. of simulations: {self._n_sims}')
+                f'No. of simulations: {self._n_sims}',
+                loc='right')
 
             plt.tight_layout()
 
@@ -1357,7 +1437,8 @@ class PlotSimultaneousExtremesMP:
                 f'No. of simulations: {self._n_sims}, '
                 f'Observed {pcent_abv_sim:0.1f}% above, '
                 f'{pcent_within_sim:0.1f}% within and '
-                f'{pcent_bel_sim:0.1f}% below simulation')
+                f'{pcent_bel_sim:0.1f}% below simulation',
+                loc='right')
 
             axs[0].tick_params(bottom=False)
 
@@ -1438,7 +1519,8 @@ class PlotSimultaneousExtremesMP:
                 f'No. of simulations: {self._n_sims}, '
                 f'Observed {pcent_abv_sim:0.1f}% above, '
                 f'{pcent_within_sim:0.1f}% within and '
-                f'{pcent_bel_sim:0.1f}% below simulation')
+                f'{pcent_bel_sim:0.1f}% below simulation',
+                loc='right')
 
             axs[0].tick_params(bottom=False)
 
