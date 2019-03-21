@@ -42,6 +42,7 @@ class SimultaneousExtremesPlot:
         self._plot_sim_cdfs_flag = False
         self._plot_auto_corrs_flag = False
         self._plot_ft_cumm_corrs_flag = False
+        self._plot_ft_pair_corrs_dist_flag = False
 
         self._out_dirs_dict = {}
         self._clusters_shp_loc = None
@@ -108,7 +109,8 @@ class SimultaneousExtremesPlot:
             frequencies_flag=False,
             sim_cdfs_flag=False,
             sim_auto_corrs_flag=False,
-            sim_ft_corrs_flag=False):
+            sim_ft_corrs_flag=False,
+            sim_ft_pair_corrs_dist_flag=False):
 
         assert isinstance(frequencies_flag, bool), (
             'frequencies_flag not a boolean value!')
@@ -122,10 +124,14 @@ class SimultaneousExtremesPlot:
         assert isinstance(sim_ft_corrs_flag, bool), (
             'sim_ft_corrs_flag not a boolean value!')
 
+        assert isinstance(sim_ft_pair_corrs_dist_flag, bool), (
+            'sim_ft_pair_corrs_dist_flag not a boolean value!')
+
         self._plot_freqs_flag = frequencies_flag
         self._plot_sim_cdfs_flag = sim_cdfs_flag
         self._plot_auto_corrs_flag = sim_auto_corrs_flag
         self._plot_ft_cumm_corrs_flag = sim_ft_corrs_flag
+        self._plot_ft_pair_corrs_dist_flag = sim_ft_pair_corrs_dist_flag
 
         if self._vb:
             print_sl()
@@ -137,7 +143,9 @@ class SimultaneousExtremesPlot:
                 f'\tPlot simulation auto corrs flag: '
                 f'{self._plot_auto_corrs_flag}\n',
                 f'\tPlot Fourier cummulative correlations: '
-                f'{self._plot_ft_cumm_corrs_flag}')
+                f'{self._plot_ft_cumm_corrs_flag}\n',
+                f'\tPlot Fourier pair correlations distributions: '
+                f'{self._plot_ft_pair_corrs_dist_flag}')
 
             print_el()
         return
@@ -178,7 +186,8 @@ class SimultaneousExtremesPlot:
             self._plot_clusters_flag,
             self._plot_sim_cdfs_flag,
             self._plot_auto_corrs_flag,
-            self._plot_ft_cumm_corrs_flag]), (
+            self._plot_ft_cumm_corrs_flag,
+            self._plot_ft_pair_corrs_dist_flag]), (
                 'None of the plotting flags are True!')
 
         self._set_plot_verify_flag = True
@@ -298,29 +307,18 @@ class SimultaneousExtremesPlot:
             self._out_dirs_dict['freq_figs'] = (
                 self._out_dir / 'simultexts_freqs_figs')
 
-            self._out_dirs_dict['freq_figs'].mkdir(exist_ok=True)
-
             self._out_dirs_dict['freq_tabs'] = (
                 self._out_dir / 'simultexts_freqs_tables')
-
-            self._out_dirs_dict['freq_tabs'].mkdir(exist_ok=True)
 
         if self._plot_clusters_flag:
             self._out_dirs_dict['binary_cluster_figs'] = (
                 self._out_dir / 'simultexts_binary_cluster_figs')
 
-            self._out_dirs_dict['binary_cluster_figs'].mkdir(exist_ok=True)
-
             self._out_dirs_dict['nD_cluster_figs'] = (
                 self._out_dir / 'simultexts_nD_cluster_figs')
 
-            self._out_dirs_dict['nD_cluster_figs'].mkdir(exist_ok=True)
-
             self._out_dirs_dict['nD_cluster_prob_dist_figs'] = (
                 self._out_dir / 'simultexts_nD_cluster_prob_dist_figs')
-
-            self._out_dirs_dict['nD_cluster_prob_dist_figs'].mkdir(
-                exist_ok=True)
 
         if self._plot_sim_cdfs_flag:
             assert saved_sim_cdfs_flag, (
@@ -329,8 +327,6 @@ class SimultaneousExtremesPlot:
             self._out_dirs_dict['cdfs_figs'] = (
                 self._out_dir / 'simultexts_sim_cdfs_figs')
 
-            self._out_dirs_dict['cdfs_figs'].mkdir(exist_ok=True)
-
         if self._plot_auto_corrs_flag:
             assert saved_sim_acorrs_flag, (
                 'Auto correlation data not saved inside the HDF5!')
@@ -338,12 +334,8 @@ class SimultaneousExtremesPlot:
             self._out_dirs_dict['pcorr_figs'] = (
                 self._out_dir / 'simultexts_sim_pcorr_figs')
 
-            self._out_dirs_dict['pcorr_figs'].mkdir(exist_ok=True)
-
             self._out_dirs_dict['scorr_figs'] = (
                 self._out_dir / 'simultexts_sim_scorr_figs')
-
-            self._out_dirs_dict['scorr_figs'].mkdir(exist_ok=True)
 
         if self._plot_ft_cumm_corrs_flag:
             assert saved_sim_ft_cumm_corrs_flag, (
@@ -352,7 +344,12 @@ class SimultaneousExtremesPlot:
             self._out_dirs_dict['ft_corr_figs'] = (
                 self._out_dir / 'simultexts_ft_pcorr_figs')
 
-            self._out_dirs_dict['ft_corr_figs'].mkdir(exist_ok=True)
+        if self._plot_ft_pair_corrs_dist_flag:
+            self._out_dirs_dict['ft_corr_dist_figs'] = (
+                self._out_dir / 'simultexts_ft_pcorr_dist_figs')
+
+        for dir_path in self._out_dirs_dict.values():
+            dir_path.mkdir(exist_ok=True)
         return
 
     __verify = verify
@@ -633,6 +630,7 @@ class PlotSimultaneousExtremesMP:
             '_plot_sim_cdfs_flag',
             '_plot_auto_corrs_flag',
             '_plot_ft_cumm_corrs_flag',
+            '_plot_ft_pair_corrs_dist_flag',
             '_cluster_feats_dict',
             ]
 
@@ -644,7 +642,8 @@ class PlotSimultaneousExtremesMP:
             self._plot_clusters_flag,
             self._plot_sim_cdfs_flag,
             self._plot_auto_corrs_flag,
-            self._plot_ft_cumm_corrs_flag]), (
+            self._plot_ft_cumm_corrs_flag,
+            self._plot_ft_pair_corrs_dist_flag]), (
                 'None of the plotting flags are True!')
 
         if self._n_cpus > 1:
@@ -721,6 +720,13 @@ class PlotSimultaneousExtremesMP:
             else:
                 list(map(self._plot_nD_clusters, nD_clusters_gen))
 
+        if self._plot_ft_pair_corrs_dist_flag:
+            self._plot_ft_pair_corrs_dists((
+                stn_comb,
+                stn_comb_data.comb_lab,
+                stn_comb_data.n_steps,
+                stn_comb_data.n_steps_ext))
+
         if sub_mp_pool is not None:
             sub_mp_pool.join()
             sub_mp_pool = None
@@ -760,6 +766,131 @@ class PlotSimultaneousExtremesMP:
             if self._plot_sim_cdfs_flag or self._plot_auto_corrs_flag:
                 self._plot_sim_cdfs__corrs(
                     ref_stn, stn_comb_grp, stn_comb_data)
+
+        h5_hdl.close()
+        return
+
+    def _plot_ft_pair_corrs_dists(self, args):
+
+        (stn_comb,
+         comb_lab,
+         n_steps,
+         n_steps_ext) = args
+
+        fig_size = (13, 10)
+
+        h5_hdl = h5py.File(self._h5_path, 'r', driver=None)
+        stn_comb_grp = h5_hdl['simultexts_sims'][stn_comb]
+
+        tfm_tups = [['obs', 'Observed'], ['tfm', 'Transformed']]
+
+        hist_bins = np.linspace(0, 1, 6, dtype=float)
+
+        bar_plt_crds = hist_bins[:-1] + 0.5 / (hist_bins.shape[0] - 1)
+
+        for tfm_tp, tfm_lab in tfm_tups:
+            corr_key = f'{tfm_tp}_vals_ft_pair_cumm_corrs_dict'
+            corr_grp = stn_comb_grp[corr_key]
+
+            for pair_str in corr_grp:
+                pair = eval(pair_str)
+
+                cumm_corrs = corr_grp[pair_str][...]
+
+                n_freqs = cumm_corrs.shape[0]
+
+                bin_corr_contribs = []
+                for i in range(1, hist_bins.shape[0]):
+                    idx_left = int(hist_bins[i - 1] * n_freqs)
+                    idx_rght = int(hist_bins[i - 0] * n_freqs) - 1
+
+                    bin_corr_contrib = cumm_corrs[idx_rght]
+
+                    if i == 1:
+                        pass
+
+                    else:
+                        bin_corr_contrib -= cumm_corrs[idx_left - 1]
+
+                    bin_corr_contribs.append(bin_corr_contrib)
+
+                bin_corr_contribs = np.array(bin_corr_contribs)
+
+                assert np.isclose(bin_corr_contribs.sum(), cumm_corrs[-1]), (
+                    pair_str, cumm_corrs, bin_corr_contribs.sum())
+
+                plt.figure(figsize=fig_size)
+
+                plt.bar(
+                    n_freqs * bar_plt_crds,
+                    bin_corr_contribs * 100,
+                    width=n_freqs * hist_bins[1] * 1.01,
+                    alpha=0.9)
+
+                cbrc_beta = 300. / n_freqs
+
+                cbrc_resolution = 101
+
+                for i, bin_corr_contrib in enumerate(bin_corr_contribs):
+                    plt.text(
+                        n_freqs * bar_plt_crds[i],
+                        (bin_corr_contrib * 100) + 6,
+                        f'{bin_corr_contrib * 100:0.2f}%',
+                        fontdict={'va':'top', 'ha':'center'})
+
+                    # from stackoverflow
+                    cbrc_x = np.linspace(
+                        n_freqs * hist_bins[i],
+                        n_freqs * hist_bins[i + 1],
+                        cbrc_resolution)
+
+                    cbrc_x_h = cbrc_x[:cbrc_resolution // 2 + 1]
+
+                    cbrc_y_h = (
+                        1 / (1. + np.exp(-cbrc_beta * (
+                            cbrc_x_h - cbrc_x_h[0]))) +
+                        1 / (1. + np.exp(-cbrc_beta * (
+                            cbrc_x_h - cbrc_x_h[-1]))))
+
+                    cbrc_y = np.concatenate((cbrc_y_h, cbrc_y_h[-2::-1]))
+
+                    cbrc_y = 4 * (
+                        (cbrc_y - cbrc_y.min()) /
+                        (cbrc_y.max() - cbrc_y.min()))
+
+                    plt.plot(
+                        cbrc_x,
+                        cbrc_y + (bin_corr_contrib * 100),
+                        color='black',
+                        alpha=0.9,
+                        lw=1)
+
+                plt.xlabel('Bin')
+                plt.ylabel('Percentage contribution to the total')
+
+                plt.ylim(0, 107)
+
+                plt.grid()
+
+                plt.title(
+                    f'Fourier frequency contribution for observed series of '
+                    f'stations {pair[0]} and {pair[1]} in combination '
+                    f'{comb_lab} per bin\n'
+                    f'Data type: {tfm_lab}, '
+                    f'No. of bins: {bar_plt_crds.shape[0]}, '
+                    f'No. of common steps: {n_steps}, '
+                    f'No. of extended steps: {n_steps_ext}, '
+                    f'No. of frequencies: {n_steps // 2}')
+
+                fig_name = (
+                    f'simult_ext_ft_pair_coors_{comb_lab}_'
+                    f'{tfm_tp}_{pair[0]}_{pair[1]}.png')
+
+                plt.savefig(
+                    str(self._out_dirs_dict['ft_corr_dist_figs'] / fig_name),
+                    bbox_inches='tight')
+
+                plt.close()
 
         h5_hdl.close()
         return
@@ -1134,7 +1265,8 @@ class PlotSimultaneousExtremesMP:
                                 self._cluster_feats_dict['patches'][stn],
                                 alpha=0.9,
                                 fc=cmap(mean_prob),
-                                ec='#999999')
+                                ec='#999999',
+                                hatch=None)
 
                             stn_text_clr = 'black'
 
@@ -1143,7 +1275,8 @@ class PlotSimultaneousExtremesMP:
                                 self._cluster_feats_dict['patches'][stn],
                                 alpha=0.2,
                                 fc='#999999',
-                                ec='#999999')
+                                ec='#999999',
+                                hatch='/')
 
                             stn_text_clr = 'grey'
 

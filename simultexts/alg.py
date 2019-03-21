@@ -501,7 +501,7 @@ class SimultaneousExtremesFrequencyComputerMP:
             data=np.full((ft_steps, n_combs), np.nan, dtype=complex),
             columns=stn_comb)
 
-        tfm = 'prob'
+        tfm = 'prob__no_ann_cyc'  # 'prob'
 
         if tfm == 'obs':
             ft_input_df = obs_vals_df.copy()
@@ -629,6 +629,13 @@ class SimultaneousExtremesFrequencyComputerMP:
             bools = np.ones(n_combs, dtype=bool)
             bools[i] = False
             stn_idxs_swth_dict[stn] = np.array(stn_comb)[bools]
+
+        if not sim_chunk_idxs[0]:
+            arrs_dict['obs_vals_ft_pair_cumm_corrs_dict'] = (
+                self._get_ft_pair_cumm_corrs_dict(obs_vals_df))
+
+            arrs_dict['tfm_vals_ft_pair_cumm_corrs_dict'] = (
+                self._get_ft_pair_cumm_corrs_dict(ft_input_df))
 
         for sim_no_idx, sim_no in enumerate(
             range(sim_chunk_idxs[0], sim_chunk_idxs[1])):
@@ -990,6 +997,14 @@ class SimultaneousExtremesFrequencyComputerMP:
 
                 del arrs_dict[sims_key]
 
+        if not sim_chunk_idxs[0]:
+            for tfm_tp in ['obs', 'tfm']:
+                corr_key = f'{tfm_tp}_vals_ft_pair_cumm_corrs_dict'
+                pair_corrs_grp = stn_grp.create_group(corr_key)
+
+                for key, value in arrs_dict[corr_key].items():
+                    pair_corrs_grp[str(key)] = value
+
         h5_hdl.flush()
         h5_hdl.close()
         return
@@ -1009,6 +1024,40 @@ class SimultaneousExtremesFrequencyComputerMP:
         cumm_pcorr = np.cumsum(cov_arr) / tot_cov
 
         return cumm_pcorr
+
+    def _get_ft_phase_power_spec(self, in_arr):
+
+        ft = np.fft.rfft(in_arr)[1:]
+
+        mags = np.absolute(ft)
+        phas = np.angle(ft)
+        return phas, mags
+
+    def _get_ft_pair_cumm_corrs(self, ref_arr, neb_arr):
+
+        assert ref_arr.shape[0] == neb_arr.shape[0]
+
+        ref_phas, ref_mags = self._get_ft_phase_power_spec(ref_arr)
+        neb_phas, neb_mags = self._get_ft_phase_power_spec(neb_arr)
+
+        indiv_cov_arr = (ref_mags * neb_mags) * (np.cos(ref_phas - neb_phas))
+
+        tot_cov = indiv_cov_arr.sum()
+
+        cumm_corrs = indiv_cov_arr.cumsum() / tot_cov
+        return cumm_corrs
+
+    def _get_ft_pair_cumm_corrs_dict(self, in_vals_df):
+
+        corrs_dict = {}
+        for ref_stn in in_vals_df.columns:
+            for neb_stn in in_vals_df.columns:
+                cumm_corrs_arr = self._get_ft_pair_cumm_corrs(
+                    in_vals_df[ref_stn].values, in_vals_df[neb_stn].values)
+
+                corrs_dict[(ref_stn, neb_stn)] = cumm_corrs_arr
+
+        return corrs_dict
 
     def _write_stats_to_hdf5(self, stn_comb):
 

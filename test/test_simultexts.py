@@ -23,7 +23,7 @@ def main():
     clusters_shp = r'P:\Synchronize\IWS\QGIS_Neckar\raster\taudem_out_spate_rockenau\watersheds.shp'
     clusters_shp_fld = 'DN'
 
-    out_dir = 'test_simultexts_simult_ext_clusters_07'
+    out_dir = 'test_simultexts_simult_ext_clusters_08_ann_cyc_rem'
 
 #     stns = ['420', '427', '454']  # , '3470', '3465', '3421'
 #     excd_probs = [0.001, 0.005]  # [0.001, 0.005, 0.0001, 0.0005, 0.00001]  #
@@ -33,13 +33,13 @@ def main():
 #     excd_probs = [0.001, 0.005, 0.0001, 0.0005]  # , 0.00001]
 #     time_windows = [2, 10, 1, 3, 0]
 
-    stns = ['427', '454']
+    stns = ['427', '454', '420']
     excd_probs = [0.0001, 0.0005]  # , 0.00001]
     time_windows = [2, 1, 0, ]
 
     n_sims = 6
 
-    n_cpus = 'auto'
+    n_cpus = 1  # 'auto'
 
     n_steps_extend = 0  # int(3e4)
 
@@ -54,18 +54,20 @@ def main():
     plot_sim_cdfs_flag = False
     plot_sim_auto_corrs_flag = False
     plot_sim_ft_corrs_flag = False
+    plot_sim_ft_pair_corrs_dist_flag = False
 
     verbose_flag = True
     overwrite_flag = True
-    cmpt_simultexts_flag = True
-    save_sim_cdfs_flag = True
-    save_sim_corrs_flag = True
-    save_sim_ft_cumm_corrs_flag = True
-    plot_freqs_flag = True
-    plot_clusters_flag = True
-    plot_sim_cdfs_flag = True
-    plot_sim_auto_corrs_flag = True
-    plot_sim_ft_corrs_flag = True
+#     cmpt_simultexts_flag = True
+#     save_sim_cdfs_flag = True
+#     save_sim_corrs_flag = True
+#     save_sim_ft_cumm_corrs_flag = True
+#     plot_freqs_flag = True
+#     plot_clusters_flag = True
+#     plot_sim_cdfs_flag = True
+#     plot_sim_auto_corrs_flag = True
+#     plot_sim_ft_corrs_flag = True
+    plot_sim_ft_pair_corrs_dist_flag = True
 
     in_df = pd.read_csv(in_file, sep=';', index_col=0)
 
@@ -104,7 +106,8 @@ def main():
         plot_clusters_flag,
         plot_sim_cdfs_flag,
         plot_sim_auto_corrs_flag,
-        plot_sim_ft_corrs_flag]):
+        plot_sim_ft_corrs_flag,
+        plot_sim_ft_pair_corrs_dist_flag]):
 
         SEP = SimultaneousExtremesPlot(verbose_flag)
 
@@ -116,7 +119,8 @@ def main():
             plot_freqs_flag,
             plot_sim_cdfs_flag,
             plot_sim_auto_corrs_flag,
-            plot_sim_ft_corrs_flag)
+            plot_sim_ft_corrs_flag,
+            plot_sim_ft_pair_corrs_dist_flag)
 
         if plot_clusters_flag:
             SEP.set_clusters_shapefile_path(clusters_shp, clusters_shp_fld)
