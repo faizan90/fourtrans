@@ -638,6 +638,8 @@ class SimultaneousExtremesFrequencyComputerMP:
 
         simult_ext_evts_cts = arrs_dict['simult_ext_evts_cts']
 
+        cts_tup_size = len(simult_ext_evts_cts.dtype.names)
+
         for ep_i, ep in enumerate(self._eps):
             ep_bools_df = max_ep_df <= ep
             ep_idxs = (ep_bools_df).any(axis=1).values
@@ -679,6 +681,23 @@ class SimultaneousExtremesFrequencyComputerMP:
                             simult_ext_prob,
                             evt_ctr,
                             n_tot_steps)
+
+                if not ep_i:
+                    continue
+
+                for tw_i, tw in enumerate(self._tws):
+                    prev_tup = simult_ext_evts_cts[
+                        sim_no_idx, ep_i - 1, tw_i, ep_stn_comb_i]
+
+                    curr_tup = simult_ext_evts_cts[
+                        sim_no_idx, ep_i, tw_i, ep_stn_comb_i]
+
+                    for i in [2, 3]:
+                        prev_val = prev_tup[i]
+                        curr_val = curr_tup[i]
+
+                        assert (prev_val <= curr_val), (
+                            sim_no_idx, i, prev_tup, curr_tup)
         return
 
     def _write_freqs_data_to_hdf5(

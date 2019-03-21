@@ -439,14 +439,6 @@ class PrepareSimultaneousExtremesPlottingData:
 
     def _get_comb_data(self, stn_comb, comb_lab):
 
-        '''
-        Called only when freqs or clusters flags are True.
-
-        The data is for a given combination only. Each call gets there own
-        space. The combined output for each combination can then be used
-        by plot_clusters.
-        '''
-
         stn_labs = eval(stn_comb)
 
         stn_idxs_swth_dict = {}
@@ -948,7 +940,7 @@ class PlotSimultaneousExtremesMP:
         axs[3].set_xlabel('Frequency (steps)')
 
         plt.suptitle(
-            f'{type_labs[0]} Fourier transform pearson correlations '
+            f'{type_labs[0]} Fourier transform frequency contribution '
             f'for observed and simulated series of station {ref_stn} '
             f'in combination {comb_lab}\n'
             f'No. of common steps: {stn_comb_data.n_steps}, '
@@ -1087,7 +1079,7 @@ class PlotSimultaneousExtremesMP:
                 map_ax.set_title(
                     f'Mean extremes binary simulated probability for '
                     f'station {ref_stn} in combination {comb_lab}\n'
-                    f'Event exeecedance probability: {ep}'
+                    f'Event exceedance probability: {ep}'
                     f', time window: {tw} steps\n'
                     f'No. of common steps: {n_steps}, '
                     f'No. of extended steps: {n_steps_ext}, '
@@ -1211,7 +1203,7 @@ class PlotSimultaneousExtremesMP:
                     map_ax.set_title(
                         f'Mean simultaneous extremes {len(ep_tw_stn_comb)}D '
                         f'simulated probability in combination {comb_lab}\n'
-                        f'Event exeecedance probability: {ep}'
+                        f'Event exceedance probability: {ep}'
                         f', time window: {tw} steps\n'
                         f'No. of common steps: {n_steps}, '
                         f'No. of extended steps: {n_steps_ext}, '
@@ -1265,7 +1257,7 @@ class PlotSimultaneousExtremesMP:
                         f'Simultaneous extremes {len(ep_tw_stn_comb)}D '
                         f'simulated probability histogram in combination '
                         f'{comb_lab}\n'
-                        f'Event exeecedance probability: {ep}'
+                        f'Event exceedance probability: {ep}'
                         f', time window: {tw} steps\n'
                         f'No. of common steps: {n_steps}, '
                         f'No. of extended steps: {n_steps_ext}, '
