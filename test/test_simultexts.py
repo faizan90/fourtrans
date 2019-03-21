@@ -25,8 +25,6 @@ def main():
 
     out_dir = 'test_simultexts_simult_ext_clusters_07'
 
-    out_h5 = os.path.join(out_dir, 'simultexts_db.hdf5')
-
 #     stns = ['420', '427', '454']  # , '3470', '3465', '3421'
 #     excd_probs = [0.001, 0.005]  # [0.001, 0.005, 0.0001, 0.0005, 0.00001]  #
 #     time_windows = [1, 3, 0]  # [2, 10, 1, 3, 0]  #
@@ -60,14 +58,14 @@ def main():
     verbose_flag = True
     overwrite_flag = True
     cmpt_simultexts_flag = True
-#     save_sim_cdfs_flag = True
-#     save_sim_corrs_flag = True
-#     save_sim_ft_cumm_corrs_flag = True
-#     plot_freqs_flag = True
-#     plot_clusters_flag = True
-#     plot_sim_cdfs_flag = True
-#     plot_sim_auto_corrs_flag = True
-#     plot_sim_ft_corrs_flag = True
+    save_sim_cdfs_flag = True
+    save_sim_corrs_flag = True
+    save_sim_ft_cumm_corrs_flag = True
+    plot_freqs_flag = True
+    plot_clusters_flag = True
+    plot_sim_cdfs_flag = True
+    plot_sim_auto_corrs_flag = True
+    plot_sim_ft_corrs_flag = True
 
     in_df = pd.read_csv(in_file, sep=';', index_col=0)
 
@@ -81,7 +79,6 @@ def main():
         SE.set_data(in_df)
 
         SE.set_outputs_directory(out_dir)
-        SE.set_output_hdf5_path(out_h5)
 
         SE.set_exceedance_probabilities(np.array(excd_probs))
 
@@ -89,7 +86,7 @@ def main():
 
         SE.set_number_of_simulations(n_sims)
 
-        SE.set_more_data_flags(
+        SE.set_additonal_analysis_flags(
             save_sim_cdfs_flag,
             save_sim_corrs_flag,
             save_sim_ft_cumm_corrs_flag)
@@ -112,8 +109,6 @@ def main():
         SEP = SimultaneousExtremesPlot(verbose_flag)
 
         SEP.set_outputs_directory(out_dir)
-
-        SEP.set_hdf5_path(out_h5)
 
         SEP.set_misc_settings(n_cpus)
 

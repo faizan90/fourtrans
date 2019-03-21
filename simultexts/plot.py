@@ -48,7 +48,6 @@ class SimultaneousExtremesPlot:
         self._clusters_shp_fld = None
 
         self._set_out_dir_flag = False
-        self._h5_path_set_flag = False
         self._set_plot_verify_flag = False
         return
 
@@ -59,10 +58,14 @@ class SimultaneousExtremesPlot:
 
         out_dir = Path(out_dir).absolute()
 
-        assert out_dir.parents[0].exists(), (
-            'Parent directory of the out_dir does not exist!')
+        assert out_dir.exists(), 'out_dir does not exist!'
 
         self._out_dir = out_dir
+
+        self._h5_path = self._out_dir / r'simultexts_db.hdf5'
+
+        assert self._h5_path.exists(), (
+            'simultexts_db.hdf5 does not exist in out_dir!')
 
         if self._vb:
             print_sl()
@@ -73,21 +76,6 @@ class SimultaneousExtremesPlot:
             print_el()
 
         self._set_out_dir_flag = True
-        return
-
-    def set_hdf5_path(self, hdf5_path):
-
-        assert isinstance(hdf5_path, (str, Path)), (
-            'hdf5_path not a string or Path object!')
-
-        hdf5_path = Path(hdf5_path).absolute()
-
-        assert hdf5_path.exists(), 'Given hdf5_path does not exists!'
-        assert hdf5_path.is_file(), 'Given hdf5_path not a file!'
-
-        self._h5_path = hdf5_path
-
-        self._h5_path_set_flag = True
         return
 
     def set_misc_settings(self, n_cpus):
@@ -184,7 +172,6 @@ class SimultaneousExtremesPlot:
     def verify(self):
 
         assert self._set_out_dir_flag, 'Outputs directory not set!'
-        assert self._h5_path_set_flag, 'Path to HDF5 not set!'
 
         assert any([
             self._plot_freqs_flag,
@@ -323,12 +310,6 @@ class SimultaneousExtremesPlot:
                 self._out_dir / 'simultexts_binary_cluster_figs')
 
             self._out_dirs_dict['binary_cluster_figs'].mkdir(exist_ok=True)
-
-            self._out_dirs_dict['binary_cluster_prob_dist_figs'] = (
-                self._out_dir / 'simultexts_binary_cluster_prob_dist_figs')
-
-            self._out_dirs_dict['nD_cluster_prob_dist_figs'].mkdir(
-                exist_ok=True)
 
             self._out_dirs_dict['nD_cluster_figs'] = (
                 self._out_dir / 'simultexts_nD_cluster_figs')
