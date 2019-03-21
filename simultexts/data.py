@@ -15,6 +15,11 @@ from .misc import print_sl, print_el
 
 class SimultaneousExtremesDataAndSettings:
 
+    '''Set the inputs for the computation of probabilities of
+    simultaneous extremes occurences using the Fourier transform.
+    This class is inheritied by SimultaneousExtremesAlgorithm.
+    '''
+
     def __init__(self, verbose=True):
 
         self._vb = bool(verbose)
@@ -28,7 +33,6 @@ class SimultaneousExtremesDataAndSettings:
 
         self._set_data_flag = False
         self._set_out_dir_flag = False
-        self._h5_path_set_flag = False
         self._set_excd_probs_flag = False
         self._set_tws_flag = False
         self._set_n_sims_flag = False
@@ -37,6 +41,17 @@ class SimultaneousExtremesDataAndSettings:
         return
 
     def set_data(self, time_ser_df):
+
+        '''
+        Parameters
+        ----------
+        time_ser_df : pd.DataFrame
+            A DataFrame holding the data of each column (station) as a
+            time series. The index should be of the type pd.DatetimeIndex.
+            The values should be a subclass of np.floating. The columns
+            are cast to strings upon setup. Values may be NaN but not all
+            of them for a given station.
+        '''
 
         assert isinstance(time_ser_df, pd.DataFrame), (
             'time_ser_df not a pandas DataFrame object!')
@@ -83,6 +98,15 @@ class SimultaneousExtremesDataAndSettings:
 
     def set_outputs_directory(self, out_dir):
 
+        '''
+        Parameters
+        ----------
+        out_dir : str or pathlib.Path
+            The directory in which to save all the simulation outputs. It is
+            created if non-existent. All outputs from the simulations are
+            saved to an HDF5 file "simultexts_db.hdf5" inside this directory.
+        '''
+
         assert isinstance(out_dir, (Path, str)), (
             'out_dir not a string or a Path-like object!')
 
@@ -92,6 +116,8 @@ class SimultaneousExtremesDataAndSettings:
             'Parent directory of the out_dir does not exist!')
 
         self._out_dir = out_dir
+
+        self._h5_path = self._out_dir / r'simultexts_db.hdf5'
 
         if self._vb:
             print_sl()
@@ -104,19 +130,18 @@ class SimultaneousExtremesDataAndSettings:
         self._set_out_dir_flag = True
         return
 
-    def set_output_hdf5_path(self, hdf5_path):
-
-        assert isinstance(hdf5_path, (str, Path)), (
-            'hdf5_path not a string or Path object!')
-
-        hdf5_path = Path(hdf5_path).absolute()
-
-        self._h5_path = hdf5_path
-
-        self._h5_path_set_flag = True
-        return
-
     def set_exceedance_probabilities(self, exceedance_probabilities):
+
+        '''
+        Parameters
+        ----------
+        exceedance_probabilities : subtype of numpy.floating dtype 1D array
+            A Numpy array holding the exceedance probabilites of events
+            for which to compute the simulated probabilites of simultaneous
+            occurrences of events. The values range between 0 and 1. The
+            smaller the value the lower the chance of it occurring.
+            Sorted array of values is used upon setup.
+        '''
 
         assert isinstance(exceedance_probabilities, np.ndarray), (
             'exceedance_probabilities not a numpy array!')
@@ -139,9 +164,9 @@ class SimultaneousExtremesDataAndSettings:
         assert exceedance_probabilities.shape[0], (
             'No elements in exceedance_probabilities!')
 
-        assert np.all(
-            np.unique(exceedance_probabilities) ==
-            np.sort(exceedance_probabilities)), (
+        assert (
+            np.unique(exceedance_probabilities).shape[0] ==
+            exceedance_probabilities.shape[0]), (
                 'Non-unique elements in exceedance_probabilities!')
 
         self._eps = np.sort(exceedance_probabilities)
@@ -163,6 +188,21 @@ class SimultaneousExtremesDataAndSettings:
         return
 
     def set_time_windows(self, time_windows):
+
+        '''
+        Parameters
+        ----------
+        time_windows : subtype of numpy.integer dtype 1D array
+            An array with window sizes that represent the step size such
+            that events of a given exceedance probability occurring in
+            plus-minus this many steps for a given combination of stations
+            are considered simultaneous. e.g. time window of zero would
+            mean all the events in a given combination have to occur on
+            the same step to be considered as simultaneous. A window size
+            of 2 means that the difference of steps between all the stations
+            in a given combination is not more than 2 steps (5
+            steps in total, including step 0).
+        '''
 
         assert isinstance(time_windows, np.ndarray), (
             'time_windows not a numpy array!')
@@ -198,6 +238,14 @@ class SimultaneousExtremesDataAndSettings:
 
     def set_number_of_simulations(self, n_sims):
 
+        '''
+        Parameters
+        ----------
+        n_sims : int
+            The number of simulations to perform. First simulation is always
+            the observed data. The rest are n_sims.
+        '''
+
         assert isinstance(n_sims, int), 'n_sims not an integer!'
 
         assert n_sims > 0, 'n_sims should be greater than zero!'
@@ -214,11 +262,30 @@ class SimultaneousExtremesDataAndSettings:
         self._set_n_sims_flag = True
         return
 
-    def set_more_data_flags(
+    def set_additonal_analysis_flags(
             self,
             sim_cdfs_flag,
             sim_auto_corrs_flag,
             sim_ft_cumm_corrs_flag):
+
+        '''
+        Parameters
+        ----------
+        sim_cdfs_flag : bool
+            To save the cummulative distribution of each simulated series.
+            This can later be used for verification of the algorithm.
+        sim_auto_corrs_flag : bool
+            To save the auto correlations of observed and simulated series.
+            This can be used to see how close are the simulated data to the
+            observed.
+        sim_ft_cumm_corrs_flag : bool
+            To save cummulative correlation contribution of each fourier
+            wave to the observed and simulated series. This can be used to
+            see how close are the observed and simulated series.
+
+        The plotting class can plot this data if it is saved in the database
+        and the plotting flags are set to True before plotting.
+        '''
 
         assert isinstance(sim_cdfs_flag, bool), (
             'sim_cdfs_flag not a boolean value!')
@@ -258,6 +325,23 @@ class SimultaneousExtremesDataAndSettings:
 
     def set_misc_settings(self, n_cpus=1, extend_steps=0):
 
+        '''
+        Parameters
+        ----------
+        n_cpus : int
+            The number of maximum running processes to use while simulating.
+            Default is 1. If set to "auto" the maximum number of running
+            processes is set to the number of logical cores minus one.
+        extend_steps : int
+            Extend each simulated series to this many steps. The final
+            length depends on the length of the series in the inputs. The
+            length can only be a multiple of the original length of the input.
+            If extend_steps is less the original length then the original is
+            used. If it is higher than the original, then the extended steps
+            are such that they are a multiple of the original and are
+            greater than or equal to extend_steps.
+        '''
+
         if isinstance(n_cpus, int):
             assert n_cpus > 0, 'n_cpus has to be one or more!'
 
@@ -289,9 +373,14 @@ class SimultaneousExtremesDataAndSettings:
 
     def verify(self):
 
+        '''
+        Verify if all the required inputs are set. The algorithm won't
+        proceed if verify hasn't been called and all the required inputs
+        aren't set.
+        '''
+
         assert self._set_data_flag, 'Data not set!'
         assert self._set_out_dir_flag, 'Outputs directory not set!'
-        assert self._h5_path_set_flag, 'Output HDF5 path not set!'
         assert self._set_excd_probs_flag, 'Exceedance probabilities not set!'
         assert self._set_tws_flag, 'Time windows not set!'
         assert self._set_n_sims_flag, 'Number of simulations not set!'
