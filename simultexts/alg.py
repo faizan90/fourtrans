@@ -1049,13 +1049,16 @@ class SimultaneousExtremesFrequencyComputerMP:
 
     def _get_ft_pair_cumm_corrs_dict(self, in_vals_df):
 
-        corrs_dict = {}
-        for ref_stn in in_vals_df.columns:
-            for neb_stn in in_vals_df.columns:
-                cumm_corrs_arr = self._get_ft_pair_cumm_corrs(
-                    in_vals_df[ref_stn].values, in_vals_df[neb_stn].values)
+        pairs = combinations(in_vals_df.columns, 2)
 
-                corrs_dict[(ref_stn, neb_stn)] = cumm_corrs_arr
+        corrs_dict = {}
+        for pair in pairs:
+            ref_stn, neb_stn = pair
+
+            cumm_corrs_arr = self._get_ft_pair_cumm_corrs(
+                in_vals_df[ref_stn].values, in_vals_df[neb_stn].values)
+
+            corrs_dict[(ref_stn, neb_stn)] = cumm_corrs_arr
 
         return corrs_dict
 

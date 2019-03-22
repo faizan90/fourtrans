@@ -1165,7 +1165,7 @@ class PlotSimultaneousExtremesMP:
                 map_ax.text(
                     self._cluster_feats_dict['xx_mean'][ref_stn],
                     self._cluster_feats_dict['yy_mean'][ref_stn],
-                    f'{ref_stn}',
+                    f'{ref_stn}\n(reference)',
                     ha='center',
                     va='center',
                     alpha=1.0,
