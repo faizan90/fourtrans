@@ -27,6 +27,8 @@ class SimultaneousExtremesDataAndSettings:
         self._n_cpus = 1
         self._ext_steps = 0
 
+        self._tfm_types = ('obs', 'prob', 'norm', 'prob__no_ann_cyc')
+
         self._save_sim_cdfs_flag = False
         self._save_sim_acorrs_flag = False
         self._save_sim_ft_cumm_corrs_flag = False
@@ -36,6 +38,7 @@ class SimultaneousExtremesDataAndSettings:
         self._set_excd_probs_flag = False
         self._set_tws_flag = False
         self._set_n_sims_flag = False
+        self._set_tfm_type_flag = False
 
         self._set_data_verify_flag = False
         return
@@ -262,6 +265,42 @@ class SimultaneousExtremesDataAndSettings:
         self._set_n_sims_flag = True
         return
 
+    def set_tfm_type(self, tfm_type):
+
+        '''Set the type of transformation applied to the input data before
+        it is Fouriered.
+
+        Parameters
+        ----------
+        tfm_type : string
+            A string identifier for the transformation type.
+            obs : No transformation i.e. use original data.
+            prob : Use CDF values for each column
+            norm : Use standard normal values for each column
+            prob__no_ann_cyc : Remove annual cycle from each column and then
+            use the CDF values. The annual cycle CDF is added to the Fouriered
+            values before reshuffling the simulated series.
+        '''
+
+        assert isinstance(tfm_type, str), 'tfm_type not a string object!'
+
+        assert tfm_type in self._tfm_types, (
+            f'Given tfm_type: {tfm_type} does not exist in defined tfm_type: '
+            f'{self._tfm_types}')
+
+        self._tfm_type = tfm_type
+
+        if self._vb:
+            print_sl()
+
+            print(
+                f'INFO: Set the data transformation type to {self._tfm_type}')
+
+            print_el()
+
+        self._set_tfm_type_flag = True
+        return
+
     def set_additonal_analysis_flags(
             self,
             sim_cdfs_flag,
@@ -384,6 +423,7 @@ class SimultaneousExtremesDataAndSettings:
         assert self._set_excd_probs_flag, 'Exceedance probabilities not set!'
         assert self._set_tws_flag, 'Time windows not set!'
         assert self._set_n_sims_flag, 'Number of simulations not set!'
+        assert self._set_tfm_type_flag, 'Transformation type not set!'
 
         if self._vb:
             print_sl()

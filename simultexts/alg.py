@@ -267,6 +267,7 @@ class SimultaneousExtremesAlgorithm(SEDS):
         h5_hdl['time_windows'] = self._tws
         h5_hdl['n_sims'] = self._n_sims
         h5_hdl['n_stn_combs'] = len(self._stn_combs)
+        h5_hdl['tfm_type'] = self._tfm_type
 
         h5_hdl['save_sim_cdfs_flag'] = int(self._save_sim_cdfs_flag)
         h5_hdl['save_sim_acorrs_flag'] = int(self._save_sim_acorrs_flag)
@@ -336,6 +337,7 @@ class SimultaneousExtremesFrequencyComputerMP:
             '_max_acorr_steps',
             '_h5_path',
             '_mp_lock',
+            '_tfm_type',
             ]
 
         for _var in take_sea_cls_var_labs:
@@ -501,21 +503,19 @@ class SimultaneousExtremesFrequencyComputerMP:
             data=np.full((ft_steps, n_combs), np.nan, dtype=complex),
             columns=stn_comb)
 
-        tfm = 'prob__no_ann_cyc'  # 'prob'
-
-        if tfm == 'obs':
+        if self._tfm_type == 'obs':
             ft_input_df = obs_vals_df.copy()
 
-        elif tfm == 'prob':
+        elif self._tfm_type == 'prob':
             ft_input_df = obs_vals_df.rank(ascending=True) / (n_steps + 1.0)
 
-        elif tfm == 'norm':
+        elif self._tfm_type == 'norm':
             ft_input_df = pd.DataFrame(
                 data=norm.ppf(
                     obs_vals_df.rank(ascending=True) / (n_steps + 1.0)),
                 columns=stn_comb)
 
-        elif tfm == 'prob__no_ann_cyc':
+        elif self._tfm_type == 'prob__no_ann_cyc':
             # NOTE: ann_cyc_probs_df added to simulated values after irfft
             assert np.all(((obs_vals_df.index[1:] - obs_vals_df.index[:-1]
                 ).total_seconds()).values == 86400), (
@@ -531,7 +531,7 @@ class SimultaneousExtremesFrequencyComputerMP:
             ft_input_df = ft_input_df.rank(ascending=True) / (n_steps + 1.0)
 
         else:
-            raise ValueError(tfm)
+            raise ValueError(self._tfm_type)
 
         assert np.all(np.isfinite(ft_input_df.values))
 
@@ -601,7 +601,6 @@ class SimultaneousExtremesFrequencyComputerMP:
             }
 
         if self._save_sim_cdfs_flag or self._save_sim_acorrs_flag:
-            # TODO: save simulated phases as well
             stns_sims_dict = {
                 f'sim_sers_{stn}':
                     np.full(
@@ -675,7 +674,7 @@ class SimultaneousExtremesFrequencyComputerMP:
                             ext_step_idx:ext_step_idx + n_steps, i] = (
                                 np.fft.irfft(sim_ft_df.iloc[:, i]))
 
-                        if tfm == 'prob__no_ann_cyc':
+                        if self._tfm_type == 'prob__no_ann_cyc':
                             sim_vals_df.iloc[
                                 ext_step_idx:ext_step_idx + n_steps, i] += (
                                     ann_cyc_probs_df.iloc[:, i].values)
@@ -817,8 +816,6 @@ class SimultaneousExtremesFrequencyComputerMP:
         max_ep_df = sim_vals_probs_df.loc[max_ep_idxs, :]
 
         simult_ext_evts_cts = arrs_dict['simult_ext_evts_cts']
-
-        cts_tup_size = len(simult_ext_evts_cts.dtype.names)
 
         for ep_i, ep in enumerate(self._eps):
             ep_bools_df = max_ep_df <= ep
