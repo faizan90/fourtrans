@@ -349,11 +349,11 @@ def main():
     plot_lag_ecops_flag = True
     plot_cumm_var_cntrib_flag = True
 
-    plot_stn_ecops_flag = False
-    plot_stn_dists_flag = False
-    plot_ref_sim_ecop_cmpr_flag = False
-    plot_phas_diffs_flag = False
-    plot_lag_ecops_flag = False
+#     plot_stn_ecops_flag = False
+#     plot_stn_dists_flag = False
+#     plot_ref_sim_ecop_cmpr_flag = False
+#     plot_phas_diffs_flag = False
+#     plot_lag_ecops_flag = False
 #     plot_cumm_var_cntrib_flag = False
 
     in_data_df = pd.read_csv(in_file_path, sep=';', index_col=0)
@@ -413,16 +413,12 @@ def main():
     beg_data_ft = np.empty_like(data_ft)
     end_data_ft = beg_data_ft.copy()
 
-    beg_data_ft.real = (
-        data_mags * np.cos(beg_thresh_phas))
-
-    beg_data_ft.imag = (
-        data_mags * np.sin(beg_thresh_phas))
+    beg_data_ft.real = data_mags * np.cos(beg_thresh_phas)
+    beg_data_ft.imag = data_mags * np.sin(beg_thresh_phas)
 
     beg_data_df = np.fft.irfft(beg_data_ft, axis=0)
 
     end_data_ft.real = data_mags * np.cos(end_thresh_phas)
-
     end_data_ft.imag = data_mags * np.sin(end_thresh_phas)
 
     end_data_df = np.fft.irfft(end_data_ft, axis=0)

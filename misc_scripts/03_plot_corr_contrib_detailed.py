@@ -13,6 +13,31 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 
+def plot_ts(obsrd_ts, model_ts, fig_size, out_fig):
+
+    plt.figure(figsize=fig_size)
+
+    plt.plot(model_ts, alpha=0.7, color='k', label='Model', lw=2)
+
+    plt.plot(obsrd_ts, alpha=0.7, color='r', label='Observed', lw=2)
+
+#     plt.title(
+#         f'Correlation contribution per fourier frequency\n'
+#         f'n_sims: {n_sims}, n_steps: {n_steps}')
+
+    plt.xlabel('Time (days)')
+    plt.ylabel('Discharge (m$^3$/s)')
+
+    plt.legend()
+
+    plt.grid()
+    plt.savefig(out_fig, bbox_inches='tight')
+
+    plt.close()
+
+    return
+
+
 def main():
 
     main_dir = Path(r'P:\Synchronize\IWS\2016_DFG_SPATE\Presentations\20190226_Stuttgart')
@@ -122,6 +147,8 @@ def main():
     plt.savefig(out_fig, bbox_inches='tight')
 
     plt.close()
+
+    plot_ts(obs_norms, sim_norms, fig_size, 'ft_sim.png')
 
     mpl.rcdefaults()
     return
