@@ -251,7 +251,7 @@ class SimultaneousExtremesDataAndSettings:
 
         assert isinstance(n_sims, int), 'n_sims not an integer!'
 
-        assert n_sims > 0, 'n_sims should be greater than zero!'
+#         assert n_sims > 0, 'n_sims should be greater than zero!'
 
         self._n_sims = n_sims
 

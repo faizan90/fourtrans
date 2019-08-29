@@ -15,15 +15,15 @@ from fourtrans import SimultaneousExtremes, SimultaneousExtremesPlot
 
 def main():
 
-    main_dir = Path(r'P:\Synchronize\IWS\QGIS_Neckar\hydmod\input_hyd_data')
+    main_dir = Path(r'P:\Synchronize\IWS\Projects\2016_DFG_SPATE\data\simultaneous_extremes')
     os.chdir(main_dir)
 
     in_file = r'neckar_daily_discharge_1961_2015.csv'
 
-    clusters_shp = r'P:\Synchronize\IWS\QGIS_Neckar\raster\taudem_out_spate_rockenau\watersheds.shp'
+    clusters_shp = r'watersheds.shp'
     clusters_shp_fld = 'DN'
 
-    out_dir = 'test_simultexts_tfm_01'
+    out_dir = 'test_07'
 
 #     stns = ['420', '427', '454']  # , '3470', '3465', '3421'
 #     excd_probs = [0.001, 0.005]  # [0.001, 0.005, 0.0001, 0.0005, 0.00001]  #
@@ -38,7 +38,7 @@ def main():
     time_windows = [2, 1, 0, ]
     tfm_type = 'prob'
 
-    n_sims = 100
+    n_sims = 0
 
     n_cpus = 'auto'
 
@@ -60,21 +60,21 @@ def main():
     verbose_flag = True
     overwrite_flag = True
     cmpt_simultexts_flag = True
-    save_sim_cdfs_flag = True
-    save_sim_corrs_flag = True
-    save_sim_ft_cumm_corrs_flag = True
-    plot_freqs_flag = True
-    plot_clusters_flag = True
-    plot_sim_cdfs_flag = True
-    plot_sim_auto_corrs_flag = True
-    plot_sim_ft_corrs_flag = True
-    plot_sim_ft_pair_corrs_dist_flag = True
+#     save_sim_cdfs_flag = True
+#     save_sim_corrs_flag = True
+#     save_sim_ft_cumm_corrs_flag = True
+#     plot_freqs_flag = True
+#     plot_clusters_flag = True
+#     plot_sim_cdfs_flag = True
+#     plot_sim_auto_corrs_flag = True
+#     plot_sim_ft_corrs_flag = True
+#     plot_sim_ft_pair_corrs_dist_flag = True
 
     in_df = pd.read_csv(in_file, sep=';', index_col=0)
 
     in_df.index = pd.to_datetime(in_df.index, format='%Y-%m-%d')
 
-    in_df = in_df.loc[:, stns]
+#     in_df = in_df.loc[:, stns]
 
     if cmpt_simultexts_flag:
         SE = SimultaneousExtremes(verbose_flag, overwrite_flag)

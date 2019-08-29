@@ -3,7 +3,7 @@ Created on Feb 4, 2019
 
 @author: Faizan-Uni
 '''
-
+import time
 from timeit import default_timer
 from multiprocessing import Manager
 from itertools import combinations
@@ -552,8 +552,6 @@ class SimultaneousExtremesFrequencyComputerMP:
         sim_phas_mult_vec[0] = 0
         sim_phas_mult_vec[ft_steps - 1] = 0
 
-#         sim_phas_mult_vec[:n_steps // 365] = 0
-
         sim_ft_df = pd.DataFrame(
             data=np.full((ft_steps, n_combs), np.nan, dtype=complex),
             columns=stn_comb)
@@ -565,6 +563,7 @@ class SimultaneousExtremesFrequencyComputerMP:
         all_stn_combs = []
 
         for n_stns in range(2, n_combs + 1):
+#         for n_stns in range(4, 5):
             ep_tw_stn_combs = combinations(stn_comb, n_stns)
 
             for ep_tw_stn_comb in ep_tw_stn_combs:
@@ -573,6 +572,8 @@ class SimultaneousExtremesFrequencyComputerMP:
         assert all_stn_combs
 
         all_stn_combs = np.array(all_stn_combs, dtype=np.unicode_)
+
+        print('all_stn_combs shape:', all_stn_combs.shape)
 
         arrs_dict = {
             **{f'neb_evts_{stn}':
@@ -624,10 +625,12 @@ class SimultaneousExtremesFrequencyComputerMP:
             arrs_dict.update(stns_ft_ccorrs_dict)
 
         stn_idxs_swth_dict = {}
+        bools = np.ones(n_combs, dtype=bool)
+        stn_comb_arr = np.array(stn_comb)
         for i, stn in enumerate(stn_comb):
-            bools = np.ones(n_combs, dtype=bool)
             bools[i] = False
-            stn_idxs_swth_dict[stn] = np.array(stn_comb)[bools]
+            stn_idxs_swth_dict[stn] = stn_comb_arr[bools]
+            bools[i] = True
 
         if not sim_chunk_idxs[0]:
             arrs_dict['obs_vals_ft_pair_cumm_corrs_dict'] = (
@@ -773,22 +776,21 @@ class SimultaneousExtremesFrequencyComputerMP:
 
             freqs_arr = arrs_dict[f'neb_evts_{ref_stn}']
 
-            for neb_stn_i, neb_stn in enumerate(
-                stn_idxs_swth_dict[ref_stn]):
+            for neb_stn_i, neb_stn in enumerate(stn_idxs_swth_dict[ref_stn]):
 
                 for ep_i, ep in enumerate(self._eps):
                     neb_evt_ctrs = {tw:0 for tw in self._tws}
 
-                    for evt_idx_i, evt_idx in enumerate(
-                        max_ep_sim_df.index):
+                    for evt_idx_i, evt_idx in enumerate(max_ep_sim_df.index):
 
                         if max_ep_sim_df.iloc[evt_idx_i, ref_stn_i] > ep:
                             continue
 
                         for tw in self._tws:
-                            back_idx = max(0, evt_idx - tw)  # can take the end values as well?
-                            forw_idx = evt_idx + tw  # using loc gets all inclusive
+                            back_idx = max(0, evt_idx - tw)
+                            forw_idx = evt_idx + tw
 
+                            # using loc gets all inclusive
                             neb_evt_idxs = (max_ep_sim_df.loc[
                                 back_idx:forw_idx, neb_stn] <= ep).values
 
@@ -878,7 +880,7 @@ class SimultaneousExtremesFrequencyComputerMP:
         return
 
     def _write_freqs_data_to_hdf5(
-        self, stn_comb, arrs_dict, sim_chunk_idxs, all_stn_combs):
+            self, stn_comb, arrs_dict, sim_chunk_idxs, all_stn_combs):
 
         '''Must be called with a Lock'''
 
@@ -898,7 +900,8 @@ class SimultaneousExtremesFrequencyComputerMP:
             'ref_evts',
             'ref_evts_ext',
             'n_steps',
-            'n_steps_ext']:
+            'n_steps_ext',
+            ]:
 
             if key in stn_grp:
                 continue
@@ -906,6 +909,7 @@ class SimultaneousExtremesFrequencyComputerMP:
             stn_grp[key] = arrs_dict[key]
 
         simult_exts_evts_key = 'simult_ext_evts_cts'
+
         if simult_exts_evts_key not in stn_grp:
             evts_cts_ds = stn_grp.create_dataset(
                     simult_exts_evts_key,
@@ -914,6 +918,7 @@ class SimultaneousExtremesFrequencyComputerMP:
                      len(self._tws),
                      all_stn_combs.shape[0]),
                     dtype=arrs_dict[simult_exts_evts_key].dtype)
+
         else:
             evts_cts_ds = stn_grp[simult_exts_evts_key]
 
@@ -1087,17 +1092,20 @@ class SimultaneousExtremesFrequencyComputerMP:
 
             if self._save_sim_cdfs_flag:
                 sort_stn_refr_ser = np.sort(stn_refr_ser[:n_steps])
-                sort_stn_sim_sers = np.sort(stn_sim_sers, axis=1)
-                sort_avg_stn_sim_sers = sort_stn_sim_sers.mean(axis=0)
-                sort_min_stn_sim_sers = sort_stn_sim_sers.min(axis=0)
-                sort_max_stn_sim_sers = sort_stn_sim_sers.max(axis=0)
 
-                # mins, means and maxs sorted values (cdfs)
                 cdfs_arr = np.full((4, n_steps_ext), np.nan, dtype=float)
                 cdfs_arr[0, :n_steps] = sort_stn_refr_ser
-                cdfs_arr[1, :] = sort_avg_stn_sim_sers
-                cdfs_arr[2, :] = sort_min_stn_sim_sers
-                cdfs_arr[3, :] = sort_max_stn_sim_sers
+
+                if self._n_sims:
+                    sort_stn_sim_sers = np.sort(stn_sim_sers, axis=1)
+                    sort_avg_stn_sim_sers = sort_stn_sim_sers.mean(axis=0)
+                    sort_min_stn_sim_sers = sort_stn_sim_sers.min(axis=0)
+                    sort_max_stn_sim_sers = sort_stn_sim_sers.max(axis=0)
+
+                    # mins, means and maxs sorted values (cdfs)
+                    cdfs_arr[1, :] = sort_avg_stn_sim_sers
+                    cdfs_arr[2, :] = sort_min_stn_sim_sers
+                    cdfs_arr[3, :] = sort_max_stn_sim_sers
 
                 stn_grp[f'sim_cdfs_{stn}'] = cdfs_arr
 
@@ -1130,15 +1138,19 @@ class SimultaneousExtremesFrequencyComputerMP:
 
                 # pearson
                 acorrs_arr[0] = auto_pcorrs[0, :]
-                acorrs_arr[1] = auto_pcorrs[1:, :].mean(axis=0)
-                acorrs_arr[2] = auto_pcorrs[1:, :].min(axis=0)
-                acorrs_arr[3] = auto_pcorrs[1:, :].max(axis=0)
+
+                if self._n_sims:
+                    acorrs_arr[1] = auto_pcorrs[1:, :].mean(axis=0)
+                    acorrs_arr[2] = auto_pcorrs[1:, :].min(axis=0)
+                    acorrs_arr[3] = auto_pcorrs[1:, :].max(axis=0)
 
                 # spearman
                 acorrs_arr[4] = auto_scorrs[0, :]
-                acorrs_arr[5] = auto_scorrs[1:, :].mean(axis=0)
-                acorrs_arr[6] = auto_scorrs[1:, :].min(axis=0)
-                acorrs_arr[7] = auto_scorrs[1:, :].max(axis=0)
+
+                if self._n_sims:
+                    acorrs_arr[5] = auto_scorrs[1:, :].mean(axis=0)
+                    acorrs_arr[6] = auto_scorrs[1:, :].min(axis=0)
+                    acorrs_arr[7] = auto_scorrs[1:, :].max(axis=0)
 
                 stn_grp[f'sim_acorrs_{stn}'] = acorrs_arr
 

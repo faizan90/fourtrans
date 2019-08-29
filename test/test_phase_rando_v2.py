@@ -312,10 +312,115 @@ def plot_ecops_ref_beg_end(prob_df, beg_prob_df, end_prob_df, out_path):
     return
 
 
+def plot_ecops_ref_beg_end_corners(
+        prob_df, beg_prob_df, end_prob_df, out_path):
+
+    alpha = 0.01
+    stns = prob_df.columns
+
+    n_rows = n_cols = 3
+
+    _, axs = plt.subplots(nrows=n_rows, ncols=n_cols, figsize=(10, 10))
+
+    ax_lims = ((0, 0.05), (0, 1), (0.95, 1))
+
+    for j in range(n_rows):
+
+        ax_alpha = min(alpha / (ax_lims[j][1] - ax_lims[j][0]), 1)
+
+        (ax_data, ax_beg, ax_end) = axs[j, :]
+
+        ax_data.scatter(
+            prob_df[stns[0]].values, prob_df[stns[1]].values, alpha=ax_alpha)
+
+        ax_beg.scatter(
+            beg_prob_df[stns[0]].values,
+            beg_prob_df[stns[1]].values,
+            alpha=ax_alpha)
+
+        ax_end.scatter(
+            end_prob_df[stns[0]].values,
+            end_prob_df[stns[1]].values,
+            alpha=ax_alpha)
+
+        ticks = np.linspace(ax_lims[j][0], ax_lims[j][1], 6)
+
+        n_evts = []
+        n_evts.append(
+            ((prob_df[stns[0]].values >= ax_lims[j][0]) &
+             (prob_df[stns[0]].values <= ax_lims[j][1]) &
+             (prob_df[stns[1]].values >= ax_lims[j][0]) &
+             (prob_df[stns[1]].values <= ax_lims[j][1])).sum()
+             )
+
+        n_evts.append(
+            ((beg_prob_df[stns[0]].values >= ax_lims[j][0]) &
+             (beg_prob_df[stns[0]].values <= ax_lims[j][1]) &
+             (beg_prob_df[stns[1]].values >= ax_lims[j][0]) &
+             (beg_prob_df[stns[1]].values <= ax_lims[j][1])).sum()
+             )
+
+        n_evts.append(
+            ((end_prob_df[stns[0]].values >= ax_lims[j][0]) &
+             (end_prob_df[stns[0]].values <= ax_lims[j][1]) &
+             (end_prob_df[stns[1]].values >= ax_lims[j][0]) &
+             (end_prob_df[stns[1]].values <= ax_lims[j][1])).sum()
+             )
+
+        for i, ax in enumerate(axs[j, :]):
+            ax.set_xticks(ticks)
+            ax.set_yticks(ticks)
+
+            ax.set_xlim(*ax_lims[j])
+            ax.set_ylim(*ax_lims[j])
+
+            if j == (n_rows - 1):
+                ax.set_xlabel(stns[0])
+
+            if i == 0:
+                ax.set_ylabel(stns[1])
+
+            else:
+                ax.set_yticklabels([])
+
+            ax.text(
+                ax_lims[j][0] + (0.05 * (ax_lims[j][1] - ax_lims[j][0])),
+                ax_lims[j][1] - (0.05 * (ax_lims[j][1] - ax_lims[j][0])),
+                f'n={n_evts[i]}',
+                va='top',
+                ha='left',
+                bbox={'facecolor': 'white', 'alpha': 0.3, 'pad': 2}
+                )
+
+            ax.set_axisbelow(True)
+            ax.grid()
+
+    corrs = []
+
+    corrs.append(
+        np.corrcoef(prob_df[stns[0]].values, prob_df[stns[1]].values)[0, 1])
+
+    corrs.append(np.corrcoef(
+        beg_prob_df[stns[0]].values, beg_prob_df[stns[1]].values)[0, 1])
+
+    corrs.append(np.corrcoef(
+        end_prob_df[stns[0]].values, end_prob_df[stns[1]].values)[0, 1])
+
+    titles = ('Reference', 'Begin', 'End')
+
+    for i, ax in enumerate(axs[0, :]):
+        ax.set_title(f'{titles[i]} (corr: {corrs[i]:0.3f})')
+
+    plt.tight_layout()
+    plt.savefig(str(out_path), bbox_inches='tight')
+    plt.close()
+    return
+
+
 def main():
 
     main_dir = Path(
-        r'P:\Synchronize\IWS\fourtrans_practice\test_phase_rando_v2_non_norm')
+        r'P:\Synchronize\IWS\Testings\fourtrans_practice\test_phase_rando_v2_non_norm')
 
     os.chdir(main_dir)
 
@@ -350,11 +455,11 @@ def main():
     plot_cumm_var_cntrib_flag = True
 
 #     plot_stn_ecops_flag = False
-#     plot_stn_dists_flag = False
-#     plot_ref_sim_ecop_cmpr_flag = False
-#     plot_phas_diffs_flag = False
-#     plot_lag_ecops_flag = False
-#     plot_cumm_var_cntrib_flag = False
+    plot_stn_dists_flag = False
+    plot_ref_sim_ecop_cmpr_flag = False
+    plot_phas_diffs_flag = False
+    plot_lag_ecops_flag = False
+    plot_cumm_var_cntrib_flag = False
 
     in_data_df = pd.read_csv(in_file_path, sep=';', index_col=0)
     in_data_df.index = pd.to_datetime(in_data_df.index, format='%Y-%m-%d')
@@ -462,14 +567,28 @@ def main():
             f'{out_pref}_{thresh_rho:{thresh_rho_fmt}}_phas_diffs.png')
 
     if plot_stn_ecops_flag:
-        plot_ecops_ref_beg_end(
+#         plot_ecops_ref_beg_end(
+#             prob_df,
+#             beg_data_df.rank() / (n_data_steps + 1.0),
+#             end_data_df.rank() / (n_data_steps + 1.0),
+#             f'{out_pref}_{thresh_rho:{thresh_rho_fmt}}_'
+#             f'ecop_ref_beg_end_cmpr.png')
+#
+#         plot_ecops_ref_beg_end(
+#             sim_df.rank() / (n_data_steps + 1.0),
+#             beg_sim_df.rank() / (n_data_steps + 1.0),
+#             end_sim_df.rank() / (n_data_steps + 1.0),
+#             f'{out_pref}_{thresh_rho:{thresh_rho_fmt}}_'
+#             f'ecop_sim_beg_end_cmpr.png')
+
+        plot_ecops_ref_beg_end_corners(
             prob_df,
             beg_data_df.rank() / (n_data_steps + 1.0),
             end_data_df.rank() / (n_data_steps + 1.0),
             f'{out_pref}_{thresh_rho:{thresh_rho_fmt}}_'
             f'ecop_ref_beg_end_cmpr.png')
 
-        plot_ecops_ref_beg_end(
+        plot_ecops_ref_beg_end_corners(
             sim_df.rank() / (n_data_steps + 1.0),
             beg_sim_df.rank() / (n_data_steps + 1.0),
             end_sim_df.rank() / (n_data_steps + 1.0),
@@ -497,14 +616,14 @@ def main():
             beg_sim_df.rank() / (n_data_steps + 1.0),
             end_sim_df.rank() / (n_data_steps + 1.0),
             f'{out_pref}_{thresh_rho:{thresh_rho_fmt}}_'
-            f'ecop_cmpr_sim_indiv_stn.png')
+            f'ecop_cmpr_sim_indiv_stn')
 
         plot_stn_sims(
             prob_df,
             beg_data_df.rank() / (n_data_steps + 1.0),
             end_data_df.rank() / (n_data_steps + 1.0),
             f'{out_pref}_{thresh_rho:{thresh_rho_fmt}}_'
-            f'ecop_cmpr_ref_indiv_stn.png')
+            f'ecop_cmpr_ref_indiv_stn')
 
     if plot_lag_ecops_flag:
         for lag in lags:

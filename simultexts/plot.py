@@ -363,6 +363,7 @@ class PrepareSimultaneousExtremesPlottingData:
             '_eps',
             '_tws',
             '_h5_path',
+            '_n_sims',
             '_plot_freqs_flag',
             '_plot_clusters_flag',
             '_clusters_shp_loc',
@@ -499,21 +500,26 @@ class PrepareSimultaneousExtremesPlottingData:
 
                 obs_vals = neb_evts_arr[0, neb_stn_i]
 
-                sim_avgs = np.round(
-                    neb_evts_arr[1:, neb_stn_i].mean(axis=0) /
-                    ref_evts_ext_scl_rshp).astype(int)
+                if self._n_sims:
+                    sim_avgs = np.round(
+                        neb_evts_arr[1:, neb_stn_i].mean(axis=0) /
+                        ref_evts_ext_scl_rshp).astype(int)
 
-                sim_maxs = np.round(
-                    neb_evts_arr[1:, neb_stn_i].max(axis=0) /
-                    ref_evts_ext_scl_rshp).astype(int)
+                    sim_maxs = np.round(
+                        neb_evts_arr[1:, neb_stn_i].max(axis=0) /
+                        ref_evts_ext_scl_rshp).astype(int)
 
-                sim_mins = np.round(
-                    neb_evts_arr[1:, neb_stn_i].min(axis=0) /
-                    ref_evts_ext_scl_rshp).astype(int)
+                    sim_mins = np.round(
+                        neb_evts_arr[1:, neb_stn_i].min(axis=0) /
+                        ref_evts_ext_scl_rshp).astype(int)
 
-                sim_stds = np.round(
-                    neb_evts_arr[1:, neb_stn_i].std(axis=0) /
-                     ref_evts_ext_scl_rshp, 2)
+                    sim_stds = np.round(
+                        neb_evts_arr[1:, neb_stn_i].std(axis=0) /
+                         ref_evts_ext_scl_rshp, 2)
+
+                else:
+                    sim_avgs = sim_maxs = sim_mins = sim_stds = np.full(
+                        (self._eps.shape[0], self._tws.shape[0]), np.nan)
 
                 avg_probs = np.round(sim_avgs / ref_evts_rshp , 3)
                 min_probs = np.round(sim_mins / ref_evts_rshp , 3)
@@ -951,13 +957,21 @@ class PlotSimultaneousExtremesMP:
         else:
             raise ValueError(corr_type)
 
-        min_sim_corrs = sim_corrs.min(axis=0)
-        max_sim_corrs = sim_corrs.max(axis=0)
-        mean_sim_corrs = sim_corrs.mean(axis=0)
-
         corr_within_bds_arr = np.ones_like(obs_corrs, dtype=int)
-        corr_within_bds_arr[obs_corrs < min_sim_corrs] = 0
-        corr_within_bds_arr[obs_corrs > max_sim_corrs] = 2
+
+        if self._n_sims:
+            min_sim_corrs = sim_corrs.min(axis=0)
+            max_sim_corrs = sim_corrs.max(axis=0)
+            mean_sim_corrs = sim_corrs.mean(axis=0)
+
+            corr_within_bds_arr[obs_corrs < min_sim_corrs] = 0
+            corr_within_bds_arr[obs_corrs > max_sim_corrs] = 2
+
+        else:
+            min_sim_corrs = max_sim_corrs = mean_sim_corrs = np.full_like(
+                obs_corrs, np.nan, dtype=float)
+
+            corr_within_bds_arr[...] = -1
 
         pcent_abv_sim = 100 * (corr_within_bds_arr == 2).sum() / n_ft_corrs
         pcent_within_sim = 100 * (corr_within_bds_arr == 1).sum() / n_ft_corrs
@@ -1120,10 +1134,17 @@ class PlotSimultaneousExtremesMP:
                 cb_ax = plt.subplot2grid((1, 25), (0, 24), 1, 1, fig=fig)
 
                 for neb_stn_i, neb_stn in enumerate(neb_stns):
+
+                    if self._n_sims:
+                        mean_prob_clr = mean_probs[neb_stn_i]
+
+                    else:
+                        mean_prob_clr = 0.0
+
                     patch = PolygonPatch(
                         self._cluster_feats_dict['patches'][neb_stn],
                         alpha=0.9,
-                        fc=cmap(mean_probs[neb_stn_i]),
+                        fc=cmap(mean_prob_clr),
                         ec='#999999')
 
                     map_ax.add_patch(patch)
@@ -1249,9 +1270,18 @@ class PlotSimultaneousExtremesMP:
                         for ep_tw_stn_comb_ct in ep_tw_stn_comb_cts[1:]])
 
                     obs_prob = ep_tw_stn_comb_cts[0][1]
-                    min_prob = all_probs.min()
-                    max_prob = all_probs.max()
-                    mean_prob = all_probs.mean()
+
+                    if self._n_sims:
+                        min_prob = all_probs.min()
+                        max_prob = all_probs.max()
+                        mean_prob = all_probs.mean()
+
+                        mean_prob_clr = mean_prob
+
+                    else:
+                        min_prob = max_prob = mean_prob = np.nan
+
+                        mean_prob_clr = 0.0
 
                     # cluster prob
                     fig = plt.figure(figsize=fig_size)
@@ -1264,7 +1294,7 @@ class PlotSimultaneousExtremesMP:
                             patch = PolygonPatch(
                                 self._cluster_feats_dict['patches'][stn],
                                 alpha=0.9,
-                                fc=cmap(mean_prob),
+                                fc=cmap(mean_prob_clr),
                                 ec='#999999',
                                 hatch=None)
 
@@ -1338,60 +1368,61 @@ class PlotSimultaneousExtremesMP:
 
                     plt.close()
 
-                    # cluster prob hist
-                    plt.figure(figsize=fig_size)
+                    if self._n_sims:
+                        # cluster prob hist
+                        plt.figure(figsize=fig_size)
 
-                    plt.hist(
-                        all_probs,
-                        bins=hist_bins,
-                        label='sim.',
-                        alpha=0.8,
-                        rwidth=0.8,
-                        color='C0')
+                        plt.hist(
+                            all_probs,
+                            bins=hist_bins,
+                            label='sim.',
+                            alpha=0.8,
+                            rwidth=0.8,
+                            color='C0')
 
-                    y_min, y_max = plt.ylim()
+                        y_min, y_max = plt.ylim()
 
-                    plt.axvline(
-                        obs_prob, y_min, y_max, label='obs.', color='red')
+                        plt.axvline(
+                            obs_prob, y_min, y_max, label='obs.', color='red')
 
-                    plt.axvline(
-                        mean_prob,
-                        y_min,
-                        y_max,
-                        label='sim. mean',
-                        color='limegreen')
+                        plt.axvline(
+                            mean_prob,
+                            y_min,
+                            y_max,
+                            label='sim. mean',
+                            color='limegreen')
 
-                    plt.grid()
-                    plt.legend()
+                        plt.grid()
+                        plt.legend()
 
-                    plt.xlabel('Simulated Probability')
-                    plt.ylabel('Frequency')
+                        plt.xlabel('Simulated Probability')
+                        plt.ylabel('Frequency')
 
-                    plt.title(
-                        f'Simultaneous extremes {len(ep_tw_stn_comb)}D '
-                        f'simulated probability histogram in combination '
-                        f'{comb_lab}\n'
-                        f'Event exceedance probability: {ep}'
-                        f', time window: {tw} steps\n'
-                        f'No. of common steps: {n_steps}, '
-                        f'No. of extended steps: {n_steps_ext}, '
-                        f'No. of simulations: {self._n_sims}\n'
-                        f'Obs. prob: {obs_prob:0.4f}, Simulated min: '
-                        f'{min_prob:0.4f}, mean: {mean_prob:0.4f}, '
-                        f'max: {max_prob:0.4f}\n'
-                        f'Stations: {stns_str}',
-                        loc='right')
+                        plt.title(
+                            f'Simultaneous extremes {len(ep_tw_stn_comb)}D '
+                            f'simulated probability histogram in combination '
+                            f'{comb_lab}\n'
+                            f'Event exceedance probability: {ep}'
+                            f', time window: {tw} steps\n'
+                            f'No. of common steps: {n_steps}, '
+                            f'No. of extended steps: {n_steps_ext}, '
+                            f'No. of simulations: {self._n_sims}\n'
+                            f'Obs. prob: {obs_prob:0.4f}, Simulated min: '
+                            f'{min_prob:0.4f}, mean: {mean_prob:0.4f}, '
+                            f'max: {max_prob:0.4f}\n'
+                            f'Stations: {stns_str}',
+                            loc='right')
 
-                    fig_name = (
-                        f'nD_clusters_sim_prob_hist_{comb_lab}_EP{ep}_TW{tw}_'
-                        f'N{len(ep_tw_stn_comb)}_{ep_stn_comb_i}.png')
+                        fig_name = (
+                            f'nD_clusters_sim_prob_hist_{comb_lab}_EP{ep}_TW{tw}_'
+                            f'N{len(ep_tw_stn_comb)}_{ep_stn_comb_i}.png')
 
-                    plt.savefig(
-                        str(self._out_dirs_dict['nD_cluster_prob_dist_figs'] /
-                            fig_name),
-                        bbox_inches='tight')
+                        plt.savefig(
+                            str(self._out_dirs_dict['nD_cluster_prob_dist_figs'] /
+                                fig_name),
+                            bbox_inches='tight')
 
-                    plt.close()
+                        plt.close()
         return
 
     def _plot_sim_cdfs__corrs(self, ref_stn, stn_comb_grp, stn_comb_data):
@@ -1487,8 +1518,13 @@ class PlotSimultaneousExtremesMP:
             n_corrs = stn_refr_pcorr.shape[0]
 
             pcorr_within_bds_arr = np.ones_like(stn_refr_pcorr, dtype=int)
-            pcorr_within_bds_arr[stn_refr_pcorr < min_stn_sim_pcorr] = 0
-            pcorr_within_bds_arr[stn_refr_pcorr > max_stn_sim_pcorr] = 2
+
+            if self._n_sims:
+                pcorr_within_bds_arr[stn_refr_pcorr < min_stn_sim_pcorr] = 0
+                pcorr_within_bds_arr[stn_refr_pcorr > max_stn_sim_pcorr] = 2
+
+            else:
+                pcorr_within_bds_arr[...] = -1
 
             pcent_abv_sim = 100 * (pcorr_within_bds_arr == 2).sum() / n_corrs
             pcent_within_sim = 100 * (pcorr_within_bds_arr == 1).sum() / n_corrs
@@ -1572,8 +1608,13 @@ class PlotSimultaneousExtremesMP:
             max_stn_sim_scorr = acorrs_arr[7, :]
 
             scorr_within_bds_arr = np.ones_like(stn_refr_scorr, dtype=int)
-            scorr_within_bds_arr[stn_refr_scorr < min_stn_sim_scorr] = 0
-            scorr_within_bds_arr[stn_refr_scorr > max_stn_sim_scorr] = 2
+
+            if self._n_sims:
+                scorr_within_bds_arr[stn_refr_scorr < min_stn_sim_scorr] = 0
+                scorr_within_bds_arr[stn_refr_scorr > max_stn_sim_scorr] = 2
+
+            else:
+                scorr_within_bds_arr[...] = -1
 
             pcent_abv_sim = 100 * (scorr_within_bds_arr == 2).sum() / n_corrs
             pcent_within_sim = 100 * (scorr_within_bds_arr == 1).sum() / n_corrs
