@@ -3,7 +3,7 @@ Created on Feb 4, 2019
 
 @author: Faizan-Uni
 '''
-import time
+# import time
 from timeit import default_timer
 from multiprocessing import Manager
 from itertools import combinations
@@ -587,13 +587,13 @@ class SimultaneousExtremesFrequencyComputerMP:
                 for stn in stn_comb},
 
             'simult_ext_evts_cts':
-                    np.full(
-                        (n_sims_chunk,
-                         len(self._eps),
-                         len(self._tws),
-                         all_stn_combs.shape[0]),
-                        np.nan,
-                        dtype=('uint32, float64, uint32, uint32')),
+                np.full(
+                    (n_sims_chunk,
+                     len(self._eps),
+                     len(self._tws),
+                     all_stn_combs.shape[0]),
+                    np.nan,
+                    dtype=('uint32, float64, uint32, uint32')),
 
             'ref_evts': np.array(self._eps * n_steps, dtype=int),
             'ref_evts_ext': np.array(self._eps * n_steps_ext, dtype=int),

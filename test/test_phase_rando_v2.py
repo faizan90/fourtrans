@@ -2,17 +2,25 @@
 @author: Faizan-Uni-Stuttgart
 
 '''
+
 import os
 import timeit
 import time
 from pathlib import Path
 
+import matplotlib as mpl
+mpl.rc('font', size=14)
+
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
 import matplotlib.pyplot as plt
+from pandas.plotting import register_matplotlib_converters
 
 plt.ioff()
+register_matplotlib_converters()
+
+DPI = 500
 
 
 def plot_cum_mag_phas(
@@ -25,7 +33,7 @@ def plot_cum_mag_phas(
     alpha = 0.8
     stns = data_phas_df.columns
 
-    axs = plt.subplots(nrows=1, ncols=stns.shape[0], figsize=(12, 5))[1]
+    axs = plt.subplots(nrows=1, ncols=stns.shape[0], figsize=(17, 3.0))[1]
 
     labels = ('ref', 'beg', 'end')
 
@@ -51,16 +59,21 @@ def plot_cum_mag_phas(
         axs[i].plot(beg_phas_mag_cumsum, label=labels[1], alpha=alpha)
         axs[i].plot(end_phas_mag_cumsum, label=labels[2], alpha=alpha)
 
-        axs[i].set_xlabel('Frequency (-)')
-        axs[i].set_ylabel('Cummulative contribution (-)')
+        axs[i].set_xlabel('Frequency [-]')
+
+#         if not i:
+        axs[i].set_ylabel('Cummulative\ncontribution [-]')
 
         axs[i].legend()
 
         axs[i].grid()
 
+        axs[i].set_yticks((-0.2, 0, 0.5, 1.0))
+#         axs[i].set_ylim(-0.1, 1.0)
+
         axs[i].set_title(f'Station: {stn}')
 
-    plt.savefig(str(out_path), bbox_inches='tight')
+    plt.savefig(str(out_path), bbox_inches='tight', dpi=DPI)
     plt.close()
     return
 
@@ -112,7 +125,9 @@ def plot_lag_ecops(prob_df, beg_prob_df, end_prob_df, out_path_suff, lag):
 
             ax.set_title(f'{titles[i]} (corr: {corrs[i]:0.3f})')
 
-        plt.savefig(f'{out_path_suff}_{stn}.png', bbox_inches='tight')
+        plt.savefig(
+            f'{out_path_suff}_{stn}.png', bbox_inches='tight', dpi=DPI)
+
         plt.close()
     return
 
@@ -146,7 +161,7 @@ def plot_phas_diffs(phas_df, beg_phas_df, end_phas_df, out_path):
 
         ax.set_title(f'Station: {stns[i]}')
 
-    plt.savefig(str(out_path), bbox_inches='tight')
+    plt.savefig(str(out_path), bbox_inches='tight', dpi=DPI)
     plt.close()
     return
 
@@ -188,11 +203,13 @@ def plot_stn_sims(prob_df, beg_prob_df, end_prob_df, out_path_suff):
 
             ax.grid()
 
-            ax.set_title(f'SCorr: {corrs[j]:0.3f}')
+            ax.set_title(f'Corr: {corrs[j]:0.3f}')
 
         plt.suptitle(f'Station: {stn}')
 
-        plt.savefig(f'{out_path_suff}_{stn}.png', bbox_inches='tight')
+        plt.savefig(
+            f'{out_path_suff}_{stn}.png', bbox_inches='tight', dpi=DPI)
+
         plt.close()
 
     return
@@ -212,6 +229,9 @@ def get_phas_rand(in_ts, rand_phas=None):
     if rand_phas is None:
         rand_phas = -np.pi + (
             (2 * np.pi) * np.random.random(size=phas.shape[0]))
+
+    rand_phas[0] = 0
+    rand_phas[(in_ts.shape[0] // 2)] = 0
 
     sim_ft = np.empty_like(ft)
 
@@ -263,7 +283,7 @@ def plot_dists_ref_beg_end(data_df, beg_data_df, end_data_df, out_path):
 
         axs[i].set_title(f'{titles[i]}')
 
-    plt.savefig(str(out_path), bbox_inches='tight')
+    plt.savefig(str(out_path), bbox_inches='tight', dpi=DPI)
     plt.close()
     return
 
@@ -307,7 +327,7 @@ def plot_ecops_ref_beg_end(prob_df, beg_prob_df, end_prob_df, out_path):
 
         ax.grid()
 
-    plt.savefig(str(out_path), bbox_inches='tight')
+    plt.savefig(str(out_path), bbox_inches='tight', dpi=DPI)
     plt.close()
     return
 
@@ -315,12 +335,12 @@ def plot_ecops_ref_beg_end(prob_df, beg_prob_df, end_prob_df, out_path):
 def plot_ecops_ref_beg_end_corners(
         prob_df, beg_prob_df, end_prob_df, out_path):
 
-    alpha = 0.01
+    alpha = 0.03
     stns = prob_df.columns
 
     n_rows = n_cols = 3
 
-    _, axs = plt.subplots(nrows=n_rows, ncols=n_cols, figsize=(10, 10))
+    _, axs = plt.subplots(nrows=n_rows, ncols=n_cols, figsize=(16, 16))
 
     ax_lims = ((0, 0.05), (0, 1), (0.95, 1))
 
@@ -412,40 +432,127 @@ def plot_ecops_ref_beg_end_corners(
         ax.set_title(f'{titles[i]} (corr: {corrs[i]:0.3f})')
 
     plt.tight_layout()
-    plt.savefig(str(out_path), bbox_inches='tight')
+    plt.savefig(str(out_path), bbox_inches='tight', dpi=DPI)
     plt.close()
     return
+
+
+def plot_events_cmp(
+        ref_df,
+        beg_df,
+        end_df,
+        evt_idxs_dict,
+        n_bef_evts,
+        n_aft_evts,
+        out_path_suff):
+
+    stns = ref_df.columns
+
+    for stn in stns:
+        for evt_i, evt_idx in enumerate(evt_idxs_dict[stn]):
+            plt.figure(figsize=(8.5, 3.0))
+
+            ax = plt.gca()
+
+            ref_evt_ser = ref_df.iloc[
+                max(0, evt_idx - n_bef_evts):evt_idx + n_aft_evts + 1][stn]
+
+            beg_evt_ser = beg_df.iloc[
+                max(0, evt_idx - n_bef_evts):evt_idx + n_aft_evts + 1][stn]
+
+            end_evt_ser = end_df.iloc[
+                max(0, evt_idx - n_bef_evts):evt_idx + n_aft_evts + 1][stn]
+
+            ax.plot(
+                ref_evt_ser.index,
+                ref_evt_ser.values,
+                alpha=0.7,
+                lw=2,
+                label='ref')
+
+            ax.plot(
+                beg_evt_ser.index,
+                beg_evt_ser.values,
+                alpha=0.7,
+                lw=1,
+                label='beg')
+
+            ax.plot(
+                end_evt_ser.index,
+                end_evt_ser.values,
+                alpha=0.7,
+                lw=1,
+                label='end')
+
+            ax.set_xlabel('Time [days]')
+            ax.set_ylabel('Discharge [$m^3/s$]')
+
+            ax.set_title(
+                f'Discharge comparision for event {evt_i}\non '
+                f'{ref_df.index[evt_idx].date().strftime("%Y-%m-%d")} '
+                f'for station: {stn}')
+
+            ax.legend(framealpha=0.5)
+
+            ax.set_axisbelow(True)
+            ax.grid()
+
+            ax.tick_params(axis='x', rotation=45)
+
+            plt.savefig(
+                f'{out_path_suff}_{stn}_{evt_i:05d}_{evt_idx:05d}.png',
+                bbox_inches='tight',
+                dpi=DPI)
+
+            plt.close()
+    return
+
+
+def get_shuffled_df(ref_df, sim_df):
+
+    shuff_df = pd.DataFrame(
+        index=ref_df.index, columns=ref_df.columns, dtype=float)
+
+    for stn in ref_df.columns:
+        shuff_df.loc[:, stn] = np.sort(ref_df.loc[:, stn].values)[
+            np.argsort(np.argsort(sim_df.loc[:, stn].values))]
+
+    return shuff_df
 
 
 def main():
 
     main_dir = Path(
-        r'P:\Synchronize\IWS\Testings\fourtrans_practice\test_phase_rando_v2_non_norm')
+        r'P:\Synchronize\IWS\Projects\2016_DFG_SPATE\data\simultaneous_'
+        r'extremes\simult_exts_correlation_shuffling')
 
     os.chdir(main_dir)
 
-    in_file_path = (
-        r'P:\Synchronize\IWS\Discharge_data_longer_series\neckar_norm_cop_'
-        r'infill_discharge_1961_2015_20190118\02_combined_station_'
-        r'outputs\infilled_var_df_infill_stns.csv')
+    in_file_path = '../multuplets/neckar_daily_discharge_1961_2015.csv'
 
     ref_stns = ['427', '454']
-#     ref_stns = ['454']
+#     ref_stns = ['3421', '3465']
 
     beg_time = '1961-01-01'
     end_time = '2015-12-31'
 
-    out_pref = 'norm_pi'
+    out_dir = main_dir / 'neckar_norm_pi'
     shift_phas = np.pi
 
-#     out_pref = 'norm_half_pi'
+#     out_dir = main_dir / 'neckar_norm_half_pi'
 #     shift_phas = 0.5 * np.pi
 
-    thresh_rho = 0.9
+    thresh_rho = 0.75
 
     thresh_rho_fmt = '5.4e'
 
     lags = [5]
+    n_extr_evts = 2
+    n_bef_extr_steps = 60
+    n_aft_extr_steps = 60
+
+    # beg = keep beginning till thresh_rho
+    # end = keep ending till thresh_rho i.e. come from the other side
 
     plot_stn_ecops_flag = True
     plot_stn_dists_flag = True
@@ -453,13 +560,17 @@ def main():
     plot_phas_diffs_flag = True
     plot_lag_ecops_flag = True
     plot_cumm_var_cntrib_flag = True
+    plot_extr_evts_flag = True
 
-#     plot_stn_ecops_flag = False
+    plot_stn_ecops_flag = False
     plot_stn_dists_flag = False
     plot_ref_sim_ecop_cmpr_flag = False
     plot_phas_diffs_flag = False
     plot_lag_ecops_flag = False
-    plot_cumm_var_cntrib_flag = False
+#     plot_cumm_var_cntrib_flag = False
+#     plot_extr_evts_flag = False
+
+    out_dir.mkdir(exist_ok=True)
 
     in_data_df = pd.read_csv(in_file_path, sep=';', index_col=0)
     in_data_df.index = pd.to_datetime(in_data_df.index, format='%Y-%m-%d')
@@ -475,19 +586,23 @@ def main():
 
     prob_df = data_df.rank() / (n_data_steps + 1.0)
 
+#     norm_df = data_df.copy()
+#     norm_df = prob_df.copy()
+
     norm_df = pd.DataFrame(
         index=data_df.index, data=norm.ppf(prob_df), columns=data_df.columns)
-
-#     norm_df = prob_df.copy()
 
     data_ft = np.fft.rfft(norm_df, axis=0)
 
     data_mags = np.abs(data_ft)
     data_phas = np.angle(data_ft)
 
-    data_mags_sum = np.atleast_2d((data_mags ** 2).sum(axis=0))
+    data_mags_sum = np.atleast_2d((data_mags[1:] ** 2).sum(axis=0))
 
-    beg_cumsum_covs = (data_mags ** 2).cumsum(axis=0) / data_mags_sum
+    beg_cumsum_covs = np.concatenate(
+        (np.atleast_2d([0] * data_mags.shape[1]),
+         (data_mags[1:] ** 2).cumsum(axis=0) / data_mags_sum))
+
     end_cumsum_covs = 1 - beg_cumsum_covs
 
     beg_cumsum_thresh_idxs = np.argmin(
@@ -504,16 +619,22 @@ def main():
     end_thresh_phas = beg_thresh_phas.copy()
 
     for i, thresh_idx in enumerate(beg_cumsum_thresh_idxs):
-        beg_thresh_phas[thresh_idx + 1:, i] = (
-            beg_thresh_phas[thresh_idx + 1:, i] + (shift_phas))
+        beg_thresh_phas[thresh_idx:, i] = (
+            beg_thresh_phas[thresh_idx:, i] + (shift_phas))
 
         print(i, 'beg_cumsum_covs:', beg_cumsum_covs[thresh_idx, i])
 
     for i, thresh_idx in enumerate(end_cumsum_thresh_idxs):
-        end_thresh_phas[:thresh_idx, i] = (
-            end_thresh_phas[:thresh_idx, i] + (shift_phas))
+        end_thresh_phas[:thresh_idx + 1, i] = (
+            end_thresh_phas[:thresh_idx + 1, i] + (shift_phas))
 
         print(i, 'end_cumsum_covs:', end_cumsum_covs[thresh_idx, i])
+
+    beg_thresh_phas[0, :] = data_phas[0, :]
+    beg_thresh_phas[(n_data_steps // 2), :] = data_phas[(n_data_steps // 2), :]
+
+    end_thresh_phas[0, :] = data_phas[0, :]
+    end_thresh_phas[(n_data_steps // 2), :] = data_phas[(n_data_steps // 2), :]
 
     beg_data_ft = np.empty_like(data_ft)
     end_data_ft = beg_data_ft.copy()
@@ -564,66 +685,66 @@ def main():
             pd.DataFrame(data=data_phas, columns=data_df.columns),
             pd.DataFrame(data=beg_thresh_phas, columns=data_df.columns),
             pd.DataFrame(data=end_thresh_phas, columns=data_df.columns),
-            f'{out_pref}_{thresh_rho:{thresh_rho_fmt}}_phas_diffs.png')
+            str(out_dir / f'rho_{thresh_rho:{thresh_rho_fmt}}_phas_diffs.png'))
 
     if plot_stn_ecops_flag:
 #         plot_ecops_ref_beg_end(
 #             prob_df,
 #             beg_data_df.rank() / (n_data_steps + 1.0),
 #             end_data_df.rank() / (n_data_steps + 1.0),
-#             f'{out_pref}_{thresh_rho:{thresh_rho_fmt}}_'
-#             f'ecop_ref_beg_end_cmpr.png')
+#             str(out_dir / f'rho_{thresh_rho:{thresh_rho_fmt}}_'
+#             f'ecop_ref_beg_end_cmpr.png'))
 #
 #         plot_ecops_ref_beg_end(
 #             sim_df.rank() / (n_data_steps + 1.0),
 #             beg_sim_df.rank() / (n_data_steps + 1.0),
 #             end_sim_df.rank() / (n_data_steps + 1.0),
-#             f'{out_pref}_{thresh_rho:{thresh_rho_fmt}}_'
-#             f'ecop_sim_beg_end_cmpr.png')
+#             str(out_dir / f'rho_{thresh_rho:{thresh_rho_fmt}}_'
+#             f'ecop_sim_beg_end_cmpr.png'))
 
         plot_ecops_ref_beg_end_corners(
             prob_df,
             beg_data_df.rank() / (n_data_steps + 1.0),
             end_data_df.rank() / (n_data_steps + 1.0),
-            f'{out_pref}_{thresh_rho:{thresh_rho_fmt}}_'
-            f'ecop_ref_beg_end_cmpr.png')
+            str(out_dir / f'rho_{thresh_rho:{thresh_rho_fmt}}_'
+            f'ecop_ref_beg_end_cmpr.png'))
 
         plot_ecops_ref_beg_end_corners(
             sim_df.rank() / (n_data_steps + 1.0),
             beg_sim_df.rank() / (n_data_steps + 1.0),
             end_sim_df.rank() / (n_data_steps + 1.0),
-            f'{out_pref}_{thresh_rho:{thresh_rho_fmt}}_'
-            f'ecop_sim_beg_end_cmpr.png')
+            str(out_dir / f'rho_{thresh_rho:{thresh_rho_fmt}}_'
+            f'ecop_sim_beg_end_cmpr.png'))
 
     if plot_stn_dists_flag:
         plot_dists_ref_beg_end(
             norm_df,
             beg_data_df,
             end_data_df,
-            f'{out_pref}_{thresh_rho:{thresh_rho_fmt}}_'
-            f'dists_ref_beg_end_cmpr.png')
+            str(out_dir / f'rho_{thresh_rho:{thresh_rho_fmt}}_'
+            f'dists_ref_beg_end_cmpr.png'))
 
         plot_dists_ref_beg_end(
             sim_df,
             beg_sim_df,
             end_sim_df,
-            f'{out_pref}_{thresh_rho:{thresh_rho_fmt}}_'
-            f'dists_sim_beg_end_cmpr.png')
+            str(out_dir / f'rho_{thresh_rho:{thresh_rho_fmt}}_'
+            f'dists_sim_beg_end_cmpr.png'))
 
     if plot_ref_sim_ecop_cmpr_flag:
         plot_stn_sims(
             sim_df.rank() / (n_data_steps + 1.0),
             beg_sim_df.rank() / (n_data_steps + 1.0),
             end_sim_df.rank() / (n_data_steps + 1.0),
-            f'{out_pref}_{thresh_rho:{thresh_rho_fmt}}_'
-            f'ecop_cmpr_sim_indiv_stn')
+            str(out_dir / f'rho_{thresh_rho:{thresh_rho_fmt}}_'
+            f'ecop_cmpr_sim_indiv_stn'))
 
         plot_stn_sims(
             prob_df,
             beg_data_df.rank() / (n_data_steps + 1.0),
             end_data_df.rank() / (n_data_steps + 1.0),
-            f'{out_pref}_{thresh_rho:{thresh_rho_fmt}}_'
-            f'ecop_cmpr_ref_indiv_stn')
+            str(out_dir / f'rho_{thresh_rho:{thresh_rho_fmt}}_'
+            f'ecop_cmpr_ref_indiv_stn'))
 
     if plot_lag_ecops_flag:
         for lag in lags:
@@ -631,16 +752,16 @@ def main():
                 prob_df,
                 beg_data_df.rank() / (n_data_steps + 1.0),
                 end_data_df.rank() / (n_data_steps + 1.0),
-                f'{out_pref}_{thresh_rho:{thresh_rho_fmt}}_'
-                f'lag_{lag}_ref_ecop_cmpr',
+                str(out_dir / f'rho_{thresh_rho:{thresh_rho_fmt}}_'
+                f'lag_{lag}_ref_ecop_cmpr'),
                 lag)
 
             plot_lag_ecops(
                 sim_df.rank() / (n_data_steps + 1.0),
                 beg_sim_df.rank() / (n_data_steps + 1.0),
                 end_sim_df.rank() / (n_data_steps + 1.0),
-                f'{out_pref}_{thresh_rho:{thresh_rho_fmt}}_'
-                f'lag_{lag}_sim_ecop_cmpr',
+                str(out_dir / f'rho_{thresh_rho:{thresh_rho_fmt}}_'
+                f'lag_{lag}_sim_ecop_cmpr'),
                 lag)
 
     if plot_cumm_var_cntrib_flag:
@@ -649,8 +770,8 @@ def main():
             pd.DataFrame(data=beg_thresh_phas, columns=data_df.columns),
             pd.DataFrame(data=end_thresh_phas, columns=data_df.columns),
             pd.DataFrame(data=data_mags, columns=data_df.columns),
-            f'{out_pref}_{thresh_rho:{thresh_rho_fmt}}_'
-            f'cum_cntrib_ref.png')
+            str(out_dir / f'rho_{thresh_rho:{thresh_rho_fmt}}_'
+            f'cum_cntrib_ref.png'))
 
         plot_cum_mag_phas(
             pd.DataFrame(data=data_phas + rand_phas.reshape(-1, 1),
@@ -662,8 +783,79 @@ def main():
                 data=end_thresh_phas + rand_phas.reshape(-1, 1),
                 columns=data_df.columns),
             pd.DataFrame(data=data_mags, columns=data_df.columns),
-            f'{out_pref}_{thresh_rho:{thresh_rho_fmt}}_'
-            f'cum_cntrib_sim.png')
+            str(out_dir / f'rho_{thresh_rho:{thresh_rho_fmt}}_'
+            f'cum_cntrib_sim.png'))
+
+    if plot_extr_evts_flag:
+        data_rank_df = data_df.rank(axis=0)
+        data_extr_idxs_dict = {}
+        for stn in data_rank_df.columns:
+            data_extr_idxs_dict[stn] = np.where(
+                data_rank_df.loc[:, stn].values >
+                (n_data_steps - n_extr_evts))[0]
+
+        plot_events_cmp(
+            data_df,
+            get_shuffled_df(data_df, beg_data_df),
+            get_shuffled_df(data_df, end_data_df),
+            data_extr_idxs_dict,
+            n_bef_extr_steps,
+            n_aft_extr_steps,
+            str(out_dir / f'rho_{thresh_rho:{thresh_rho_fmt}}_'
+            f'extr_evt_cmp_ref_ref'))
+
+#         data_rank_df = beg_data_df.rank(axis=0)
+#         data_extr_idxs_dict = {}
+#         for stn in data_rank_df.columns:
+#             data_extr_idxs_dict[stn] = np.where(
+#                 data_rank_df.loc[:, stn].values >
+#                 (n_data_steps - n_extr_evts))[0]
+#
+#         plot_events_cmp(
+#             data_df,
+#             get_shuffled_df(data_df, beg_data_df),
+#             get_shuffled_df(data_df, end_data_df),
+#             data_extr_idxs_dict,
+#             n_bef_extr_steps,
+#             n_aft_extr_steps,
+#             str(out_dir / f'rho_{thresh_rho:{thresh_rho_fmt}}_'
+#             f'extr_evt_cmp_ref_beg'))
+#
+#         data_rank_df = end_data_df.rank(axis=0)
+#         data_extr_idxs_dict = {}
+#         for stn in data_rank_df.columns:
+#             data_extr_idxs_dict[stn] = np.where(
+#                 data_rank_df.loc[:, stn].values >
+#                 (n_data_steps - n_extr_evts))[0]
+#
+#         plot_events_cmp(
+#             data_df,
+#             get_shuffled_df(data_df, beg_data_df),
+#             get_shuffled_df(data_df, end_data_df),
+#             data_extr_idxs_dict,
+#             n_bef_extr_steps,
+#             n_aft_extr_steps,
+#             str(out_dir / f'rho_{thresh_rho:{thresh_rho_fmt}}_'
+#             f'extr_evt_cmp_ref_end'))
+
+#         sim_orig_df = get_shuffled_df(data_df, sim_df)
+#
+#         sim_rank_df = sim_orig_df.rank(axis=0)
+#         sim_extr_idxs_dict = {}
+#         for stn in data_rank_df.columns:
+#             sim_extr_idxs_dict[stn] = np.where(
+#                 sim_rank_df.loc[:, stn].values >
+#                 (n_data_steps - n_extr_evts))[0]
+#
+#         plot_events_cmp(
+#             sim_orig_df,
+#             get_shuffled_df(sim_orig_df, beg_sim_df),
+#             get_shuffled_df(sim_orig_df, end_sim_df),
+#             sim_extr_idxs_dict,
+#             n_bef_extr_steps,
+#             n_aft_extr_steps,
+#             str(out_dir / f'rho_{thresh_rho:{thresh_rho_fmt}}_'
+#             f'extr_evt_cmp_sim'))
 
     return
 
