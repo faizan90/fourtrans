@@ -530,24 +530,24 @@ def main():
 
     in_file_path = '../multuplets/neckar_daily_discharge_1961_2015.csv'
 
-    ref_stns = ['427', '454']
+    ref_stns = ['3465', '3421']
 #     ref_stns = ['3421', '3465']
 
     beg_time = '1961-01-01'
     end_time = '2015-12-31'
 
-    out_dir = main_dir / 'neckar_norm_pi'
-    shift_phas = np.pi
+#     out_dir = main_dir / 'neckar_norm_pi'
+#     shift_phas = np.pi
 
-#     out_dir = main_dir / 'neckar_norm_half_pi'
-#     shift_phas = 0.5 * np.pi
+    out_dir = main_dir / 'neckar_norm_half_pi'
+    shift_phas = 0.5 * np.pi
 
     thresh_rho = 0.75
 
     thresh_rho_fmt = '5.4e'
 
     lags = [5]
-    n_extr_evts = 2
+    n_extr_evts = 10
     n_bef_extr_steps = 60
     n_aft_extr_steps = 60
 
@@ -562,11 +562,11 @@ def main():
     plot_cumm_var_cntrib_flag = True
     plot_extr_evts_flag = True
 
-    plot_stn_ecops_flag = False
-    plot_stn_dists_flag = False
-    plot_ref_sim_ecop_cmpr_flag = False
-    plot_phas_diffs_flag = False
-    plot_lag_ecops_flag = False
+#     plot_stn_ecops_flag = False
+#     plot_stn_dists_flag = False
+#     plot_ref_sim_ecop_cmpr_flag = False
+#     plot_phas_diffs_flag = False
+#     plot_lag_ecops_flag = False
 #     plot_cumm_var_cntrib_flag = False
 #     plot_extr_evts_flag = False
 
