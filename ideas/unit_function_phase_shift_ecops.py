@@ -11,6 +11,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import rankdata
 
+from unit_peak import get_unit_peak
+
 plt.ioff()
 
 
@@ -35,27 +37,24 @@ def get_ranks(in_arr):
 def main():
 
     main_dir = Path(
-        r'P:\Synchronize\IWS\Testings\fourtrans_practice\phase_shift_ecops')
+        r'P:\Synchronize\IWS\Testings\fourtrans_practice'
+        r'\unit_peak_phase_shift_ecops')
 
     os.chdir(main_dir)
 
     n_vals = 100
 
-    cen_idx = int(0.2 * n_vals)
+    beg_idx = 10
+    cen_idx = 20
+    end_idx = 99
 
-    width = 0.1
-
-    phs_shift_rads = np.pi * 0.99
+    phs_shift_rads = 0.01
 
     fig_suff = (
-        f'_cen_{cen_idx}_wid_{int(n_vals * width)}_'
+        f'_cen_{cen_idx}_beg_{beg_idx}_end_{end_idx}_'
         f'shift_{phs_shift_rads:0.3f}')
 
-    in_arr = np.zeros(n_vals)
-
-    in_arr[
-        cen_idx - int(n_vals * width * 0.5):
-        cen_idx + int(n_vals * width * 0.5)] = 1
+    in_arr = get_unit_peak(n_vals, beg_idx, cen_idx, end_idx)
 
     ft = np.fft.rfft(in_arr)
 
@@ -143,7 +142,7 @@ def main():
     plt.suptitle(
         f'Phase shift FT comparison (shift: {phs_shift_rads:0.6f} rad)')
 
-    plt.savefig(f'phs_shift_ft{fig_suff}.png', bbox_inches='tight')
+    plt.savefig(f'unit_peak_phs_shift_ft{fig_suff}.png', bbox_inches='tight')
 
     plt.close()
 
