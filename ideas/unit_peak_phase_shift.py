@@ -100,21 +100,14 @@ def main():
         ax=axs[1, 2],
         label='phase correlation (shift)')
 
-    corrs = np.full((n_vals, 4), np.nan)
+    corr_labs = ['phs_orig', 'phs_shift']
+    corrs = np.full((n_vals, len(corr_labs)), np.nan)
     binary_phas = np.where(phs_spec > 0, 1, 0)
-    binary_phas_shift = np.where(phs_spec_shift > 0, 1, 0)
     for i in range(corrs.shape[0]):
         corrs[i, 0] = np.corrcoef(phs_spec, np.roll(phs_spec, i))[0, 1]
 
-        corrs[i, 1] = np.corrcoef(
-            phs_spec_shift, np.roll(phs_spec_shift, i))[0, 1]
+        corrs[i, 1] = np.corrcoef(binary_phas, np.roll(binary_phas, i))[0, 1]
 
-        corrs[i, 2] = np.corrcoef(binary_phas, np.roll(binary_phas, i))[0, 1]
-
-        corrs[i, 3] = np.corrcoef(
-            binary_phas_shift, np.roll(binary_phas_shift, i))[0, 1]
-
-    corr_labs = ['phs_orig', 'phs_shift', 'phs_orig_bin', 'phs_shift_bin']
     for i in range(len(corr_labs)):
         axs[1, 0].plot(corrs[:, i], label=corr_labs[i], alpha=0.9)
 

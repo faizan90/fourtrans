@@ -44,7 +44,7 @@ def get_corr_max_corr(arr_1, arr_2):
         (mag_specs_prod * np.cos(phs_spec_1 - phs_spec_2)).sum() /
         denom_corrs)
 
-    assert -1 <= max_corr <= +1
+    assert 0 <= max_corr <= +1
     assert -1 <= corr <= +1
 
     return corr, max_corr
@@ -54,26 +54,40 @@ def main():
 
     main_dir = Path(os.getcwd())
     os.chdir(main_dir)
+#
+#     df = pd.read_csv(
+#         r'P:\Synchronize\IWS\Colleagues_Students\Scheuring\miami_daily.csv',
+#         sep=';',
+#         index_col=0)
+#
+#     df.replace(np.nan, 0.0, inplace=True)
+#
+#     tst_dss = ['rt', 'trmm', 'persiann', 'ccs', 'cdr']
+#     ref_prec = df['prec'].values
+#
+#     for tst_ds in tst_dss:
+#         tst_prec = df[tst_ds].values
+#
+#         corr, max_corr = get_corr_max_corr(ref_prec, tst_prec)
+#
+#         print('\n')
+#         print(tst_ds)
+#         print(corr, max_corr)
+#         print(np.corrcoef(ref_prec, tst_prec)[0, 1])
 
-    df = pd.read_csv(
-        r'P:\Synchronize\IWS\Colleagues_Students\Scheuring\miami_daily.csv',
-        sep=';',
-        index_col=0)
+    ref_prec = np.zeros(100, dtype=bool)
+    ref_prec[50:55] = 1
+    corr, max_corr = get_corr_max_corr(ref_prec, ref_prec)
 
-    df.replace(np.nan, 0.0, inplace=True)
+    print(corr, max_corr)
+    print(np.corrcoef(ref_prec, ref_prec)[0, 1])
 
-    tst_dss = ['rt', 'trmm', 'persiann', 'ccs', 'cdr']
-    ref_prec = df['prec'].values
+    tst_prec = ~ref_prec
+    corr, max_corr = get_corr_max_corr(ref_prec, tst_prec)
 
-    for tst_ds in tst_dss:
-        tst_prec = df[tst_ds].values
-
-        corr, max_corr = get_corr_max_corr(ref_prec, tst_prec)
-
-        print('\n')
-        print(tst_ds)
-        print(corr, max_corr)
-        print(np.corrcoef(ref_prec, tst_prec)[0, 1])
+    print('\n')
+    print(corr, max_corr)
+    print(np.corrcoef(ref_prec, tst_prec)[0, 1])
 
     return
 
