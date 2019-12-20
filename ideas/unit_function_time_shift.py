@@ -29,7 +29,8 @@ def get_corr_mat(phas):
 def main():
 
     main_dir = Path(
-        r'P:\Synchronize\IWS\Testings\fourtrans_practice\unit_function')
+        r'P:\Synchronize\IWS\Testings\fourtrans_practice'
+        r'\unit_function_time_shift')
 
     os.chdir(main_dir)
 
@@ -39,7 +40,14 @@ def main():
 
     width = 0.1
 
-    fig_suff = f'_cen_{cen_idx}_wid_{int(n_vals * width)}'
+    t_shift = 80
+
+#     fig_suff = (
+#         f'_test')
+
+    fig_suff = (
+        f'_cen_{cen_idx}_wid_{int(n_vals * width)}_'
+        f'shift_{t_shift}')
 
     in_arr = np.zeros(n_vals)
 
@@ -47,17 +55,22 @@ def main():
         cen_idx - int(n_vals * width * 0.5):
         cen_idx + int(n_vals * width * 0.5)] = 1
 
-#     in_arr[:5] = 1
-#     in_arr[:5] = 1
-
-    ft = np.fft.rfft(in_arr)
+    ft = np.fft.fft(in_arr)
 
     pwr_spec = np.abs(ft)
     phs_spec = np.angle(ft)
 
+    ft_shift = ft.copy()
+    ft_shift *= (
+        np.exp(-1j * 2 * np.pi *
+               (np.arange(float(ft.shape[0])) / ft.shape[0]) * t_shift))
+
+    phs_spec_shift = np.angle(ft_shift)
+
     fig, axs = plt.subplots(nrows=2, ncols=3, figsize=(20, 10))
 
     axs[0, 0].plot(in_arr, alpha=0.9, label='input')
+    axs[0, 0].plot(np.fft.ifft(ft_shift).real, alpha=0.9, label='output')
     axs[0, 0].grid()
     axs[0, 0].legend()
 
@@ -65,34 +78,41 @@ def main():
         wav_arr = np.zeros(ft.shape[0], dtype=np.complex)
         wav_arr[i] = ft[i]
 
-        axs[0, 1].plot(np.fft.irfft(wav_arr), alpha=0.9, label=f'{i}')
+        axs[0, 1].plot(np.fft.fft(wav_arr).real, alpha=0.9, label=f'{i}')
+
+        wav_shift_arr = np.zeros(ft_shift.shape[0], dtype=np.complex)
+        wav_shift_arr[i] = ft_shift[i]
+
+        axs[1, 1].plot(np.fft.fft(wav_shift_arr).real, alpha=0.9, label=f'{i}')
 
     axs[0, 1].grid()
     axs[0, 1].legend()
 
+    axs[1, 1].grid()
+    axs[1, 1].legend()
+
     corr_mat = get_corr_mat(phs_spec)
+    corr_mat_shift = get_corr_mat(phs_spec_shift)
 
     fig.colorbar(
         axs[0, 2].imshow(corr_mat, cmap='jet'),
         ax=axs[0, 2],
-        label='phase correlation')
+        label='phase correlation (orig)')
 
     fig.colorbar(
-        axs[1, 2].imshow(np.where(corr_mat >= 0, 1, -1), cmap='jet'),
+        axs[1, 2].imshow(corr_mat_shift, cmap='jet'),
         ax=axs[1, 2],
-        label='binary phase correlation')
+        label='phase correlation (shift)')
 
-    axs[1, 0].plot(pwr_spec, alpha=0.9, label='power')
+    axs[1, 0].plot(pwr_spec, alpha=0.9, label='power-orig')
+    axs[1, 0].plot(np.abs(ft_shift), alpha=0.9, label='power-shift')
     axs[1, 0].grid()
     axs[1, 0].legend()
 
-    axs[1, 1].plot(phs_spec, alpha=0.9, label='phase')
-    axs[1, 1].grid()
-    axs[1, 1].legend()
+    plt.suptitle(
+        f'Time shift FT comparison (shift: {t_shift} step(s))')
 
-    plt.suptitle('FT of the unit function')
-
-    plt.savefig(f'unit_ft{fig_suff}.png', bbox_inches='tight')
+    plt.savefig(f'time_shift_ft{fig_suff}.png', bbox_inches='tight')
 
     plt.close()
 
@@ -119,12 +139,14 @@ if __name__ == '__main__':
     print('#### Started on %s ####\n' % time.asctime())
     START = timeit.default_timer()
 
-    try:
-        main()
+#     try:
+#         main()
+#
+#     except:
+#         import pdb
+#         pdb.post_mortem()
 
-    except:
-        import pdb
-        pdb.post_mortem()
+    main()
 
     STOP = timeit.default_timer()
     print(('\n#### Done with everything on %s.\nTotal run time was'
