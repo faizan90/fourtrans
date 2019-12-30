@@ -87,7 +87,7 @@ class PhaseAnnealingPrepare(PAS):
         if self._data_ref_data.ndim != 1:
             raise NotImplementedError('Implementation for 1D only!')
 
-        ranks, probs, norms = self._get_ranks_norms(self._data_ref_data)
+        ranks, probs, norms = self._get_ranks_probs_norms(self._data_ref_data)
 
         ft = np.fft.rfft(norms)
 
@@ -107,13 +107,13 @@ class PhaseAnnealingPrepare(PAS):
 
         scorrs, asymms_1, asymms_2 = self._get_scorrs_asymms(probs)
 
-        if self._sett_obj_rank_corr_flag:
+        if self._sett_obj_scorr_flag:
             self._ref_scorrs = scorrs
 
-        if self._sett_obj_symm_type_1_flag:
+        if self._sett_obj_asymm_type_1_flag:
             self._ref_asymms_1 = asymms_1
 
-        if self._sett_obj_symm_type_2_flag:
+        if self._sett_obj_asymm_type_2_flag:
             self._ref_asymms_2 = asymms_2
 
         self._prep_ref_aux_flag = True
@@ -131,7 +131,7 @@ class PhaseAnnealingPrepare(PAS):
         phs_spec = -np.pi + (2 * np.pi * rands)
 
         ft = np.full(
-            1 + (self._data_ref_shape // 2), np.nan, dtype=np.complex128)
+            1 + (self._data_ref_shape[0] // 2), np.nan, dtype=np.complex)
 
         ft[+0] = self._ref_ft[+0]
         ft[-1] = self._ref_ft[-1]
@@ -157,13 +157,13 @@ class PhaseAnnealingPrepare(PAS):
 
         scorrs, asymms_1, asymms_2 = self._get_scorrs_asymms(probs)
 
-        if self._sett_obj_rank_corr_flag:
+        if self._sett_obj_scorr_flag:
             self._sim_scorrs = scorrs
 
-        if self._sett_obj_symm_type_1_flag:
+        if self._sett_obj_asymm_type_1_flag:
             self._sim_asymms_1 = asymms_1
 
-        if self._sett_obj_symm_type_2_flag:
+        if self._sett_obj_asymm_type_2_flag:
             self._sim_asymms_2 = asymms_2
 
         self._prep_sim_aux_flag = True
@@ -171,7 +171,7 @@ class PhaseAnnealingPrepare(PAS):
 
     def prepare(self):
 
-        PAS.PhaseAnnealingSettings__verify(self)
+        PAS._PhaseAnnealingSettings__verify(self)
         assert self._sett_verify_flag
 
         self._gen_ref_aux_data()

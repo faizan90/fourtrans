@@ -19,8 +19,8 @@ class PhaseAnnealingSettings(PAD):
         PAD.__init__(self, verbose)
 
         self._sett_obj_scorr_flag = None
-        self._sett_obj_symm_type_1_flag = None
-        self._sett_obj_symm_type_2_flag = None
+        self._sett_obj_asymm_type_1_flag = None
+        self._sett_obj_asymm_type_2_flag = None
         self._sett_obj_lag_steps = None
 
         self._sett_ann_init_temp = None
@@ -33,6 +33,7 @@ class PhaseAnnealingSettings(PAD):
 
         self._sett_obj_set_flag = False
         self._sett_ann_set_flag = False
+        self._sett_misc_set_flag = False
 
         self._sett_verify_flag = False
         return
@@ -40,34 +41,36 @@ class PhaseAnnealingSettings(PAD):
     def set_objective_settings(
             self,
             scorr_flag,
-            symm_type_1_flag,
-            symm_type_2_flag,
+            asymm_type_1_flag,
+            asymm_type_2_flag,
             lag_steps):
 
+        if self._vb:
+            print_sl()
+
+            print(
+                'Setting objective function settings for phase annealing...\n')
+
         assert isinstance(scorr_flag, bool)
-        assert isinstance(symm_type_1_flag, bool)
-        assert isinstance(symm_type_2_flag, bool)
+        assert isinstance(asymm_type_1_flag, bool)
+        assert isinstance(asymm_type_2_flag, bool)
 
         assert any(
-            [scorr_flag, symm_type_1_flag, symm_type_2_flag])
+            [scorr_flag, asymm_type_1_flag, asymm_type_2_flag])
 
         assert isinstance(lag_steps, int)
         assert lag_steps > 0
 
         self._sett_obj_scorr_flag = scorr_flag
-        self._sett_obj_symm_type_1_flag = symm_type_1_flag
-        self._sett_obj_symm_type_2_flag = symm_type_2_flag
+        self._sett_obj_asymm_type_1_flag = asymm_type_1_flag
+        self._sett_obj_asymm_type_2_flag = asymm_type_2_flag
 
         self._sett_obj_lag_steps = lag_steps
 
         if self._vb:
-            print_sl()
-
-            print('Set the following objective function flags:')
-
             print('Rank correlation flag:', self._sett_obj_scorr_flag)
-            print('Symmetry type 1 flag:', self._sett_obj_symm_type_1_flag)
-            print('Symmetry type 2 flag:', self._sett_obj_symm_type_2_flag)
+            print('Asymmetry type 1 flag:', self._sett_obj_asymm_type_1_flag)
+            print('Asymmetry type 2 flag:', self._sett_obj_asymm_type_2_flag)
             print(f'Lag steps:', self._sett_obj_lag_steps)
 
             print_el()
@@ -84,6 +87,11 @@ class PhaseAnnealingSettings(PAD):
             maximum_without_change_iterations,
             objective_tolerance,
             objective_tolerance_iterations):
+
+        if self._vb:
+            print_sl()
+
+            print('Setting annealing settings for phase annealing...\n')
 
         assert isinstance(initial_annealing_temperature, float)
         assert isinstance(temperature_reduction_ratio, float)
@@ -115,10 +123,6 @@ class PhaseAnnealingSettings(PAD):
         self._sett_ann_obj_tol_iters = objective_tolerance_iterations
 
         if self._vb:
-            print_sl()
-
-            print(
-                'Set the following simulated annealing algorithm parameters:')
 
             print(
                 'Initial annealing temperature:', self._sett_ann_init_temp)
@@ -151,6 +155,11 @@ class PhaseAnnealingSettings(PAD):
 
     def set_misc_settings(self, n_reals, outputs_dir):
 
+        if self._vb:
+            print_sl()
+
+            print('Setting misc. settings for phase annealing...\n')
+
         assert isinstance(n_reals, int)
         assert 0 < n_reals
 
@@ -167,25 +176,24 @@ class PhaseAnnealingSettings(PAD):
         self._sett_misc_outs_dir = outputs_dir
 
         if self._vb:
-            print_sl()
-
-            print('Set the following misc. variables:')
-
             print('Number of realizations:', self._sett_misc_nreals)
 
             print('Outputs directory:', self._sett_misc_outs_dir)
 
             print_el()
 
+        self._sett_misc_set_flag = True
+
         return
 
     def verify(self):
 
-        PAD.PhaseAnnealing__verify(self)
+        PAD._PhaseAnnealingData__verify(self)
         assert self._data_verify_flag
 
         assert self._sett_obj_set_flag
         assert self._sett_ann_set_flag
+        assert self._sett_misc_set_flag
 
         if self._sett_obj_scorr_flag:
             assert self._sett_obj_lag_steps < self._data_ref_shape[0]

@@ -28,6 +28,11 @@ class PhaseAnnealingData:
 
     def set_reference_data(self, ref_data):
 
+        if self._vb:
+            print_sl()
+
+            print('Setting reference data for phase annealing...\n')
+
         assert isinstance(ref_data, np.ndarray)
         assert ref_data.ndim == 1
         assert np.all(np.isfinite(ref_data))
@@ -36,11 +41,7 @@ class PhaseAnnealingData:
         if ref_data.shape[0] % 2:
             ref_data = ref_data[:-1]
 
-            print_sl()
-
-            print('Warning: dropped last step for even steps!')
-
-            print_el()
+            print('Warning: dropped last step for even steps!\n')
 
         assert 0 < self._data_min_pts <= ref_data.shape[0]
 
@@ -48,10 +49,7 @@ class PhaseAnnealingData:
         self._data_ref_shape = ref_data.shape
 
         if self._vb:
-            print_sl()
-
-            print(
-                f'Reference data set with a shape of {self._data_ref_shape}!')
+            print(f'Reference data set with shape: {self._data_ref_shape}')
 
             print_el()
 

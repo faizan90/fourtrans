@@ -8,6 +8,8 @@ from collections import deque
 
 import numpy as np
 
+from ..simultexts.misc import print_sl, print_el
+
 from .prepare import PhaseAnnealingPrepare as PAP
 
 
@@ -17,8 +19,7 @@ class PhaseAnnealingAlgorithm(PAP):
 
         PAP.__init__(self, verbose)
 
-        self._alg_reals = None
-
+        self._alg_verify_flag = False
         return
 
     def _get_obj_ftn_val(self):
@@ -28,10 +29,10 @@ class PhaseAnnealingAlgorithm(PAP):
         if self._sett_obj_scorr_flag:
             obj_val += ((self._ref_scorrs - self._sim_scorrs) ** 2).sum()
 
-        if self._sett_obj_symm_type_1_flag:
+        if self._sett_obj_asymm_type_1_flag:
             obj_val += ((self._ref_asymms_1 - self._sim_asymms_1) ** 2).sum()
 
-        if self._sett_obj_symm_type_2_flag:
+        if self._sett_obj_asymm_type_2_flag:
             obj_val += ((self._ref_asymms_2 - self._sim_asymms_2) ** 2).sum()
 
         assert np.isfinite(obj_val)
@@ -42,25 +43,25 @@ class PhaseAnnealingAlgorithm(PAP):
 
         self._sim_phs_spec[index] = phs
 
-        self._sim_ft[index].real = np.cos(phs) * self._sim_mag_spec[index]
-        self._sim_ft[index].imag = np.sin(phs) * self._sim_mag_spec[index]
+        self._sim_ft.real[index] = np.cos(phs) * self._sim_mag_spec[index]
+        self._sim_ft.imag[index] = np.sin(phs) * self._sim_mag_spec[index]
 
-        data = np.fft.rfft(self._sim_ft)
+        data = np.fft.irfft(self._sim_ft)
 
-        ranks, probs, norms = self._get_ranks_norms(data)
+        ranks, probs, norms = self._get_ranks_probs_norms(data)
 
         self._sim_rnk = ranks
         self._sim_nrm = norms
 
         scorrs, asymms_1, asymms_2 = self._get_scorrs_asymms(probs)
 
-        if self._sett_obj_rank_corr_flag:
+        if self._sett_obj_scorr_flag:
             self._sim_scorrs = scorrs
 
-        if self._sett_obj_symm_type_1_flag:
+        if self._sett_obj_asymm_type_1_flag:
             self._sim_asymms_1 = asymms_1
 
-        if self._sett_obj_symm_type_2_flag:
+        if self._sett_obj_asymm_type_2_flag:
             self._sim_asymms_2 = asymms_2
 
         return
@@ -70,12 +71,22 @@ class PhaseAnnealingAlgorithm(PAP):
         index = np.random.random()
         index *= ((self._data_ref_shape[0] // 2) - 2)
         index += 1
-        return index
+
+        assert 0 < index < (self._data_ref_shape[0] // 2)
+
+#         index = np.random.random()
+#         index *= ((self._data_ref_shape[0] // 2) - 1)
+
+        assert 0 <= index < (self._data_ref_shape[0] // 2)
+
+        return int(index)
 
     def _get_realization(self):
 
         if self._data_ref_data.ndim != 1:
             raise NotImplementedError('Implemention for 1D only!')
+
+        self._gen_sim_aux_data()
 
         runn_iter = 1  # 1-index due to temp_ratio
         iters_wo_accept = 0
@@ -111,23 +122,14 @@ class PhaseAnnealingAlgorithm(PAP):
 
                 index_ctr += 1
 
-            assert 0 < new_index < (self._data_ref_shape[0] // 2)
-
             old_phs = self._sim_phs_spec[new_index]
             new_phs = -np.pi + (2 * np.pi * np.random.random())
 
-            assert not np.isclose(old_phs, new_phs), 'What are the chances?'
+#             assert not np.isclose(old_phs, new_phs), 'What are the chances?'
 
             self._update_sim(new_index, new_phs)
 
             new_obj_val = self._get_obj_ftn_val()
-
-            # location is important
-            tols.append(abs(old_obj_val - new_obj_val))
-
-            if runn_iter == tols.maxlen:
-                tol = sum(tols) / float(tols.maxlen)
-                assert np.isfinite(tol)
 
             if new_obj_val < old_obj_val:
                 accept_flag = True
@@ -141,6 +143,15 @@ class PhaseAnnealingAlgorithm(PAP):
 
                 else:
                     accept_flag = False
+
+            # location is important
+            tols.append(abs(old_obj_val - new_obj_val))
+
+            if runn_iter == tols.maxlen:
+                tol = sum(tols) / float(tols.maxlen)
+                assert np.isfinite(tol)
+
+            print(runn_iter, curr_temp, accept_flag, old_obj_val, new_obj_val)
 
             if accept_flag:
                 old_index = new_index
@@ -161,13 +172,22 @@ class PhaseAnnealingAlgorithm(PAP):
                 (iters_wo_accept < self._sett_ann_max_iter_wo_chng),
                 (tol > self._sett_ann_obj_tol))
 
+        if not self._sett_obj_scorr_flag:
+            self._sim_scorrs = np.array([], dtype=float)
+
+        if not self._sett_obj_asymm_type_1_flag:
+            self._sim_asymms_1 = np.array([], dtype=float)
+
+        if not self._sett_obj_asymm_type_2_flag:
+            self._sim_asymms_2 = np.array([], dtype=float)
+
         return (
             self._sim_ft.copy(),
             self._sim_rnk.copy(),
             self._sim_nrm.copy(),
-            self._sim_corrs.copy(),
+            self._sim_scorrs.copy(),
             self._sim_asymms_1.copy(),
-            self._sin_asymms_2.copy(),
+            self._sim_asymms_2.copy(),
             runn_iter,
             iters_wo_accept,
             tol,
@@ -175,11 +195,21 @@ class PhaseAnnealingAlgorithm(PAP):
             stopp_criteria,
             )
 
-    def generate_realizations(self):
+    def verify(self):
 
-        self._alg_reals = []
+        PAP._PhaseAnnealingPrepare__verify(self)
+        assert self._prep_verify_flag
 
-        for i in range(self._sett_misc_nreals):
-            self._alg_reals.append(self._get_realization())
+        if self._vb:
+            print_sl()
 
+            print(
+                'Phase annealing algorithm requirements verified '
+                'successfully!')
+
+            print_el()
+
+        self._alg_verify_flag = True
         return
+
+    __verify = verify

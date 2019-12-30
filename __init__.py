@@ -11,3 +11,5 @@ os.environ[str('NUMEXPR_NUM_THREADS')] = str(1)
 os.environ[str('OMP_NUM_THREADS')] = str(1)
 
 from .simultexts import SimultaneousExtremes, SimultaneousExtremesPlot
+
+from .phsann import PhaseAnnealing
