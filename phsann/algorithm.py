@@ -4,6 +4,8 @@ Created on Dec 27, 2019
 @author: Faizan
 '''
 
+from collections import deque
+
 import numpy as np
 
 from .prepare import PhaseAnnealingPrepare as PAP
@@ -63,7 +65,7 @@ class PhaseAnnealingAlgorithm(PAP):
 
         return
 
-    def _get_iter_index(self):
+    def _get_sim_index(self):
 
         index = np.random.random()
         index *= ((self._data_ref_shape[0] // 2) - 2)
@@ -75,22 +77,34 @@ class PhaseAnnealingAlgorithm(PAP):
         if self._data_ref_data.ndim != 1:
             raise NotImplementedError('Implemention for 1D only!')
 
-        runn_iter = 0
+        runn_iter = 1  # 1-index due to temp_ratio
         iters_wo_accept = 0
+        tol = np.inf
 
         curr_temp = self._sett_ann_init_temp
 
         old_obj_val = self._get_obj_ftn_val()
 
-        old_index = self._get_iter_index()
+        old_index = self._get_sim_index()
+        new_index = old_index
 
-        while (runn_iter < self._sett_ann_max_iters) and (iters_wo_accept < self._sett_ann_max_iter_wo_chng):
+        tols = deque(maxlen=self._sett_ann_obj_tol_iters)
 
-            new_index = self._get_iter_index()
+        stopp_criteria = (
+            (runn_iter <= self._sett_ann_max_iters),
+            (iters_wo_accept < self._sett_ann_max_iter_wo_chng),
+            (tol > self._sett_ann_obj_tol))
+
+        while all(stopp_criteria):
+
+            if not (runn_iter % self._sett_ann_upt_evry_iter):
+                curr_temp *= self._sett_ann_temp_red_ratio
+                assert not np.isclose(curr_temp, 0.0)
+                assert curr_temp > 0.0
 
             index_ctr = 0
             while (old_index == new_index):
-                new_index = self._get_iter_index()
+                new_index = self._get_sim_index()
 
                 if index_ctr > 100:
                     raise RuntimeError('Something wrong is!')
@@ -102,9 +116,18 @@ class PhaseAnnealingAlgorithm(PAP):
             old_phs = self._sim_phs_spec[new_index]
             new_phs = -np.pi + (2 * np.pi * np.random.random())
 
+            assert not np.isclose(old_phs, new_phs), 'What are the chances?'
+
             self._update_sim(new_index, new_phs)
 
             new_obj_val = self._get_obj_ftn_val()
+
+            # location is important
+            tols.append(abs(old_obj_val - new_obj_val))
+
+            if runn_iter == tols.maxlen:
+                tol = sum(tols) / float(tols.maxlen)
+                assert np.isfinite(tol)
 
             if new_obj_val < old_obj_val:
                 accept_flag = True
@@ -133,13 +156,24 @@ class PhaseAnnealingAlgorithm(PAP):
 
             runn_iter += 1
 
+            stopp_criteria = (
+                (runn_iter <= self._sett_ann_max_iters),
+                (iters_wo_accept < self._sett_ann_max_iter_wo_chng),
+                (tol > self._sett_ann_obj_tol))
+
         return (
-            self._sim_ft,
-            self._sim_rnk,
-            self._sim_rnk,
-            self._sim_corrs,
-            self._sim_asymms_1,
-            self._sin_asymms_2)
+            self._sim_ft.copy(),
+            self._sim_rnk.copy(),
+            self._sim_nrm.copy(),
+            self._sim_corrs.copy(),
+            self._sim_asymms_1.copy(),
+            self._sin_asymms_2.copy(),
+            runn_iter,
+            iters_wo_accept,
+            tol,
+            curr_temp,
+            stopp_criteria,
+            )
 
     def generate_realizations(self):
 
