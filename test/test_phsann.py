@@ -42,13 +42,13 @@ def main():
 
     verbose = True
 
-    sim_label = '1001'
+    sim_label = '1002'
 
     plt_show_flag = True
     plt_show_flag = False
 
     long_test_flag = True
-    long_test_flag = False
+#     long_test_flag = False
 
     scorr_flag = True
     asymm_type_1_flag = True
@@ -65,16 +65,16 @@ def main():
 
     # TODO: auto initial temperature selection
     if long_test_flag:
-        initial_annealing_temperature = 0.001
-        temperature_reduction_ratio = 0.999
+        initial_annealing_temperature = 0.0001
+        temperature_reduction_ratio = 0.99
         update_at_every_iteration_no = 200
-        maximum_iterations = int(1e6)
+        maximum_iterations = int(1e5)
         maximum_without_change_iterations = 500
         objective_tolerance = 1e-8
         objective_tolerance_iterations = 20
 
     else:
-        initial_annealing_temperature = 0.001
+        initial_annealing_temperature = 0.0001
         temperature_reduction_ratio = 0.99
         update_at_every_iteration_no = 20
         maximum_iterations = 100
@@ -82,7 +82,7 @@ def main():
         objective_tolerance = 1e-8
         objective_tolerance_iterations = 20
 
-    n_reals = 2
+    n_reals = 8
     outputs_dir = main_dir
     n_cpus = 'auto'
 
@@ -236,7 +236,11 @@ def main():
 
     plt.figure(figsize=(30, 10))
     for j in range(n_reals):
-        plt.plot(phsann_cls._alg_reals[j][11], alpha=0.1, color='k')
+        try:
+            plt.plot(phsann_cls._alg_reals[j][11], alpha=0.1, color='k')
+
+        except:
+            pass
 
     plt.grid()
 
@@ -250,7 +254,11 @@ def main():
 
     plt.figure(figsize=(30, 10))
     for j in range(n_reals):
-        plt.plot(phsann_cls._alg_reals[j][12], alpha=0.1, color='k')
+        try:
+            plt.plot(phsann_cls._alg_reals[j][12], alpha=0.1, color='k')
+
+        except:
+            pass
 
     plt.grid()
 
