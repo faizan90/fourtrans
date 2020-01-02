@@ -3,7 +3,7 @@ Created on Dec 27, 2019
 
 @author: Faizan
 '''
-
+from timeit import default_timer
 from collections import deque
 
 import numpy as np
@@ -80,6 +80,8 @@ class PhaseAnnealingAlgorithm(PAP):
         real_iter, = args
 
         if self._vb:
+            timer_beg = default_timer()
+
             print(f'Starting realization at index {real_iter}...')
 
         if self._data_ref_data.ndim != 1:
@@ -187,7 +189,11 @@ class PhaseAnnealingAlgorithm(PAP):
             self._sim_asymms_2 = np.array([], dtype=float)
 
         if self._vb:
-            print(f'Done with realization at index {real_iter}.')
+            timer_end = default_timer()
+
+            print(
+                f'Done with realization at index {real_iter} in '
+                f'{timer_end - timer_beg:0.3f} seconds.')
 
         return (
             self._sim_ft.copy(),

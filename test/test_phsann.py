@@ -9,6 +9,7 @@ Dec 30, 2019
 import os
 import time
 import timeit
+from math import ceil
 from pathlib import Path
 
 import numpy as np
@@ -41,15 +42,20 @@ def main():
 
     verbose = True
 
+    sim_label = '3000'
+
+    plt_show_flag = True
+    plt_show_flag = False
+
     long_test_flag = True
-    long_test_flag = False
+#     long_test_flag = False
 
     scorr_flag = True
     asymm_type_1_flag = True
     asymm_type_2_flag = True
 
-    scorr_flag = False
-    asymm_type_1_flag = False
+#     scorr_flag = False
+#     asymm_type_1_flag = False
 #     asymm_type_2_flag = False
 
     lag_steps = np.array([1, 2, 3, 4, 5])
@@ -72,7 +78,7 @@ def main():
         objective_tolerance = 1e-8
         objective_tolerance_iterations = 20
 
-    n_reals = 14
+    n_reals = 15
     outputs_dir = main_dir
     n_cpus = 'auto'
 
@@ -156,8 +162,74 @@ def main():
     axes[1, 0].grid()
     axes[1, 1].grid()
 
-    plt.show()
+    if plt_show_flag:
+        plt.show(block=False)
 
+    else:
+        plt.savefig(
+            str(outputs_dir / f'{sim_label}_obj_cmpr.png'),
+            bbox_inches='tight')
+
+        plt.close()
+
+    rows_cols = int(ceil(lag_steps.size ** 0.5))
+    axes = plt.subplots(rows_cols, rows_cols, figsize=(15, 15))[1]
+
+    row = 0
+    col = 0
+    probs = phsann_cls._ref_rnk / (phsann_cls._ref_rnk.size + 1)
+    for i in range(lag_steps.size):
+#         print(row, col)
+        rolled_probs = np.roll(probs, lag_steps[i])
+        axes[row, col].scatter(probs, rolled_probs, alpha=0.4)
+        axes[row, col].grid()
+        axes[row, col].set_title(f'lag_step: {lag_steps[i]}')
+
+        col += 1
+        if not (col % rows_cols):
+            row += 1
+            col = 0
+
+    if plt_show_flag:
+        plt.show(block=False)
+
+    else:
+        plt.savefig(
+            str(outputs_dir / f'{sim_label}_ref_probs_lags.png'),
+            bbox_inches='tight')
+
+        plt.close()
+
+    for j in range(n_reals):
+        rows_cols = int(ceil(lag_steps.size ** 0.5))
+        axes = plt.subplots(rows_cols, rows_cols, figsize=(15, 15))[1]
+
+        row = 0
+        col = 0
+        probs = phsann_cls._alg_reals[j][1] / (phsann_cls._ref_rnk.size + 1)
+        for i in range(lag_steps.size):
+            rolled_probs = np.roll(probs, lag_steps[i])
+            axes[row, col].scatter(probs, rolled_probs, alpha=0.4)
+            axes[row, col].grid()
+            axes[row, col].set_title(f'sim: {j}, lag_step: {lag_steps[i]}')
+
+            col += 1
+            if not (col % rows_cols):
+                row += 1
+                col = 0
+
+        if plt_show_flag:
+            plt.show(block=False)
+
+        else:
+            plt.savefig(
+                str(outputs_dir / f'{sim_label}_sim_{j}_probs_lags.png'),
+                bbox_inches='tight')
+
+            plt.close()
+
+    if plt_show_flag:
+        plt.show()
     return
 
 
