@@ -109,6 +109,9 @@ class PhaseAnnealingAlgorithm(PAP):
 
         tols = deque(maxlen=self._sett_ann_obj_tol_iters)
 
+        all_tols = []
+        all_obj_vals = []
+
         stopp_criteria = (
             (runn_iter <= self._sett_ann_max_iters),
             (iters_wo_accept < self._sett_ann_max_iter_wo_chng),
@@ -155,17 +158,21 @@ class PhaseAnnealingAlgorithm(PAP):
             # location is important
             tols.append(abs(old_obj_val - new_obj_val))
 
-            if runn_iter == tols.maxlen:
+            if runn_iter >= tols.maxlen:
                 tol = sum(tols) / float(tols.maxlen)
                 assert np.isfinite(tol)
 
-            if self._vb:
-                print(
-                    runn_iter,
-                    curr_temp,
-                    accept_flag,
-                    old_obj_val,
-                    new_obj_val)
+                all_tols.append(tol)
+
+            all_obj_vals.append(new_obj_val)
+
+#             if self._vb:
+#                 print(
+#                     runn_iter,
+#                     curr_temp,
+#                     accept_flag,
+#                     old_obj_val,
+#                     new_obj_val)
 
             if accept_flag:
                 old_index = new_index
@@ -214,6 +221,8 @@ class PhaseAnnealingAlgorithm(PAP):
             tol,
             curr_temp,
             stopp_criteria,
+            np.array(all_tols, dtype=np.float64),
+            np.array(all_obj_vals, dtype=np.float64),
             )
 
     def verify(self):

@@ -42,13 +42,13 @@ def main():
 
     verbose = True
 
-    sim_label = '5000'
+    sim_label = '1001'
 
     plt_show_flag = True
     plt_show_flag = False
 
     long_test_flag = True
-#     long_test_flag = False
+    long_test_flag = False
 
     scorr_flag = True
     asymm_type_1_flag = True
@@ -56,33 +56,33 @@ def main():
     ecop_dens_flag = True
 
     scorr_flag = False
-    asymm_type_1_flag = False
+#     asymm_type_1_flag = False
     asymm_type_2_flag = False
-#     ecop_dens_flag = False
+    ecop_dens_flag = False
 
     lag_steps = np.array([1, 2, 3, 4, 5])
-    ecop_bins = 50
+    ecop_bins = 20
 
     # TODO: auto initial temperature selection
     if long_test_flag:
-        initial_annealing_temperature = 5000.0
+        initial_annealing_temperature = 0.001
         temperature_reduction_ratio = 0.999
         update_at_every_iteration_no = 200
-        maximum_iterations = 70000
+        maximum_iterations = int(1e6)
         maximum_without_change_iterations = 500
         objective_tolerance = 1e-8
         objective_tolerance_iterations = 20
 
     else:
-        initial_annealing_temperature = 0.0001
-        temperature_reduction_ratio = 0.999
+        initial_annealing_temperature = 0.001
+        temperature_reduction_ratio = 0.99
         update_at_every_iteration_no = 20
         maximum_iterations = 100
         maximum_without_change_iterations = 50
         objective_tolerance = 1e-8
         objective_tolerance_iterations = 20
 
-    n_reals = 1
+    n_reals = 2
     outputs_dir = main_dir
     n_cpus = 'auto'
 
@@ -133,7 +133,7 @@ def main():
     sim_asymmss_2 = []
 
     for i in range(n_reals):
-        print(phsann_cls._alg_reals[i][-1])
+        print(phsann_cls._alg_reals[i][10])
         if scorr_flag:
             sim_scorrss.append(phsann_cls._alg_reals[i][3])
 
@@ -233,6 +233,34 @@ def main():
                 bbox_inches='tight')
 
             plt.close()
+
+    plt.figure(figsize=(30, 10))
+    for j in range(n_reals):
+        plt.plot(phsann_cls._alg_reals[j][11], alpha=0.1, color='k')
+
+    plt.grid()
+
+    if plt_show_flag:
+        plt.show(block=False)
+
+    else:
+        plt.savefig(
+            str(outputs_dir / f'{sim_label}_sim_{j}_tols.png'),
+            bbox_inches='tight')
+
+    plt.figure(figsize=(30, 10))
+    for j in range(n_reals):
+        plt.plot(phsann_cls._alg_reals[j][12], alpha=0.1, color='k')
+
+    plt.grid()
+
+    if plt_show_flag:
+        plt.show(block=False)
+
+    else:
+        plt.savefig(
+            str(outputs_dir / f'{sim_label}_sim_{j}_obj_vals.png'),
+            bbox_inches='tight')
 
     if plt_show_flag:
         plt.show()
