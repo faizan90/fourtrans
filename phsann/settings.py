@@ -3,6 +3,7 @@ Created on Dec 27, 2019
 
 @author: Faizan
 '''
+import psutil
 from pathlib import Path
 
 import numpy as np
@@ -30,6 +31,7 @@ class PhaseAnnealingSettings(PAD):
         self._sett_ann_max_iter_wo_chng = None
 
         self._sett_misc_nreals = 1
+        self._sett_misc_ncpus = 1
 
         self._sett_obj_set_flag = False
         self._sett_ann_set_flag = False
@@ -58,8 +60,12 @@ class PhaseAnnealingSettings(PAD):
         assert any(
             [scorr_flag, asymm_type_1_flag, asymm_type_2_flag])
 
-        assert isinstance(lag_steps, int)
-        assert lag_steps > 0
+        assert isinstance(lag_steps, np.ndarray)
+        assert lag_steps.ndim == 1
+        assert lag_steps.size > 0
+        assert lag_steps.dtype == np.int
+        assert np.all(lag_steps > 0)
+        assert np.unique(lag_steps).size == lag_steps.size
 
         self._sett_obj_scorr_flag = scorr_flag
         self._sett_obj_asymm_type_1_flag = asymm_type_1_flag
@@ -153,7 +159,7 @@ class PhaseAnnealingSettings(PAD):
         self._sett_ann_set_flag = True
         return
 
-    def set_misc_settings(self, n_reals, outputs_dir):
+    def set_misc_settings(self, n_reals, outputs_dir, n_cpus):
 
         if self._vb:
             print_sl()
@@ -172,13 +178,25 @@ class PhaseAnnealingSettings(PAD):
         if not outputs_dir.exists:
             outputs_dir.mkdir(exist_ok=True)
 
+        if isinstance(n_cpus, str):
+            assert n_cpus == 'auto'
+
+            n_cpus = max(1, psutil.cpu_count() - 1)
+
+        else:
+            assert isinstance(n_cpus, int)
+            assert n_cpus > 0
+
         self._sett_misc_nreals = n_reals
         self._sett_misc_outs_dir = outputs_dir
+        self._sett_misc_ncpus = n_cpus
 
         if self._vb:
             print('Number of realizations:', self._sett_misc_nreals)
 
             print('Outputs directory:', self._sett_misc_outs_dir)
+
+            print('Number of process to use:', self._sett_misc_ncpus)
 
             print_el()
 
@@ -196,7 +214,7 @@ class PhaseAnnealingSettings(PAD):
         assert self._sett_misc_set_flag
 
         if self._sett_obj_scorr_flag:
-            assert self._sett_obj_lag_steps < self._data_ref_shape[0]
+            assert np.all(self._sett_obj_lag_steps < self._data_ref_shape[0])
 
         if self._data_ref_data.ndim != 1:
             raise NotImplementedError('Algorithm meant for 1D only!')

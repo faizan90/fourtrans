@@ -41,25 +41,40 @@ def main():
 
     verbose = True
 
+    long_test_flag = True
+    long_test_flag = False
+
     scorr_flag = True
     asymm_type_1_flag = True
     asymm_type_2_flag = True
 
-#     scorr_flag = False
-#     asymm_type_1_flag = False
+    scorr_flag = False
+    asymm_type_1_flag = False
 #     asymm_type_2_flag = False
-    lag_steps = 10
 
-    initial_annealing_temperature = 0.0001
-    temperature_reduction_ratio = 0.999
-    update_at_every_iteration_no = 200
-    maximum_iterations = 70000
-    maximum_without_change_iterations = 500
-    objective_tolerance = 1e-8
-    objective_tolerance_iterations = 20
+    lag_steps = np.array([1, 2, 3, 4, 5])
 
-    n_reals = 10
+    if long_test_flag:
+        initial_annealing_temperature = 0.0001
+        temperature_reduction_ratio = 0.999
+        update_at_every_iteration_no = 200
+        maximum_iterations = 70000
+        maximum_without_change_iterations = 500
+        objective_tolerance = 1e-8
+        objective_tolerance_iterations = 20
+
+    else:
+        initial_annealing_temperature = 0.0001
+        temperature_reduction_ratio = 0.999
+        update_at_every_iteration_no = 20
+        maximum_iterations = 100
+        maximum_without_change_iterations = 50
+        objective_tolerance = 1e-8
+        objective_tolerance_iterations = 20
+
+    n_reals = 14
     outputs_dir = main_dir
+    n_cpus = 'auto'
 
     in_df = pd.read_csv(in_file_path, index_col=0, sep=sep)
     in_df.index = pd.to_datetime(in_df.index, format=time_fmt)
@@ -89,7 +104,7 @@ def main():
         objective_tolerance,
         objective_tolerance_iterations)
 
-    phsann_cls.set_misc_settings(n_reals, outputs_dir)
+    phsann_cls.set_misc_settings(n_reals, outputs_dir, n_cpus)
 
     phsann_cls.prepare()
 
@@ -120,22 +135,22 @@ def main():
 
     for i in range(n_reals):
         if scorr_flag:
-            axes[0, 1].plot(sim_scorrss[i], alpha=0.3, color='k')
+            axes[0, 1].plot(lag_steps, sim_scorrss[i], alpha=0.3, color='k')
 
         if asymm_type_1_flag:
-            axes[1, 0].plot(sim_asymmss_1[i], alpha=0.3, color='k')
+            axes[1, 0].plot(lag_steps, sim_asymmss_1[i], alpha=0.3, color='k')
 
         if asymm_type_2_flag:
-            axes[1, 1].plot(sim_asymmss_2[i], alpha=0.3, color='k')
+            axes[1, 1].plot(lag_steps, sim_asymmss_2[i], alpha=0.3, color='k')
 
     if scorr_flag:
-        axes[0, 1].plot(ref_scorrs, alpha=0.7, color='r')
+        axes[0, 1].plot(lag_steps, ref_scorrs, alpha=0.7, color='r')
 
     if asymm_type_1_flag:
-        axes[1, 0].plot(ref_asymms_1, alpha=0.7, color='r')
+        axes[1, 0].plot(lag_steps, ref_asymms_1, alpha=0.7, color='r')
 
     if asymm_type_2_flag:
-        axes[1, 1].plot(ref_asymms_2, alpha=0.7, color='r')
+        axes[1, 1].plot(lag_steps, ref_asymms_2, alpha=0.7, color='r')
 
     axes[0, 1].grid()
     axes[1, 0].grid()

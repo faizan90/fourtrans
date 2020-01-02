@@ -55,15 +55,9 @@ class PhaseAnnealingAlgorithm(PAP):
 
         scorrs, asymms_1, asymms_2 = self._get_scorrs_asymms(probs)
 
-        if self._sett_obj_scorr_flag:
-            self._sim_scorrs = scorrs
-
-        if self._sett_obj_asymm_type_1_flag:
-            self._sim_asymms_1 = asymms_1
-
-        if self._sett_obj_asymm_type_2_flag:
-            self._sim_asymms_2 = asymms_2
-
+        self._sim_scorrs = scorrs
+        self._sim_asymms_1 = asymms_1
+        self._sim_asymms_2 = asymms_2
         return
 
     def _get_sim_index(self):
@@ -76,12 +70,17 @@ class PhaseAnnealingAlgorithm(PAP):
 
 #         index = np.random.random()
 #         index *= ((self._data_ref_shape[0] // 2) - 1)
-
-        assert 0 <= index < (self._data_ref_shape[0] // 2)
+#
+#         assert 0 <= index < (self._data_ref_shape[0] // 2)
 
         return int(index)
 
-    def _get_realization(self):
+    def _get_realization(self, args):
+
+        real_iter, = args
+
+        if self._vb:
+            print(f'Starting realization at index {real_iter}...')
 
         if self._data_ref_data.ndim != 1:
             raise NotImplementedError('Implemention for 1D only!')
@@ -151,7 +150,13 @@ class PhaseAnnealingAlgorithm(PAP):
                 tol = sum(tols) / float(tols.maxlen)
                 assert np.isfinite(tol)
 
-            print(runn_iter, curr_temp, accept_flag, old_obj_val, new_obj_val)
+#             if self._vb:
+#                 print(
+#                     runn_iter,
+#                     curr_temp,
+#                     accept_flag,
+#                     old_obj_val,
+#                     new_obj_val)
 
             if accept_flag:
                 old_index = new_index
@@ -180,6 +185,9 @@ class PhaseAnnealingAlgorithm(PAP):
 
         if not self._sett_obj_asymm_type_2_flag:
             self._sim_asymms_2 = np.array([], dtype=float)
+
+        if self._vb:
+            print(f'Done with realization at index {real_iter}.')
 
         return (
             self._sim_ft.copy(),

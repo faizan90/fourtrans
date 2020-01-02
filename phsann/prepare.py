@@ -8,7 +8,7 @@ import numpy as np
 from scipy.stats import rankdata, norm
 
 from ..simultexts.misc import print_sl, print_el
-from ..cyth import get_asymms_sample
+from ..cyth import get_asymms_sample, get_asymm_1_sample, get_asymm_2_sample
 
 from .settings import PhaseAnnealingSettings as PAS
 
@@ -67,18 +67,57 @@ class PhaseAnnealingPrepare(PAS):
 
     def _get_scorrs_asymms(self, probs):
 
-        scorrs = np.full(self._sett_obj_lag_steps, np.nan)
-        asymms_1 = scorrs.copy()
-        asymms_2 = scorrs.copy()
+        if self._sett_obj_scorr_flag:
+            scorrs = np.full(self._sett_obj_lag_steps.size, np.nan)
 
-        for i in range(self._sett_obj_lag_steps):
-            rolled_probs = np.roll(probs, i + 1)
-            scorrs[i] = np.corrcoef(probs, rolled_probs)[0, 1]
-            asymms_1[i], asymms_2[i] = get_asymms_sample(probs, rolled_probs)
+        else:
+            scorrs = None
 
-        assert np.all(np.isfinite(scorrs))
-        assert np.all(np.isfinite(asymms_1))
-        assert np.all(np.isfinite(asymms_2))
+        if self._sett_obj_asymm_type_1_flag:
+            asymms_1 = np.full(self._sett_obj_lag_steps.size, np.nan)
+
+        else:
+            asymms_1 = None
+
+        if self._sett_obj_asymm_type_2_flag:
+            asymms_2 = np.full(self._sett_obj_lag_steps.size, np.nan)
+
+        else:
+            asymms_2 = None
+
+        if (self._sett_obj_asymm_type_1_flag and
+            self._sett_obj_asymm_type_2_flag):
+
+            double_flag = True
+
+        else:
+            double_flag = False
+
+        for i, lag in enumerate(self._sett_obj_lag_steps):
+            rolled_probs = np.roll(probs, lag)
+
+            if scorrs is not None:
+                scorrs[i] = np.corrcoef(probs, rolled_probs)[0, 1]
+
+            if double_flag:
+                asymms_1[i], asymms_2[i] = get_asymms_sample(
+                    probs, rolled_probs)
+
+            else:
+                if asymms_1 is not None:
+                    asymms_1[i] = get_asymm_1_sample(probs, rolled_probs)
+
+                if asymms_2 is not None:
+                    asymms_2[i] = get_asymm_2_sample(probs, rolled_probs)
+
+        if scorrs is not None:
+            assert np.all(np.isfinite(scorrs))
+
+        if asymms_1 is not None:
+            assert np.all(np.isfinite(asymms_1))
+
+        if asymms_2 is not None:
+            assert np.all(np.isfinite(asymms_2))
 
         return scorrs, asymms_1, asymms_2
 
@@ -107,14 +146,9 @@ class PhaseAnnealingPrepare(PAS):
 
         scorrs, asymms_1, asymms_2 = self._get_scorrs_asymms(probs)
 
-        if self._sett_obj_scorr_flag:
-            self._ref_scorrs = scorrs
-
-        if self._sett_obj_asymm_type_1_flag:
-            self._ref_asymms_1 = asymms_1
-
-        if self._sett_obj_asymm_type_2_flag:
-            self._ref_asymms_2 = asymms_2
+        self._ref_scorrs = scorrs
+        self._ref_asymms_1 = asymms_1
+        self._ref_asymms_2 = asymms_2
 
         self._prep_ref_aux_flag = True
         return
@@ -157,14 +191,9 @@ class PhaseAnnealingPrepare(PAS):
 
         scorrs, asymms_1, asymms_2 = self._get_scorrs_asymms(probs)
 
-        if self._sett_obj_scorr_flag:
-            self._sim_scorrs = scorrs
-
-        if self._sett_obj_asymm_type_1_flag:
-            self._sim_asymms_1 = asymms_1
-
-        if self._sett_obj_asymm_type_2_flag:
-            self._sim_asymms_2 = asymms_2
+        self._sim_scorrs = scorrs
+        self._sim_asymms_1 = asymms_1
+        self._sim_asymms_2 = asymms_2
 
         self._prep_sim_aux_flag = True
         return
