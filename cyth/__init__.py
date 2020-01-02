@@ -8,4 +8,7 @@ import pyximport
 pyximport.install()
 
 from .misc_ftns import (
-    get_asymms_sample, get_asymm_1_sample, get_asymm_2_sample)
+    get_asymms_sample,
+    get_asymm_1_sample,
+    get_asymm_2_sample,
+    fill_bi_var_cop_dens)

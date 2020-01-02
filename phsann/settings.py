@@ -22,7 +22,9 @@ class PhaseAnnealingSettings(PAD):
         self._sett_obj_scorr_flag = None
         self._sett_obj_asymm_type_1_flag = None
         self._sett_obj_asymm_type_2_flag = None
+        self._sett_obj_ecop_dens_flag = None
         self._sett_obj_lag_steps = None
+        self._sett_obj_ecop_dens_bins = None
 
         self._sett_ann_init_temp = None
         self._sett_ann_temp_red_ratio = None
@@ -45,7 +47,9 @@ class PhaseAnnealingSettings(PAD):
             scorr_flag,
             asymm_type_1_flag,
             asymm_type_2_flag,
-            lag_steps):
+            ecop_dens_flag,
+            lag_steps,
+            ecop_dens_bins=None):
 
         if self._vb:
             print_sl()
@@ -56,9 +60,14 @@ class PhaseAnnealingSettings(PAD):
         assert isinstance(scorr_flag, bool)
         assert isinstance(asymm_type_1_flag, bool)
         assert isinstance(asymm_type_2_flag, bool)
+        assert isinstance(ecop_dens_flag, bool)
 
-        assert any(
-            [scorr_flag, asymm_type_1_flag, asymm_type_2_flag])
+        assert any([
+            scorr_flag,
+            asymm_type_1_flag,
+            asymm_type_2_flag,
+            ecop_dens_flag,
+            ])
 
         assert isinstance(lag_steps, np.ndarray)
         assert lag_steps.ndim == 1
@@ -67,17 +76,44 @@ class PhaseAnnealingSettings(PAD):
         assert np.all(lag_steps > 0)
         assert np.unique(lag_steps).size == lag_steps.size
 
+        if ecop_dens_flag:
+            assert isinstance(ecop_dens_bins, int)
+            assert ecop_dens_bins > 0
+
         self._sett_obj_scorr_flag = scorr_flag
         self._sett_obj_asymm_type_1_flag = asymm_type_1_flag
         self._sett_obj_asymm_type_2_flag = asymm_type_2_flag
+        self._sett_obj_ecop_dens_flag = ecop_dens_flag
 
         self._sett_obj_lag_steps = lag_steps
 
+        if ecop_dens_flag:
+            self._sett_obj_ecop_dens_bins = ecop_dens_bins
+
         if self._vb:
-            print('Rank correlation flag:', self._sett_obj_scorr_flag)
-            print('Asymmetry type 1 flag:', self._sett_obj_asymm_type_1_flag)
-            print('Asymmetry type 2 flag:', self._sett_obj_asymm_type_2_flag)
-            print(f'Lag steps:', self._sett_obj_lag_steps)
+            print(
+                'Rank correlation flag:',
+                self._sett_obj_scorr_flag)
+
+            print(
+                'Asymmetry type 1 flag:',
+                self._sett_obj_asymm_type_1_flag)
+
+            print(
+                'Asymmetry type 2 flag:',
+                self._sett_obj_asymm_type_2_flag)
+
+            print(
+                'Empirical copula density flag:',
+                self._sett_obj_ecop_dens_flag)
+
+            print(
+                'Lag steps:',
+                self._sett_obj_lag_steps)
+
+            print(
+                'Empirical copula density bins:',
+                self._sett_obj_ecop_dens_bins)
 
             print_el()
 
@@ -216,11 +252,14 @@ class PhaseAnnealingSettings(PAD):
         assert self._sett_ann_set_flag
         assert self._sett_misc_set_flag
 
+        if self._data_ref_data.ndim != 1:
+            raise NotImplementedError('Algorithm meant for 1D only!')
+
         if self._sett_obj_scorr_flag:
             assert np.all(self._sett_obj_lag_steps < self._data_ref_shape[0])
 
-        if self._data_ref_data.ndim != 1:
-            raise NotImplementedError('Algorithm meant for 1D only!')
+        if self._sett_obj_ecop_dens_flag:
+            assert self._sett_obj_ecop_dens_bins <= self._data_ref_shape[0]
 
         if self._vb:
             print_sl()

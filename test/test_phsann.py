@@ -42,7 +42,7 @@ def main():
 
     verbose = True
 
-    sim_label = '4000'
+    sim_label = '5000'
 
     plt_show_flag = True
     plt_show_flag = False
@@ -53,15 +53,19 @@ def main():
     scorr_flag = True
     asymm_type_1_flag = True
     asymm_type_2_flag = True
+    ecop_dens_flag = True
 
-#     scorr_flag = False
-#     asymm_type_1_flag = False
-#     asymm_type_2_flag = False
+    scorr_flag = False
+    asymm_type_1_flag = False
+    asymm_type_2_flag = False
+#     ecop_dens_flag = False
 
     lag_steps = np.array([1, 2, 3, 4, 5])
+    ecop_bins = 50
 
+    # TODO: auto initial temperature selection
     if long_test_flag:
-        initial_annealing_temperature = 0.0001
+        initial_annealing_temperature = 5000.0
         temperature_reduction_ratio = 0.999
         update_at_every_iteration_no = 200
         maximum_iterations = 70000
@@ -99,7 +103,9 @@ def main():
         scorr_flag,
         asymm_type_1_flag,
         asymm_type_2_flag,
-        lag_steps)
+        ecop_dens_flag,
+        lag_steps,
+        ecop_bins)
 
     phsann_cls.set_annealing_settings(
         initial_annealing_temperature,

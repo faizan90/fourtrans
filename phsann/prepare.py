@@ -8,7 +8,12 @@ import numpy as np
 from scipy.stats import rankdata, norm
 
 from ..simultexts.misc import print_sl, print_el
-from ..cyth import get_asymms_sample, get_asymm_1_sample, get_asymm_2_sample
+from ..cyth import (
+    get_asymms_sample,
+    get_asymm_1_sample,
+    get_asymm_2_sample,
+    fill_bi_var_cop_dens,
+    )
 
 from .settings import PhaseAnnealingSettings as PAS
 
@@ -27,6 +32,7 @@ class PhaseAnnealingPrepare(PAS):
         self._ref_scorrs = None
         self._ref_asymms_1 = None
         self._ref_asymms_2 = None
+        self._ref_ecop_dens_arrs = None
 
         self._sim_rnk = None
         self._sim_nrm = None
@@ -36,6 +42,7 @@ class PhaseAnnealingPrepare(PAS):
         self._sim_scorrs = None
         self._sim_asymms_1 = None
         self._sim_asymms_2 = None
+        self._sim_ecop_dens_arrs = None
 
         self._prep_ref_aux_flag = False
         self._prep_sim_aux_flag = False
@@ -65,7 +72,7 @@ class PhaseAnnealingPrepare(PAS):
 
         return ranks, probs, norms
 
-    def _get_scorrs_asymms(self, probs):
+    def _get_obj_vars(self, probs):
 
         if self._sett_obj_scorr_flag:
             scorrs = np.full(self._sett_obj_lag_steps.size, np.nan)
@@ -84,6 +91,17 @@ class PhaseAnnealingPrepare(PAS):
 
         else:
             asymms_2 = None
+
+        if self._sett_obj_ecop_dens_flag:
+            ecop_dens_arrs = np.full(
+                (self._sett_obj_lag_steps.size,
+                 self._sett_obj_ecop_dens_bins,
+                 self._sett_obj_ecop_dens_bins),
+                 np.nan,
+                 dtype=np.float64)
+
+        else:
+            ecop_dens_arrs = None
 
         if (self._sett_obj_asymm_type_1_flag and
             self._sett_obj_asymm_type_2_flag):
@@ -110,6 +128,10 @@ class PhaseAnnealingPrepare(PAS):
                 if asymms_2 is not None:
                     asymms_2[i] = get_asymm_2_sample(probs, rolled_probs)
 
+            if ecop_dens_arrs is not None:
+                fill_bi_var_cop_dens(
+                    probs, rolled_probs, ecop_dens_arrs[i, :, :])
+
         if scorrs is not None:
             assert np.all(np.isfinite(scorrs))
 
@@ -119,7 +141,10 @@ class PhaseAnnealingPrepare(PAS):
         if asymms_2 is not None:
             assert np.all(np.isfinite(asymms_2))
 
-        return scorrs, asymms_1, asymms_2
+        if ecop_dens_arrs is not None:
+            assert np.all(np.isfinite(ecop_dens_arrs))
+
+        return scorrs, asymms_1, asymms_2, ecop_dens_arrs
 
     def _gen_ref_aux_data(self):
 
@@ -144,11 +169,12 @@ class PhaseAnnealingPrepare(PAS):
         self._ref_phs_spec = phs_spec
         self._ref_mag_spec = mag_spec
 
-        scorrs, asymms_1, asymms_2 = self._get_scorrs_asymms(probs)
+        scorrs, asymms_1, asymms_2, ecop_dens_arrs = self._get_obj_vars(probs)
 
         self._ref_scorrs = scorrs
         self._ref_asymms_1 = asymms_1
         self._ref_asymms_2 = asymms_2
+        self._ref_ecop_dens_arrs = ecop_dens_arrs
 
         self._prep_ref_aux_flag = True
         return
@@ -189,11 +215,12 @@ class PhaseAnnealingPrepare(PAS):
         self._sim_phs_spec = phs_spec
         self._sim_mag_spec = self._ref_mag_spec.copy()
 
-        scorrs, asymms_1, asymms_2 = self._get_scorrs_asymms(probs)
+        scorrs, asymms_1, asymms_2, ecop_dens_arrs = self._get_obj_vars(probs)
 
         self._sim_scorrs = scorrs
         self._sim_asymms_1 = asymms_1
         self._sim_asymms_2 = asymms_2
+        self._sim_ecop_dens_arrs = ecop_dens_arrs
 
         self._prep_sim_aux_flag = True
         return

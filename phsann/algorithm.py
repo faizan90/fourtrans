@@ -35,6 +35,11 @@ class PhaseAnnealingAlgorithm(PAP):
         if self._sett_obj_asymm_type_2_flag:
             obj_val += ((self._ref_asymms_2 - self._sim_asymms_2) ** 2).sum()
 
+        if self._sett_obj_ecop_dens_flag:
+            obj_val += (
+                (self._ref_ecop_dens_arrs -
+                 self._sim_ecop_dens_arrs) ** 2).sum()
+
         assert np.isfinite(obj_val)
 
         return obj_val
@@ -53,11 +58,13 @@ class PhaseAnnealingAlgorithm(PAP):
         self._sim_rnk = ranks
         self._sim_nrm = norms
 
-        scorrs, asymms_1, asymms_2 = self._get_scorrs_asymms(probs)
+        scorrs, asymms_1, asymms_2, ecop_dens_arrs = self._get_obj_vars(probs)
 
         self._sim_scorrs = scorrs
         self._sim_asymms_1 = asymms_1
         self._sim_asymms_2 = asymms_2
+        self._sim_ecop_dens_arrs = ecop_dens_arrs
+
         return
 
     def _get_sim_index(self):
@@ -152,13 +159,13 @@ class PhaseAnnealingAlgorithm(PAP):
                 tol = sum(tols) / float(tols.maxlen)
                 assert np.isfinite(tol)
 
-#             if self._vb:
-#                 print(
-#                     runn_iter,
-#                     curr_temp,
-#                     accept_flag,
-#                     old_obj_val,
-#                     new_obj_val)
+            if self._vb:
+                print(
+                    runn_iter,
+                    curr_temp,
+                    accept_flag,
+                    old_obj_val,
+                    new_obj_val)
 
             if accept_flag:
                 old_index = new_index
