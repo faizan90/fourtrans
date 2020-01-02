@@ -187,6 +187,9 @@ class PhaseAnnealingSettings(PAD):
             assert isinstance(n_cpus, int)
             assert n_cpus > 0
 
+        if n_reals < n_cpus:
+            n_cpus = n_reals
+
         self._sett_misc_nreals = n_reals
         self._sett_misc_outs_dir = outputs_dir
         self._sett_misc_ncpus = n_cpus
@@ -196,7 +199,7 @@ class PhaseAnnealingSettings(PAD):
 
             print('Outputs directory:', self._sett_misc_outs_dir)
 
-            print('Number of process to use:', self._sett_misc_ncpus)
+            print('Number of maximum process to use:', self._sett_misc_ncpus)
 
             print_el()
 

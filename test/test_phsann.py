@@ -42,7 +42,7 @@ def main():
 
     verbose = True
 
-    sim_label = '3000'
+    sim_label = '4000'
 
     plt_show_flag = True
     plt_show_flag = False
@@ -78,7 +78,7 @@ def main():
         objective_tolerance = 1e-8
         objective_tolerance_iterations = 20
 
-    n_reals = 15
+    n_reals = 1
     outputs_dir = main_dir
     n_cpus = 'auto'
 
