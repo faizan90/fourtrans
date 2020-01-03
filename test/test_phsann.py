@@ -42,22 +42,22 @@ def main():
 
     verbose = True
 
-    sim_label = '1002'
+    sim_label = '1003'
 
     plt_show_flag = True
     plt_show_flag = False
 
     long_test_flag = True
-#     long_test_flag = False
+    long_test_flag = False
 
     scorr_flag = True
     asymm_type_1_flag = True
     asymm_type_2_flag = True
     ecop_dens_flag = True
 
-    scorr_flag = False
+#     scorr_flag = False
 #     asymm_type_1_flag = False
-    asymm_type_2_flag = False
+#     asymm_type_2_flag = False
     ecop_dens_flag = False
 
     lag_steps = np.array([1, 2, 3, 4, 5])
@@ -82,7 +82,7 @@ def main():
         objective_tolerance = 1e-8
         objective_tolerance_iterations = 20
 
-    n_reals = 8
+    n_reals = 1
     outputs_dir = main_dir
     n_cpus = 'auto'
 

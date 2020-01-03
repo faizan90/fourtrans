@@ -82,7 +82,17 @@ class PhaseAnnealingAlgorithm(PAP):
 
         return int(index)
 
-    def _get_realization(self, args):
+    def _get_realization_multi(self, args):
+
+        (real_iter_beg, real_iter_end), = args
+
+        reals = []
+        for real_iter in range(real_iter_beg, real_iter_end):
+            reals.append(self._get_realization_single((real_iter,)))
+
+        return reals
+
+    def _get_realization_single(self, args):
 
         real_iter, = args
 
