@@ -32,19 +32,30 @@ class PhaseAnnealingSettings(PAD):
         self._sett_ann_max_iters = None
         self._sett_ann_max_iter_wo_chng = None
 
-        self._sett_ann_auto_init_temp_search_flag = True
-        self._sett_ann_init_temp_bd_lo = 1e-6
-        self._sett_ann_init_temp_bd_hi = 1
-        self._sett_ann_init_temp_atpts = 10
-        self._sett_ann_init_temp_niters = 10000
-        self._sett_ann_init_temp_acpt_bd_lo = 0.5
-        self._sett_ann_init_temp_acpt_bd_hi = 0.85
+        self._sett_ann_auto_init_temp_search_flag = None
+        self._sett_ann_auto_init_temp_temp_bd_lo = None
+        self._sett_ann_auto_init_temp_temp_bd_hi = None
+        self._sett_ann_auto_init_temp_atpts = None
+        self._sett_ann_auto_init_temp_niters = None
+        self._sett_ann_auto_init_temp_acpt_bd_lo = None
+        self._sett_ann_auto_init_temp_acpt_bd_hi = None
+
+        # The smaller the number of values taken the bumpier the
+        # convergence of the auto initial temperature search.
+        # Can start to oscillate if too small.
+        # Will converge slowly if too big.
+        self._sett_ann_auto_init_temp_mean_lst_vals = 5
+
+        # Should be something small, too big and the search won't converge.
+        # Too small and it might oscillate.
+        self._sett_ann_auto_init_temp_diff_width = 1e-3
 
         self._sett_misc_nreals = 1
         self._sett_misc_ncpus = 1
 
         self._sett_obj_set_flag = False
         self._sett_ann_set_flag = False
+        self._sett_auto_temp_set_flag = False
         self._sett_misc_set_flag = False
 
         self._sett_verify_flag = False
@@ -203,6 +214,86 @@ class PhaseAnnealingSettings(PAD):
         self._sett_ann_set_flag = True
         return
 
+    def set_annealing_auto_temperature_settings(
+            self,
+            auto_init_temperature_flag,
+            temperature_lower_bound,
+            temperature_upper_bound,
+            max_search_attempts,
+            n_iterations_per_attempt,
+            acceptance_lower_bound,
+            acceptance_upper_bound,
+            ):
+
+        if self._vb:
+            print_sl()
+
+            print(
+                'Setting automatic annealing initial temperature settings '
+                'for phase annealing...\n')
+
+        if auto_init_temperature_flag:
+            assert isinstance(auto_init_temperature_flag, bool)
+            assert isinstance(temperature_lower_bound, float)
+            assert isinstance(temperature_upper_bound, float)
+            assert isinstance(max_search_attempts, int)
+            assert isinstance(n_iterations_per_attempt, int)
+            assert isinstance(acceptance_lower_bound, float)
+            assert isinstance(acceptance_upper_bound, float)
+
+            assert (
+                0 < temperature_lower_bound < temperature_upper_bound < np.inf)
+
+            assert 0 < max_search_attempts
+            assert 0 < n_iterations_per_attempt
+            assert 0 < acceptance_lower_bound < acceptance_upper_bound < 1.0
+
+            self._sett_ann_auto_init_temp_search_flag = (
+                auto_init_temperature_flag)
+
+            self._sett_ann_auto_init_temp_temp_bd_lo = temperature_lower_bound
+            self._sett_ann_auto_init_temp_temp_bd_hi = temperature_upper_bound
+            self._sett_ann_auto_init_temp_atpts = max_search_attempts
+            self._sett_ann_auto_init_temp_niters = n_iterations_per_attempt
+            self._sett_ann_auto_init_temp_acpt_bd_lo = acceptance_lower_bound
+            self._sett_ann_auto_init_temp_acpt_bd_hi = acceptance_upper_bound
+
+            if self._vb:
+                print(
+                    'Lower teperature bounds:',
+                    self._sett_ann_auto_init_temp_temp_bd_lo)
+
+                print(
+                    'Upper temperature bounds:',
+                    self._sett_ann_auto_init_temp_temp_bd_hi)
+
+                print(
+                    'Maximum temperature search attempts:',
+                    self._sett_ann_auto_init_temp_atpts)
+
+                print(
+                    'No. iterations per attempt:',
+                    self._sett_ann_auto_init_temp_niters)
+
+                print(
+                    'Lower acceptance bounds:',
+                    self._sett_ann_auto_init_temp_acpt_bd_lo)
+
+                print(
+                    'Upper acceptance bounds:',
+                    self._sett_ann_auto_init_temp_acpt_bd_hi)
+
+        else:
+            if self._vb:
+                print('No settings due to flag being False!')
+
+        if self._vb:
+            print_el()
+
+        if auto_init_temperature_flag:
+            self._sett_auto_temp_set_flag = True
+        return
+
     def set_misc_settings(self, n_reals, outputs_dir, n_cpus):
 
         if self._vb:
@@ -268,6 +359,12 @@ class PhaseAnnealingSettings(PAD):
 
         if self._sett_obj_ecop_dens_flag:
             assert self._sett_obj_ecop_dens_bins <= self._data_ref_shape[0]
+
+        if self._sett_ann_auto_init_temp_search_flag:
+            assert self._sett_auto_temp_set_flag
+
+            assert 0 < self._sett_ann_auto_init_temp_mean_lst_vals
+            assert 0 < self._sett_ann_auto_init_temp_diff_width < 1
 
         if self._vb:
             print_sl()

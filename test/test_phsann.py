@@ -48,7 +48,7 @@ def main():
     plt_show_flag = False
 
     long_test_flag = True
-    long_test_flag = False
+#     long_test_flag = False
 
     scorr_flag = True
     asymm_type_1_flag = True
@@ -60,10 +60,16 @@ def main():
 #     asymm_type_2_flag = False
     ecop_dens_flag = False
 
+    auto_init_temperature_flag = True
+#     auto_init_temperature_flag = False
+
     lag_steps = np.array([1, 2, 3, 4, 5])
     ecop_bins = 20
 
-    # TODO: auto initial temperature selection
+    n_reals = 1
+    outputs_dir = main_dir
+    n_cpus = 1  # 'auto'
+
     if long_test_flag:
         initial_annealing_temperature = 0.0001
         temperature_reduction_ratio = 0.99
@@ -72,6 +78,13 @@ def main():
         maximum_without_change_iterations = 500
         objective_tolerance = 1e-8
         objective_tolerance_iterations = 20
+
+        temperature_lower_bound = 1e-6
+        temperature_upper_bound = 100.0
+        max_search_attempts = 100
+        n_iterations_per_attempt = 3000
+        acceptance_lower_bound = 0.1
+        acceptance_upper_bound = 0.9
 
     else:
         initial_annealing_temperature = 0.0001
@@ -82,9 +95,12 @@ def main():
         objective_tolerance = 1e-8
         objective_tolerance_iterations = 20
 
-    n_reals = 1
-    outputs_dir = main_dir
-    n_cpus = 1  # 'auto'
+        temperature_lower_bound = 1e-6
+        temperature_upper_bound = 10.0
+        max_search_attempts = 20
+        n_iterations_per_attempt = 1000
+        acceptance_lower_bound = 0.6
+        acceptance_upper_bound = 0.8
 
     in_df = pd.read_csv(in_file_path, index_col=0, sep=sep)
     in_df.index = pd.to_datetime(in_df.index, format=time_fmt)
@@ -115,6 +131,15 @@ def main():
         maximum_without_change_iterations,
         objective_tolerance,
         objective_tolerance_iterations)
+
+    phsann_cls.set_annealing_auto_temperature_settings(
+            auto_init_temperature_flag,
+            temperature_lower_bound,
+            temperature_upper_bound,
+            max_search_attempts,
+            n_iterations_per_attempt,
+            acceptance_lower_bound,
+            acceptance_upper_bound)
 
     phsann_cls.set_misc_settings(n_reals, outputs_dir, n_cpus)
 
