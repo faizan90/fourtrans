@@ -32,6 +32,14 @@ class PhaseAnnealingSettings(PAD):
         self._sett_ann_max_iters = None
         self._sett_ann_max_iter_wo_chng = None
 
+        self._sett_ann_auto_init_temp_search_flag = True
+        self._sett_ann_init_temp_bd_lo = 1e-6
+        self._sett_ann_init_temp_bd_hi = 1
+        self._sett_ann_init_temp_atpts = 10
+        self._sett_ann_init_temp_niters = 10000
+        self._sett_ann_init_temp_acpt_bd_lo = 0.5
+        self._sett_ann_init_temp_acpt_bd_hi = 0.85
+
         self._sett_misc_nreals = 1
         self._sett_misc_ncpus = 1
 

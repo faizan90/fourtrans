@@ -42,7 +42,7 @@ def main():
 
     verbose = True
 
-    sim_label = '1003'
+    sim_label = '1004'
 
     plt_show_flag = True
     plt_show_flag = False
@@ -84,7 +84,7 @@ def main():
 
     n_reals = 1
     outputs_dir = main_dir
-    n_cpus = 'auto'
+    n_cpus = 1  # 'auto'
 
     in_df = pd.read_csv(in_file_path, index_col=0, sep=sep)
     in_df.index = pd.to_datetime(in_df.index, format=time_fmt)
