@@ -7,9 +7,11 @@ Dec 30, 2019
 
 '''
 import os
+import sys
 import time
 import timeit
 from math import ceil
+import traceback as tb
 from pathlib import Path
 
 import numpy as np
@@ -42,23 +44,23 @@ def main():
 
     verbose = True
 
-    sim_label = '1004'
+    sim_label = '1006'
 
     plt_show_flag = True
     plt_show_flag = False
 
     long_test_flag = True
-#     long_test_flag = False
+    long_test_flag = False
 
     scorr_flag = True
     asymm_type_1_flag = True
     asymm_type_2_flag = True
     ecop_dens_flag = True
 
-#     scorr_flag = False
-#     asymm_type_1_flag = False
-#     asymm_type_2_flag = False
-    ecop_dens_flag = False
+    scorr_flag = False
+    asymm_type_1_flag = False
+    asymm_type_2_flag = False
+#     ecop_dens_flag = False
 
     auto_init_temperature_flag = True
 #     auto_init_temperature_flag = False
@@ -66,25 +68,27 @@ def main():
     lag_steps = np.array([1, 2, 3, 4, 5])
     ecop_bins = 20
 
-    n_reals = 1
+    n_reals = 7
     outputs_dir = main_dir
-    n_cpus = 1  # 'auto'
+    n_cpus = 'auto'
 
     if long_test_flag:
         initial_annealing_temperature = 0.0001
-        temperature_reduction_ratio = 0.99
+        temperature_reduction_ratio = 0.999
         update_at_every_iteration_no = 200
         maximum_iterations = int(1e5)
         maximum_without_change_iterations = 500
         objective_tolerance = 1e-8
-        objective_tolerance_iterations = 20
+        objective_tolerance_iterations = 30
 
-        temperature_lower_bound = 1e-6
-        temperature_upper_bound = 100.0
+        temperature_lower_bound = 1e-7
+        temperature_upper_bound = 1000.0
         max_search_attempts = 100
         n_iterations_per_attempt = 3000
-        acceptance_lower_bound = 0.1
-        acceptance_upper_bound = 0.9
+        acceptance_lower_bound = 0.5
+        acceptance_upper_bound = 0.8
+        ramp_rate = 2
+        target_acpt_rate = 0.7
 
     else:
         initial_annealing_temperature = 0.0001
@@ -95,12 +99,15 @@ def main():
         objective_tolerance = 1e-8
         objective_tolerance_iterations = 20
 
-        temperature_lower_bound = 1e-6
-        temperature_upper_bound = 10.0
-        max_search_attempts = 20
+        temperature_lower_bound = 1e-7
+        temperature_upper_bound = 200.0
+        max_search_attempts = 50
         n_iterations_per_attempt = 1000
-        acceptance_lower_bound = 0.6
+        acceptance_lower_bound = 0.5
         acceptance_upper_bound = 0.8
+
+        ramp_rate = 2
+        target_acpt_rate = 0.7
 
     in_df = pd.read_csv(in_file_path, index_col=0, sep=sep)
     in_df.index = pd.to_datetime(in_df.index, format=time_fmt)
@@ -132,14 +139,16 @@ def main():
         objective_tolerance,
         objective_tolerance_iterations)
 
-    phsann_cls.set_annealing_auto_temperature_settings(
-            auto_init_temperature_flag,
-            temperature_lower_bound,
-            temperature_upper_bound,
-            max_search_attempts,
-            n_iterations_per_attempt,
-            acceptance_lower_bound,
-            acceptance_upper_bound)
+    if auto_init_temperature_flag:
+        phsann_cls.set_annealing_auto_temperature_settings(
+                temperature_lower_bound,
+                temperature_upper_bound,
+                max_search_attempts,
+                n_iterations_per_attempt,
+                acceptance_lower_bound,
+                acceptance_upper_bound,
+                ramp_rate,
+                target_acpt_rate)
 
     phsann_cls.set_misc_settings(n_reals, outputs_dir, n_cpus)
 
@@ -158,15 +167,15 @@ def main():
     sim_asymmss_2 = []
 
     for i in range(n_reals):
-        print(phsann_cls._alg_reals[i][10])
+        print(phsann_cls._main_alg_reals[i][11])
         if scorr_flag:
-            sim_scorrss.append(phsann_cls._alg_reals[i][3])
+            sim_scorrss.append(phsann_cls._main_alg_reals[i][3])
 
         if asymm_type_1_flag:
-            sim_asymmss_1.append(phsann_cls._alg_reals[i][4])
+            sim_asymmss_1.append(phsann_cls._main_alg_reals[i][4])
 
         if asymm_type_2_flag:
-            sim_asymmss_2.append(phsann_cls._alg_reals[i][5])
+            sim_asymmss_2.append(phsann_cls._main_alg_reals[i][5])
 
     axes = plt.subplots(2, 2, figsize=(15, 15))[1]
 
@@ -237,7 +246,7 @@ def main():
 
         row = 0
         col = 0
-        probs = phsann_cls._alg_reals[j][1] / (phsann_cls._ref_rnk.size + 1)
+        probs = phsann_cls._main_alg_reals[j][1] / (phsann_cls._ref_rnk.size + 1)
         for i in range(lag_steps.size):
             rolled_probs = np.roll(probs, lag_steps[i])
             axes[row, col].scatter(probs, rolled_probs, alpha=0.4)
@@ -261,11 +270,7 @@ def main():
 
     plt.figure(figsize=(30, 10))
     for j in range(n_reals):
-        try:
-            plt.plot(phsann_cls._alg_reals[j][11], alpha=0.1, color='k')
-
-        except:
-            pass
+        plt.plot(phsann_cls._main_alg_reals[j][12], alpha=0.1, color='k')
 
     plt.grid()
 
@@ -274,16 +279,12 @@ def main():
 
     else:
         plt.savefig(
-            str(outputs_dir / f'{sim_label}_sim_{j}_tols.png'),
+            str(outputs_dir / f'{sim_label}_sim_tols.png'),
             bbox_inches='tight')
 
     plt.figure(figsize=(30, 10))
     for j in range(n_reals):
-        try:
-            plt.plot(phsann_cls._alg_reals[j][12], alpha=0.1, color='k')
-
-        except:
-            pass
+        plt.plot(phsann_cls._main_alg_reals[j][13], alpha=0.1, color='k')
 
     plt.grid()
 
@@ -292,7 +293,7 @@ def main():
 
     else:
         plt.savefig(
-            str(outputs_dir / f'{sim_label}_sim_{j}_obj_vals.png'),
+            str(outputs_dir / f'{sim_label}_sim_obj_vals.png'),
             bbox_inches='tight')
 
     if plt_show_flag:
@@ -331,6 +332,15 @@ if __name__ == '__main__':
             main()
 
         except:
+            pre_stack = tb.format_stack()[:-1]
+
+            err_tb = list(tb.TracebackException(*sys.exc_info()).format())
+
+            lines = [err_tb[0]] + pre_stack + err_tb[2:]
+
+            for line in lines:
+                print(line, file=sys.stderr, end='')
+
             import pdb
             pdb.post_mortem()
 

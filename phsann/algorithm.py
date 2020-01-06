@@ -20,6 +20,8 @@ class PhaseAnnealingAlgorithm(PAP):
 
         PAP.__init__(self, verbose)
 
+        self._alg_sim_ann_init_temps = None
+
         self._alg_ann_runn_auto_init_temp_search_flag = False
 
         self._alg_verify_flag = False
@@ -47,108 +49,40 @@ class PhaseAnnealingAlgorithm(PAP):
                 pre_acpt_rate = pre_acpt_rates[-1]
 
                 assert isinstance(pre_init_temp, float)
+
                 assert (
-                    (pre_init_temp >= self._sett_ann_auto_init_temp_temp_bd_lo) and
-                    (pre_init_temp <= self._sett_ann_auto_init_temp_temp_bd_hi))
+                    (pre_init_temp >=
+                     self._sett_ann_auto_init_temp_temp_bd_lo) and
+                    (pre_init_temp <=
+                     self._sett_ann_auto_init_temp_temp_bd_hi))
 
                 assert isinstance(pre_acpt_rate, float)
                 assert 0 <= pre_acpt_rate <= 1
 
             if auto_init_temp_atpt == 0:
-                # sample on one corner
-                init_temp = self._sett_ann_auto_init_temp_temp_bd_hi
-
-            elif auto_init_temp_atpt == 1:
-                # sample on the other corner
                 init_temp = self._sett_ann_auto_init_temp_temp_bd_lo
 
-            elif auto_init_temp_atpt >= 2:
+            else:
+                temp_lo_bd = self._sett_ann_auto_init_temp_temp_bd_lo
+                temp_lo_bd *= (
+                    self._sett_ann_auto_init_temp_ramp_rate **
+                    (auto_init_temp_atpt - 1))
 
-                # now look for the optimum in the middle somewhere
-                if auto_init_temp_atpt == 2:
-                    assert pre_init_temps[0] > pre_init_temps[1]
+                temp_hi_bd = (
+                    temp_lo_bd * self._sett_ann_auto_init_temp_ramp_rate)
 
-#                 take_acpt_rates = pre_acpt_rates[
-#                     -self._sett_ann_auto_init_temp_mean_lst_vals:]
-#
-#                 take_init_temps = pre_init_temps[
-#                     -self._sett_ann_auto_init_temp_mean_lst_vals:]
+                init_temp = temp_lo_bd + (
+                    (temp_hi_bd - temp_lo_bd) * np.random.random())
 
-                # TODO: temp selection with search for minimum  acpt_rate temp
-                # and maximum acpt_rate temp.
-                # sub selection from temps that produce 0 or 1 acpt_rate.
+                assert temp_lo_bd <= init_temp <= temp_hi_bd
 
-                take_acpt_rates = pre_acpt_rates
-                take_init_temps = pre_init_temps
+                if init_temp > self._sett_ann_auto_init_temp_temp_bd_hi:
+                    init_temp = self._sett_ann_auto_init_temp_temp_bd_hi
 
-                with warnings.catch_warnings():
-                    warnings.simplefilter('ignore', np.RankWarning)
-
-                    fit_ftn = np.poly1d(
-                        np.polyfit(take_acpt_rates, take_init_temps, 2))
-
-                mean_acpt_rate = sum(take_acpt_rates) / len(take_acpt_rates)
-
-                acpt_rate_diff = (
-                    self._sett_ann_auto_init_temp_acpt_bd_hi -
-                    self._sett_ann_auto_init_temp_acpt_bd_lo)
-
-                # This is kind of penalizing. The more the pre_acpt_rates
-                # are on one side, the more the next_acpt_rate is sampled on
-                # the opposite side.
-                # Theoretically, it should converge to the middle of
-                # self._sett_ann_auto_init_temp_acpt_bd_lo and
-                # self._sett_ann_auto_init_temp_acpt_bd_hi
-                next_acpt_rate = (
-                    self._sett_ann_auto_init_temp_acpt_bd_lo +
-                    (acpt_rate_diff * (1 - mean_acpt_rate)))
-
-                assert (
-                    self._sett_ann_auto_init_temp_acpt_bd_lo <=
-                    next_acpt_rate <=
-                    self._sett_ann_auto_init_temp_acpt_bd_hi)
-#
-#                 if mean_acpt_rate > self._sett_ann_auto_init_temp_acpt_bd_hi:
-#                     next_acpt_rate = max(0.0, mean_acpt_rate - self._sett_ann_auto_init_temp_acpt_bd_lo)
-#
-#                 elif mean_acpt_rate < self._sett_ann_auto_init_temp_acpt_bd_hi:
-#                     next_acpt_rate = min(1.0, self._sett_ann_auto_init_temp_acpt_bd_hi + mean_acpt_rate)
-
-                init_temp = fit_ftn(next_acpt_rate)
-
-                print(mean_acpt_rate, next_acpt_rate, init_temp)
-                print(take_acpt_rates, take_init_temps)
-
-                # If init_temp is out of bounds, this means that we are
-                # far away from the true one. This also means that we need
-                # to sample more in the neighborhood of the other side.
-                # All this holds when the conditon
-                # pre_init_temps[0] > pre_init_temps[1] at
-                # auto_init_temp_atpt == 2 holds.
-                if ((init_temp < self._sett_ann_auto_init_temp_temp_bd_lo) or
-                    (init_temp > self._sett_ann_auto_init_temp_temp_bd_hi)):
-
-                    temp_diff = (
-                        self._sett_ann_auto_init_temp_temp_bd_hi -
-                        self._sett_ann_auto_init_temp_temp_bd_lo)
-
-                    rand_incr = (
-                        temp_diff *
-                        self._sett_ann_auto_init_temp_diff_width *
-                        np.random.random())
-
-                    if init_temp < self._sett_ann_auto_init_temp_temp_bd_lo:
-                        init_temp = (
-                            self._sett_ann_auto_init_temp_temp_bd_lo + rand_incr)
-
-                    elif init_temp > self._sett_ann_auto_init_temp_temp_bd_hi:
-                        init_temp = (
-                            self._sett_ann_auto_init_temp_temp_bd_hi - rand_incr)
-
-                assert (
-                    self._sett_ann_auto_init_temp_temp_bd_lo <=
-                    init_temp <=
-                    self._sett_ann_auto_init_temp_temp_bd_hi)
+            assert (
+                self._sett_ann_auto_init_temp_temp_bd_lo <=
+                init_temp <=
+                self._sett_ann_auto_init_temp_temp_bd_hi)
 
         else:
             assert isinstance(init_temp, float)
@@ -158,7 +92,7 @@ class PhaseAnnealingAlgorithm(PAP):
 
     def _get_stopp_criteria(self, test_vars):
 
-        runn_iter, iters_wo_acpt, tol = test_vars
+        runn_iter, iters_wo_acpt, tol, curr_temp = test_vars
 
         stopp_criteria = False
 
@@ -172,6 +106,7 @@ class PhaseAnnealingAlgorithm(PAP):
                 (runn_iter <= self._sett_ann_max_iters),
                 (iters_wo_acpt < self._sett_ann_max_iter_wo_chng),
                 (tol > self._sett_ann_obj_tol),
+                (not np.isclose(curr_temp, 0.0)),
                 )
 
         return stopp_criteria
@@ -229,18 +164,12 @@ class PhaseAnnealingAlgorithm(PAP):
 
         assert 0 < index < (self._data_ref_shape[0] // 2)
 
-#         index = np.random.random()
-#         index *= ((self._data_ref_shape[0] // 2) - 1)
-#
-#         assert 0 <= index < (self._data_ref_shape[0] // 2)
-
         return int(index)
 
     def _get_realization_multi(self, args):
 
         ((real_iter_beg, real_iter_end),
          auto_init_temp_atpt,
-         init_temp,
         ) = args
 
         reals = []
@@ -253,7 +182,7 @@ class PhaseAnnealingAlgorithm(PAP):
                 auto_init_temp_atpt,
                 pre_init_temps,
                 pre_acpt_rates,
-                init_temp,
+                self._alg_sim_ann_init_temps[real_iter],
                 )
 
             real = self._get_realization_single(real_args)
@@ -265,8 +194,23 @@ class PhaseAnnealingAlgorithm(PAP):
                 pre_acpt_rates.append(real[0])
                 pre_init_temps.append(real[1])
 
-                print('acpt_rate:', real[0], 'init_temp:', real[1])
-                print('\n')
+                if self._vb:
+                    print('acpt_rate:', real[0], 'init_temp:', real[1])
+                    print('\n')
+
+                if real[0] >= self._sett_ann_auto_init_temp_acpt_bd_hi:
+                    if self._vb:
+                        print(
+                            'Acceptance is at upper bounds, not looking '
+                            'for initial temperature anymore!')
+
+                    break
+
+                if real[1] >= self._sett_ann_auto_init_temp_temp_bd_hi:
+                    if self._vb:
+                        print('Reached upper bounds of temperature!')
+
+                    break
 
         return reals
 
@@ -280,7 +224,7 @@ class PhaseAnnealingAlgorithm(PAP):
 
         assert isinstance(real_iter, int)
 
-        if self._sett_ann_auto_init_temp_search_flag:
+        if self._alg_ann_runn_auto_init_temp_search_flag:
             assert (
                 (real_iter >= 0) and
                 (real_iter < self._sett_ann_auto_init_temp_atpts))
@@ -317,15 +261,9 @@ class PhaseAnnealingAlgorithm(PAP):
         acpts_rjts = []
 
         stopp_criteria = self._get_stopp_criteria(
-            (runn_iter, iters_wo_acpt, tol))
+            (runn_iter, iters_wo_acpt, tol, curr_temp))
 
         while all(stopp_criteria):
-
-            if not self._alg_ann_runn_auto_init_temp_search_flag:
-                if not (runn_iter % self._sett_ann_upt_evry_iter):
-                    curr_temp *= self._sett_ann_temp_red_ratio
-                    assert not np.isclose(curr_temp, 0.0)
-                    assert curr_temp > 0.0
 
             index_ctr = 0
             while (old_index == new_index):
@@ -392,8 +330,14 @@ class PhaseAnnealingAlgorithm(PAP):
 
             runn_iter += 1
 
+            if not self._alg_ann_runn_auto_init_temp_search_flag:
+                if not (runn_iter % self._sett_ann_upt_evry_iter):
+                    curr_temp *= self._sett_ann_temp_red_ratio
+                    # assert not np.isclose(curr_temp, 0.0)
+                    assert curr_temp >= 0.0
+
             stopp_criteria = self._get_stopp_criteria(
-                (runn_iter, iters_wo_acpt, tol))
+                (runn_iter, iters_wo_acpt, tol, curr_temp))
 
         acpt_rate = sum(acpts_rjts) / len(acpts_rjts)
 
@@ -458,6 +402,9 @@ class PhaseAnnealingAlgorithm(PAP):
 
         PAP._PhaseAnnealingPrepare__verify(self)
         assert self._prep_verify_flag
+
+        self._alg_sim_ann_init_temps = (
+            [self._sett_ann_init_temp] * self._sett_misc_nreals)
 
         if self._vb:
             print_sl()
