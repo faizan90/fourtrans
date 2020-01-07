@@ -58,7 +58,7 @@ class PhaseAnnealingPrepare(PAS):
 
         probs = ranks / (self._data_ref_shape[0] + 1.0)
 
-        assert np.all((0 < probs) & (probs < 1))
+        assert np.all((0 < probs) & (probs < 1)), 'probs out of range!'
 
         return ranks, probs
 
@@ -68,7 +68,7 @@ class PhaseAnnealingPrepare(PAS):
 
         norms = norm.ppf(probs, loc=0.0, scale=1.0)
 
-        assert np.all(np.isfinite(norms))
+        assert np.all(np.isfinite(norms)), 'Invalid values in norms!'
 
         return ranks, probs, norms
 
@@ -133,16 +133,17 @@ class PhaseAnnealingPrepare(PAS):
                     probs, rolled_probs, ecop_dens_arrs[i, :, :])
 
         if scorrs is not None:
-            assert np.all(np.isfinite(scorrs))
+            assert np.all(np.isfinite(scorrs)), 'Invalid values in scorrs!'
 
         if asymms_1 is not None:
-            assert np.all(np.isfinite(asymms_1))
+            assert np.all(np.isfinite(asymms_1)), 'Invalid values in asymms_1!'
 
         if asymms_2 is not None:
-            assert np.all(np.isfinite(asymms_2))
+            assert np.all(np.isfinite(asymms_2)), 'Invalid values in asymms_2!'
 
         if ecop_dens_arrs is not None:
-            assert np.all(np.isfinite(ecop_dens_arrs))
+            assert np.all(np.isfinite(ecop_dens_arrs)), (
+                'Invalid values in ecop_dens_arrs!')
 
         return scorrs, asymms_1, asymms_2, ecop_dens_arrs
 
@@ -158,9 +159,9 @@ class PhaseAnnealingPrepare(PAS):
         phs_spec = np.angle(ft)
         mag_spec = np.abs(ft)
 
-        assert np.all(np.isfinite(ft))
-        assert np.all(np.isfinite(phs_spec))
-        assert np.all(np.isfinite(mag_spec))
+        assert np.all(np.isfinite(ft)), 'Invalid values in ft!'
+        assert np.all(np.isfinite(phs_spec)), 'Invalid values in phs_spec!'
+        assert np.all(np.isfinite(mag_spec)), 'Invalid values in mag_spec!'
 
         self._ref_rnk = ranks
         self._ref_nrm = norms
@@ -181,7 +182,7 @@ class PhaseAnnealingPrepare(PAS):
 
     def _gen_sim_aux_data(self):
 
-        assert self._prep_ref_aux_flag
+        assert self._prep_ref_aux_flag, 'Call _gen_ref_aux_data first!'
 
         if self._data_ref_data.ndim != 1:
             raise NotImplementedError('Implementation for 1D only!')
@@ -199,12 +200,12 @@ class PhaseAnnealingPrepare(PAS):
         ft.real[1:-1] = np.cos(phs_spec) * self._ref_mag_spec[1:-1]
         ft.imag[1:-1] = np.sin(phs_spec) * self._ref_mag_spec[1:-1]
 
-        assert np.all(np.isfinite(ft))
-        assert np.all(np.isfinite(phs_spec))
+        assert np.all(np.isfinite(ft)), 'Invalid values in ft!'
+        assert np.all(np.isfinite(phs_spec)), 'Invalid values in phs_spec!'
 
         data = np.fft.irfft(ft)
 
-        assert np.all(np.isfinite(data))
+        assert np.all(np.isfinite(data)), 'Invalid values in data!'
 
         ranks, probs, norms = self._get_ranks_probs_norms(data)
 
@@ -228,20 +229,22 @@ class PhaseAnnealingPrepare(PAS):
     def prepare(self):
 
         PAS._PhaseAnnealingSettings__verify(self)
-        assert self._sett_verify_flag
+        assert self._sett_verify_flag, 'Settings in an unverfied state!'
 
         self._gen_ref_aux_data()
-        assert self._prep_ref_aux_flag
+        assert self._prep_ref_aux_flag, (
+            'Apparently, _gen_ref_aux_data did not finish as expected!')
 
         self._gen_sim_aux_data()
-        assert self._prep_sim_aux_flag
+        assert self._prep_sim_aux_flag, (
+            'Apparently, _gen_sim_aux_data did not finish as expected!')
 
         self._prep_prep_flag = True
         return
 
     def verify(self):
 
-        assert self._prep_prep_flag
+        assert self._prep_prep_flag, 'Call prepare first!'
 
         if self._vb:
             print_sl()

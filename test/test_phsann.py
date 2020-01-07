@@ -44,7 +44,7 @@ def main():
 
     verbose = True
 
-    sim_label = '1006'
+    sim_label = '1007'
 
     plt_show_flag = True
     plt_show_flag = False
@@ -57,13 +57,13 @@ def main():
     asymm_type_2_flag = True
     ecop_dens_flag = True
 
-    scorr_flag = False
-    asymm_type_1_flag = False
-    asymm_type_2_flag = False
-#     ecop_dens_flag = False
+#     scorr_flag = False
+#     asymm_type_1_flag = False
+#     asymm_type_2_flag = False
+    ecop_dens_flag = False
 
     auto_init_temperature_flag = True
-#     auto_init_temperature_flag = False
+    auto_init_temperature_flag = False
 
     lag_steps = np.array([1, 2, 3, 4, 5])
     ecop_bins = 20
@@ -87,7 +87,7 @@ def main():
         n_iterations_per_attempt = 3000
         acceptance_lower_bound = 0.5
         acceptance_upper_bound = 0.8
-        ramp_rate = 2
+        ramp_rate = 2.0
         target_acpt_rate = 0.7
 
     else:
@@ -106,7 +106,7 @@ def main():
         acceptance_lower_bound = 0.5
         acceptance_upper_bound = 0.8
 
-        ramp_rate = 2
+        ramp_rate = 2.0
         target_acpt_rate = 0.7
 
     in_df = pd.read_csv(in_file_path, index_col=0, sep=sep)

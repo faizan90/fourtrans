@@ -38,7 +38,7 @@ class PhaseAnnealing(PAA):
 
             print_el()
 
-        assert self._main_verify_flag
+        assert self._main_verify_flag, 'Call verify first!'
 
         self._alg_ann_runn_auto_init_temp_search_flag = True
 
@@ -144,7 +144,7 @@ class PhaseAnnealing(PAA):
 
             print_el()
 
-        assert self._main_verify_flag
+        assert self._main_verify_flag, 'Call verify first!'
 
         self._main_alg_reals = []
 
@@ -196,7 +196,7 @@ class PhaseAnnealing(PAA):
     def verify(self):
 
         PAA._PhaseAnnealingAlgorithm__verify(self)
-        assert self._alg_verify_flag
+        assert self._alg_verify_flag, 'Algorithm in an unverified state!'
 
         self._main_verify_flag = True
         return

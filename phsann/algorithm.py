@@ -3,7 +3,6 @@ Created on Dec 27, 2019
 
 @author: Faizan
 '''
-import warnings
 from collections import deque
 from timeit import default_timer
 
@@ -36,28 +35,35 @@ class PhaseAnnealingAlgorithm(PAP):
 
         if self._alg_ann_runn_auto_init_temp_search_flag:
 
-            assert isinstance(auto_init_temp_atpt, int)
+            assert isinstance(auto_init_temp_atpt, int), (
+                'auto_init_temp_atpt not an integer!')
 
             assert (
                 (auto_init_temp_atpt >= 0) and
-                (auto_init_temp_atpt < self._sett_ann_auto_init_temp_atpts))
+                (auto_init_temp_atpt < self._sett_ann_auto_init_temp_atpts)), (
+                    'Invalid _sett_ann_auto_init_temp_atpts!')
 
-            assert len(pre_acpt_rates) == len(pre_init_temps)
+            assert len(pre_acpt_rates) == len(pre_init_temps), (
+                'Unequal size of pre_acpt_rates and pre_init_temps!')
 
             if auto_init_temp_atpt:
                 pre_init_temp = pre_init_temps[-1]
                 pre_acpt_rate = pre_acpt_rates[-1]
 
-                assert isinstance(pre_init_temp, float)
+                assert isinstance(pre_init_temp, float), (
+                    'pre_init_temp not a float!')
 
                 assert (
                     (pre_init_temp >=
                      self._sett_ann_auto_init_temp_temp_bd_lo) and
                     (pre_init_temp <=
-                     self._sett_ann_auto_init_temp_temp_bd_hi))
+                     self._sett_ann_auto_init_temp_temp_bd_hi)), (
+                         'Invalid pre_init_temp!')
 
-                assert isinstance(pre_acpt_rate, float)
-                assert 0 <= pre_acpt_rate <= 1
+                assert isinstance(pre_acpt_rate, float), (
+                    'pre_acpt_rate not a float!')
+
+                assert 0 <= pre_acpt_rate <= 1, 'Invalid pre_acpt_rate!'
 
             if auto_init_temp_atpt == 0:
                 init_temp = self._sett_ann_auto_init_temp_temp_bd_lo
@@ -74,7 +80,8 @@ class PhaseAnnealingAlgorithm(PAP):
                 init_temp = temp_lo_bd + (
                     (temp_hi_bd - temp_lo_bd) * np.random.random())
 
-                assert temp_lo_bd <= init_temp <= temp_hi_bd
+                assert temp_lo_bd <= init_temp <= temp_hi_bd, (
+                    'Invalid init_temp!')
 
                 if init_temp > self._sett_ann_auto_init_temp_temp_bd_hi:
                     init_temp = self._sett_ann_auto_init_temp_temp_bd_hi
@@ -82,11 +89,12 @@ class PhaseAnnealingAlgorithm(PAP):
             assert (
                 self._sett_ann_auto_init_temp_temp_bd_lo <=
                 init_temp <=
-                self._sett_ann_auto_init_temp_temp_bd_hi)
+                self._sett_ann_auto_init_temp_temp_bd_hi), (
+                    'Invalid init_temp!')
 
         else:
-            assert isinstance(init_temp, float)
-            assert 0 < init_temp
+            assert isinstance(init_temp, float), 'init_temp not a float!'
+            assert 0 <= init_temp, 'Invalid init_temp!'
 
         return init_temp
 
@@ -129,7 +137,7 @@ class PhaseAnnealingAlgorithm(PAP):
                 (self._ref_ecop_dens_arrs -
                  self._sim_ecop_dens_arrs) ** 2).sum()
 
-        assert np.isfinite(obj_val)
+        assert np.isfinite(obj_val), 'Invalid obj_val!'
 
         return obj_val
 
@@ -153,7 +161,6 @@ class PhaseAnnealingAlgorithm(PAP):
         self._sim_asymms_1 = asymms_1
         self._sim_asymms_2 = asymms_2
         self._sim_ecop_dens_arrs = ecop_dens_arrs
-
         return
 
     def _get_sim_index(self):
@@ -162,7 +169,7 @@ class PhaseAnnealingAlgorithm(PAP):
         index *= ((self._data_ref_shape[0] // 2) - 2)
         index += 1
 
-        assert 0 < index < (self._data_ref_shape[0] // 2)
+        assert 0 < index < (self._data_ref_shape[0] // 2), 'Invalid index!'
 
         return int(index)
 
@@ -208,7 +215,9 @@ class PhaseAnnealingAlgorithm(PAP):
 
                 if real[1] >= self._sett_ann_auto_init_temp_temp_bd_hi:
                     if self._vb:
-                        print('Reached upper bounds of temperature!')
+                        print(
+                            'Reached upper bounds of temperature, '
+                            'not going any further!')
 
                     break
 
@@ -222,15 +231,15 @@ class PhaseAnnealingAlgorithm(PAP):
          pre_acpt_rates,
          init_temp) = args
 
-        assert isinstance(real_iter, int)
+        assert isinstance(real_iter, int), 'real_iter not integer!'
 
         if self._alg_ann_runn_auto_init_temp_search_flag:
-            assert (
-                (real_iter >= 0) and
-                (real_iter < self._sett_ann_auto_init_temp_atpts))
+            assert 0 <= real_iter < self._sett_ann_auto_init_temp_atpts, (
+                    'Invalid real_iter!')
 
         else:
-            assert (real_iter >= 0) and (real_iter < self._sett_misc_nreals)
+            assert 0 <= real_iter < self._sett_misc_nreals, (
+                    'Invalid real_iter!')
 
         if self._vb:
             timer_beg = default_timer()
@@ -270,7 +279,9 @@ class PhaseAnnealingAlgorithm(PAP):
                 new_index = self._get_sim_index()
 
                 if index_ctr > 100:
-                    raise RuntimeError('Something wrong is!')
+                    raise RuntimeError(
+                        'Could not get an index that is different than '
+                        'the previous!')
 
                 index_ctr += 1
 
@@ -302,7 +313,7 @@ class PhaseAnnealingAlgorithm(PAP):
 
             if runn_iter >= tols.maxlen:
                 tol = sum(tols) / float(tols.maxlen)
-                assert np.isfinite(tol)
+                assert np.isfinite(tol), 'Invalid tol!'
 
                 all_tols.append(tol)
 
@@ -333,15 +344,14 @@ class PhaseAnnealingAlgorithm(PAP):
             if not self._alg_ann_runn_auto_init_temp_search_flag:
                 if not (runn_iter % self._sett_ann_upt_evry_iter):
                     curr_temp *= self._sett_ann_temp_red_ratio
-                    # assert not np.isclose(curr_temp, 0.0)
-                    assert curr_temp >= 0.0
+                    assert curr_temp >= 0.0, 'Invalid curr_temp!'
 
             stopp_criteria = self._get_stopp_criteria(
                 (runn_iter, iters_wo_acpt, tol, curr_temp))
 
-        acpt_rate = sum(acpts_rjts) / len(acpts_rjts)
-
         if self._alg_ann_runn_auto_init_temp_search_flag:
+            acpt_rate = sum(acpts_rjts) / len(acpts_rjts)
+
             ret = (acpt_rate, curr_temp)
 
         else:
@@ -386,7 +396,7 @@ class PhaseAnnealingAlgorithm(PAP):
                 stopp_criteria,
                 np.array(all_tols, dtype=np.float64),
                 np.array(all_obj_vals, dtype=np.float64),
-                acpt_rate,
+                np.array(acpts_rjts, dtype=int),
                 )
 
         if self._vb:
@@ -401,7 +411,7 @@ class PhaseAnnealingAlgorithm(PAP):
     def verify(self):
 
         PAP._PhaseAnnealingPrepare__verify(self)
-        assert self._prep_verify_flag
+        assert self._prep_verify_flag, 'Prepare in an unverified state!'
 
         self._alg_sim_ann_init_temps = (
             [self._sett_ann_init_temp] * self._sett_misc_nreals)
