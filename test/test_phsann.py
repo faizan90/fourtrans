@@ -63,7 +63,7 @@ def main():
     ecop_dens_flag = False
 
     auto_init_temperature_flag = True
-    auto_init_temperature_flag = False
+#     auto_init_temperature_flag = False
 
     lag_steps = np.array([1, 2, 3, 4, 5])
     ecop_bins = 20

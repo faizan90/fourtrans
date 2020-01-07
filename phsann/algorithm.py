@@ -176,7 +176,6 @@ class PhaseAnnealingAlgorithm(PAP):
     def _get_realization_multi(self, args):
 
         ((real_iter_beg, real_iter_end),
-         auto_init_temp_atpt,
         ) = args
 
         reals = []
@@ -186,7 +185,6 @@ class PhaseAnnealingAlgorithm(PAP):
         for real_iter in range(real_iter_beg, real_iter_end):
             real_args = (
                 real_iter,
-                auto_init_temp_atpt,
                 pre_init_temps,
                 pre_acpt_rates,
                 self._alg_sim_ann_init_temps[real_iter],
@@ -197,7 +195,6 @@ class PhaseAnnealingAlgorithm(PAP):
             reals.append(real)
 
             if self._alg_ann_runn_auto_init_temp_search_flag:
-                auto_init_temp_atpt += 1
                 pre_acpt_rates.append(real[0])
                 pre_init_temps.append(real[1])
 
@@ -226,7 +223,6 @@ class PhaseAnnealingAlgorithm(PAP):
     def _get_realization_single(self, args):
 
         (real_iter,
-         auto_init_temp_atpt,
          pre_init_temps,
          pre_acpt_rates,
          init_temp) = args
@@ -256,7 +252,7 @@ class PhaseAnnealingAlgorithm(PAP):
         tol = np.inf
 
         curr_temp = self._get_init_temp(
-            auto_init_temp_atpt, pre_init_temps, pre_acpt_rates, init_temp)
+            real_iter, pre_init_temps, pre_acpt_rates, init_temp)
 
         old_obj_val = self._get_obj_ftn_val()
 

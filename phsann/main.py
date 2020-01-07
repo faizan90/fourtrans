@@ -51,7 +51,6 @@ class PhaseAnnealing(PAA):
         reals_gen = (
             (
             (0, self._sett_ann_auto_init_temp_atpts),
-            0,
             )
             for i in range(self._sett_misc_nreals))
 
@@ -153,7 +152,6 @@ class PhaseAnnealing(PAA):
         reals_gen = (
             (
             (mp_idxs[i], mp_idxs[i + 1]),
-            None,
             )
             for i in range(mp_idxs.size - 1))
 
