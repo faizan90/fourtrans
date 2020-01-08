@@ -73,7 +73,7 @@ class PhaseAnnealingSettings(PAD):
             correlations of the reference and generated realizations.
         asymm_type_1_flag : bool
             Whether to minimize the differences between the first type
-            asymmetry of the reference and generated realizations.
+            normalized asymmetry of the reference and generated realizations.
         asymm_type_2_flag : bool
             Whether to minimize the differences between the second type
             asymmetry of the reference and generated realizations.

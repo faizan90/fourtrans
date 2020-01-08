@@ -74,9 +74,16 @@ class PhaseAnnealingPrepare(PAS):
 
         return ranks, probs, norms
 
+    def _get_asymm_1_max(self, scorr):
+
+        a_max = (
+            0.5 * (1 - scorr)) * (1 - ((0.5 * (1 - scorr)) ** (1.0 / 3.0)))
+
+        return a_max
+
     def _get_obj_vars(self, probs):
 
-        if self._sett_obj_scorr_flag:
+        if self._sett_obj_scorr_flag or self._sett_obj_asymm_type_1_flag:
             scorrs = np.full(self._sett_obj_lag_steps.size, np.nan)
 
         else:
@@ -130,12 +137,18 @@ class PhaseAnnealingPrepare(PAS):
                 if asymms_2 is not None:
                     asymms_2[i] = get_asymm_2_sample(probs, rolled_probs)
 
+            if asymms_1 is not None:
+                asymms_1[i] = asymms_1[i] / self._get_asymm_1_max(scorrs[i])
+
             if ecop_dens_arrs is not None:
                 fill_bi_var_cop_dens(
                     probs, rolled_probs, ecop_dens_arrs[i, :, :])
 
         if scorrs is not None:
             assert np.all(np.isfinite(scorrs)), 'Invalid values in scorrs!'
+
+        if not self._sett_obj_scorr_flag:
+            scorrs = None
 
         if asymms_1 is not None:
             assert np.all(np.isfinite(asymms_1)), 'Invalid values in asymms_1!'
