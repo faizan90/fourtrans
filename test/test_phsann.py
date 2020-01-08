@@ -44,7 +44,7 @@ def main():
 
     verbose = True
 
-    sim_label = '1007'
+    sim_label = '1008'
 
     plt_show_flag = True
     plt_show_flag = False
@@ -63,7 +63,7 @@ def main():
     ecop_dens_flag = False
 
     auto_init_temperature_flag = True
-#     auto_init_temperature_flag = False
+    auto_init_temperature_flag = False
 
     lag_steps = np.array([1, 2, 3, 4, 5])
     ecop_bins = 20
@@ -87,8 +87,8 @@ def main():
         n_iterations_per_attempt = 3000
         acceptance_lower_bound = 0.5
         acceptance_upper_bound = 0.8
-        ramp_rate = 2.0
         target_acpt_rate = 0.7
+        ramp_rate = 2.0
 
     else:
         initial_annealing_temperature = 0.0001
@@ -105,9 +105,8 @@ def main():
         n_iterations_per_attempt = 1000
         acceptance_lower_bound = 0.5
         acceptance_upper_bound = 0.8
-
-        ramp_rate = 2.0
         target_acpt_rate = 0.7
+        ramp_rate = 2.0
 
     in_df = pd.read_csv(in_file_path, index_col=0, sep=sep)
     in_df.index = pd.to_datetime(in_df.index, format=time_fmt)
@@ -147,8 +146,8 @@ def main():
                 n_iterations_per_attempt,
                 acceptance_lower_bound,
                 acceptance_upper_bound,
-                ramp_rate,
-                target_acpt_rate)
+                target_acpt_rate,
+                ramp_rate)
 
     phsann_cls.set_misc_settings(n_reals, outputs_dir, n_cpus)
 

@@ -15,6 +15,8 @@ from .prepare import PhaseAnnealingPrepare as PAP
 
 class PhaseAnnealingAlgorithm(PAP):
 
+    '''The main phase annealing algorithm'''
+
     def __init__(self, verbose=True):
 
         PAP.__init__(self, verbose)
@@ -351,8 +353,6 @@ class PhaseAnnealingAlgorithm(PAP):
             ret = (acpt_rate, curr_temp)
 
         else:
-
-            # FIXME: this is very very inelegant
             if self._sett_obj_scorr_flag:
                 sim_scorrs = self._sim_scorrs
 

@@ -20,6 +20,8 @@ from .settings import PhaseAnnealingSettings as PAS
 
 class PhaseAnnealingPrepare(PAS):
 
+    '''Prepare derived variables required by phase annealing here'''
+
     def __init__(self, verbose=True):
 
         PAS.__init__(self, verbose)
@@ -227,6 +229,8 @@ class PhaseAnnealingPrepare(PAS):
         return
 
     def prepare(self):
+
+        '''Generate data required before phase annealing starts'''
 
         PAS._PhaseAnnealingSettings__verify(self)
         assert self._sett_verify_flag, 'Settings in an unverfied state!'

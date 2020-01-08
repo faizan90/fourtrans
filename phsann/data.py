@@ -11,7 +11,16 @@ from ..simultexts.misc import print_sl, print_el
 
 class PhaseAnnealingData:
 
+    '''Set the reference data'''
+
     def __init__(self, verbose=True):
+
+        '''
+        Parameters
+        ----------
+        verbose : bool
+            Whether to show activity messages
+        '''
 
         assert isinstance(verbose, bool), 'verbose not a boolean!'
 
@@ -27,6 +36,15 @@ class PhaseAnnealingData:
         return
 
     def set_reference_data(self, ref_data):
+
+        '''
+        Set the reference data array
+
+        Parameters
+        ----------
+        ref_data : 1D float64 np.ndarray
+            The reference data array. No NaNs or Infinity allowed.
+        '''
 
         if self._vb:
             print_sl()
@@ -58,6 +76,8 @@ class PhaseAnnealingData:
         return
 
     def verify(self):
+
+        '''Verify if data has been set correctly'''
 
         assert self._data_ref_set_flag, 'Call set_reference_data first!'
 

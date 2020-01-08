@@ -15,6 +15,8 @@ from .data import PhaseAnnealingData as PAD
 
 class PhaseAnnealingSettings(PAD):
 
+    '''Specify settings for the Phase Annealing'''
+
     def __init__(self, verbose=True):
 
         PAD.__init__(self, verbose)
@@ -38,8 +40,8 @@ class PhaseAnnealingSettings(PAD):
         self._sett_ann_auto_init_temp_niters = None
         self._sett_ann_auto_init_temp_acpt_bd_lo = None
         self._sett_ann_auto_init_temp_acpt_bd_hi = None
-        self._sett_ann_auto_init_temp_ramp_rate = None
         self._sett_ann_auto_init_temp_trgt_acpt_rate = None
+        self._sett_ann_auto_init_temp_ramp_rate = None
 
         self._sett_misc_nreals = 1
         self._sett_misc_ncpus = 1
@@ -60,6 +62,34 @@ class PhaseAnnealingSettings(PAD):
             ecop_dens_flag,
             lag_steps,
             ecop_dens_bins=None):
+
+        '''
+        Type of objective functions to use and their respective inputs
+
+        Parameters
+        ----------
+        scorr_flag : bool
+            Whether to minimize the differences between the spearman
+            correlations of the reference and generated realizations.
+        asymm_type_1_flag : bool
+            Whether to minimize the differences between the first type
+            asymmetry of the reference and generated realizations.
+        asymm_type_2_flag : bool
+            Whether to minimize the differences between the second type
+            asymmetry of the reference and generated realizations.
+        ecop_dens_flag : bool
+            Whether to minimize the differences between the empirical copula
+            density of the reference and generated realizations.
+        lag_steps : 1D integer np.ndarray
+            The lagged steps at which to evaluate the objective functions.
+            All should be greater than zero and unique. This parameter is
+            needed when any of the scorr_flag, asymm_type_1_flag,
+            asymm_type_2_flag, ecop_dens_flag are True.
+        ecop_dens_bins : integer
+            Number of bins for the empirical copula. The more the bins the
+            finer the density match between the reference and simulated.
+            This parameter is required when the ecop_dens_flag is True.
+        '''
 
         if self._vb:
             print_sl()
@@ -152,6 +182,35 @@ class PhaseAnnealingSettings(PAD):
             objective_tolerance,
             objective_tolerance_iterations):
 
+        '''
+        Simulated annealing algorithm parameters
+
+        Parameters
+        ----------
+        initial_annealing_temperature : float
+            The starting temperature of the annealing temperature. Should be
+            > 0 and < infinity!
+        temperature_reduction_ratio : float
+            The ratio by which to reduce the temperature after
+            update_at_every_iteration_no have passed. Should be > 0 and <= 1.
+        update_at_every_iteration_no : integer
+            When to update the temperature. Should be > 0.
+        maximum_iterations : integer
+            Number of iterations at maximum if no other stopping criteria is
+            met. Should be > 0.
+        maximum_without_change_iterations : integer
+            To stop looking for an optimum after
+            maximum_without_change_iterations consecutive iterations do not
+            yield a better optimum. Should be > 0 and <= maximum_iterations.
+        objective_tolerance : float
+            To stop the optimization if mean of the absolute differences
+            between consective objective_tolerance_iterations iterations
+            is less than or equal to objective_tolerance. Should be >= 0.
+        objective_tolerance_iterations : integer
+            See the parameter objective_tolerance. Should be > 0 and <=
+            update_at_every_iteration_no.
+        '''
+
         if self._vb:
             print_sl()
 
@@ -195,7 +254,7 @@ class PhaseAnnealingSettings(PAD):
                 'maximum_without_change_iterations, maximum_iterations'
                 'values!')
 
-        assert 0 <= objective_tolerance < np.inf, (
+        assert 0 <= objective_tolerance <= np.inf, (
             'Invalid objective_tolerance!')
 
         self._sett_ann_init_temp = initial_annealing_temperature
@@ -245,8 +304,49 @@ class PhaseAnnealingSettings(PAD):
             n_iterations_per_attempt,
             acceptance_lower_bound,
             acceptance_upper_bound,
-            ramp_rate,
-            target_acceptance_rate):
+            target_acceptance_rate,
+            ramp_rate):
+
+        '''
+        Automatic annealing initial temperature search parameters. Each
+        realization will get its own initial temperature.
+
+        Parameters
+        ----------
+        temperature_lower_bound : float
+            Lower bound of the temperature search space. Should be > 0
+        temperature_upper_bound : float
+            Upper bound of the temperature search space. Should be >
+            temperature_lower_bound and < infinity.
+        max_search_attempts : integer
+            Maximum number of attempts to search for the temperature if
+            no other stopping criteria are met. Should be > 0.
+        n_iterations_per_attempt : integer
+            Number of times to run the annealing algorithm after which to
+            compute the mean acceptance rate. Should be large enough to
+            give a stable acceptance rate. Should be > 0.
+        acceptance_lower_bound : float
+            Lower bounds of the acceptance rate for an initial starting
+            temperature to be accepted for the optimization. Should be >= 0
+            and < 1.
+        acceptance_upper_bound : float
+            Upper bounds of the acceptance rate for an initial starting
+            temperature to be accepted for the optimization. Should be >
+            acceptance_lower_bound and < 1.
+        target_acceptance_rate : float
+            The optimum acceptance rate for which to find the initial
+            temperature. Has to be in between acceptance_lower_bound and
+            acceptance_upper_bound. The final temperature is selected based
+            on minimum distance from the target_acceptance_rate.
+        ramp_rate : float
+            The rate at which to increase/ramp the temperature every
+            n_iterations_per_attempt. Temperature is ramped up from
+            acceptance_lower_bound to acceptance_upper_bound. Next iteration's
+            temperature = previous * ramp_rate. The search stops if
+            n_iterations_per_attempt are reached or next temperature
+            is greater than temperature_upper_bound or acceptance rate is 1.
+            Should be > 1 and < infinity.
+        '''
 
         if self._vb:
             print_sl()
@@ -273,11 +373,10 @@ class PhaseAnnealingSettings(PAD):
         assert isinstance(acceptance_upper_bound, float), (
             'acceptance_upper_bound not a float!')
 
-        assert isinstance(ramp_rate, float), (
-            'ramp_rate not a float!')
-
         assert isinstance(target_acceptance_rate, float), (
             'target_acceptance_rate not a float!')
+
+        assert isinstance(ramp_rate, float), 'ramp_rate not a float!'
 
         assert (
             0 < temperature_lower_bound < temperature_upper_bound < np.inf), (
@@ -298,7 +397,7 @@ class PhaseAnnealingSettings(PAD):
                 'Invalid or inconsistent acceptance_lower_bound, '
                 'target_acceptance_rate or acceptance_upper_bound!')
 
-        assert 0 < ramp_rate < np.inf, 'Invalid ramp_rate!'
+        assert 1 < ramp_rate < np.inf, 'Invalid ramp_rate!'
 
         self._sett_ann_auto_init_temp_temp_bd_lo = temperature_lower_bound
         self._sett_ann_auto_init_temp_temp_bd_hi = temperature_upper_bound
@@ -306,8 +405,8 @@ class PhaseAnnealingSettings(PAD):
         self._sett_ann_auto_init_temp_niters = n_iterations_per_attempt
         self._sett_ann_auto_init_temp_acpt_bd_lo = acceptance_lower_bound
         self._sett_ann_auto_init_temp_acpt_bd_hi = acceptance_upper_bound
-        self._sett_ann_auto_init_temp_ramp_rate = ramp_rate
         self._sett_ann_auto_init_temp_trgt_acpt_rate = target_acceptance_rate
+        self._sett_ann_auto_init_temp_ramp_rate = ramp_rate
 
         if self._vb:
             print(
@@ -350,6 +449,23 @@ class PhaseAnnealingSettings(PAD):
 
     def set_misc_settings(self, n_reals, outputs_dir, n_cpus=1):
 
+        '''
+        Some more parameters
+
+        Parameters
+        ----------
+        n_reals : integer
+            The number of realizations to generate. Should be > 0
+        outputs_dir : str, Path-like
+            Path to the directory where the outputs will be stored.
+            Created if not there.
+        n_cpus : string, integer
+            Maximum number of processes to use to generate realizations.
+            If the string 'auto' then the number of logical cores - 1
+            processes are used. If an integer > 0 then that number of
+            processes are used.
+        '''
+
         if self._vb:
             print_sl()
 
@@ -391,7 +507,8 @@ class PhaseAnnealingSettings(PAD):
             print('Outputs directory:', self._sett_misc_outs_dir)
 
             print(
-                'Number of maximum process(es) to use:', self._sett_misc_ncpus)
+                'Number of maximum process(es) to use:',
+                self._sett_misc_ncpus)
 
             print_el()
 
