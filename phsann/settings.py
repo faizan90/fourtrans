@@ -76,7 +76,7 @@ class PhaseAnnealingSettings(PAD):
             normalized asymmetry of the reference and generated realizations.
         asymm_type_2_flag : bool
             Whether to minimize the differences between the second type
-            asymmetry of the reference and generated realizations.
+            normalized asymmetry of the reference and generated realizations.
         ecop_dens_flag : bool
             Whether to minimize the differences between the empirical copula
             density of the reference and generated realizations.
@@ -90,6 +90,15 @@ class PhaseAnnealingSettings(PAD):
             finer the density match between the reference and simulated.
             This parameter is required when the ecop_dens_flag is True.
         '''
+
+        if asymm_type_1_flag or asymm_type_2_flag:
+            print_sl()
+
+            print(
+                'Warning: Normalization of asymmetries might be (is) '
+                'incorrect!')
+
+            print_el()
 
         if self._vb:
             print_sl()
