@@ -44,13 +44,13 @@ def main():
 
     verbose = True
 
-    sim_label = '1016'
+    sim_label = '1018'
 
     plt_show_flag = True
     plt_show_flag = False
 
     long_test_flag = True
-#     long_test_flag = False
+    long_test_flag = False
 
     scorr_flag = True
     asymm_type_1_flag = True
@@ -63,7 +63,7 @@ def main():
     ecop_dens_flag = False
 
     auto_init_temperature_flag = True
-#     auto_init_temperature_flag = False
+    auto_init_temperature_flag = False
 
     normalize_asymms_flag = True
 #     normalize_asymms_flag = False
@@ -168,7 +168,6 @@ def main():
     sim_scorrss = []
     sim_asymmss_1 = []
     sim_asymmss_2 = []
-
     for i in range(n_reals):
         print(reals[i][11])
         sim_scorrss.append(reals[i][3])
@@ -213,7 +212,6 @@ def main():
     col = 0
     probs = phsann_cls._ref_rnk / (phsann_cls._ref_rnk.size + 1)
     for i in range(lag_steps.size):
-#         print(row, col)
         rolled_probs = np.roll(probs, lag_steps[i])
         axes[row, col].scatter(probs, rolled_probs, alpha=0.4)
         axes[row, col].grid()
@@ -266,6 +264,8 @@ def main():
     for j in range(n_reals):
         plt.plot(reals[j][12], alpha=0.1, color='k')
 
+    plt.ylim(0, plt.ylim()[1])
+
     plt.grid()
 
     if plt_show_flag:
@@ -282,6 +282,8 @@ def main():
     for j in range(n_reals):
         plt.plot(reals[j][13], alpha=0.1, color='k')
 
+    plt.ylim(0, plt.ylim()[1])
+
     plt.grid()
 
     if plt_show_flag:
@@ -289,7 +291,7 @@ def main():
 
     else:
         plt.savefig(
-            str(outputs_dir / f'{sim_label}_sim_obj_vals.png'),
+            str(outputs_dir / f'{sim_label}_sim_all_obj_vals.png'),
             bbox_inches='tight')
 
         plt.close()
@@ -297,6 +299,8 @@ def main():
     plt.figure(figsize=(30, 10))
     for j in range(n_reals):
         plt.plot(reals[j][15], alpha=0.1, color='k')
+
+    plt.ylim(0, 1.0)
 
     plt.grid()
 
@@ -306,6 +310,24 @@ def main():
     else:
         plt.savefig(
             str(outputs_dir / f'{sim_label}_sim_acpt_rates.png'),
+            bbox_inches='tight')
+
+        plt.close()
+
+    plt.figure(figsize=(30, 10))
+    for j in range(n_reals):
+        plt.plot(reals[j][16], alpha=0.1, color='k')
+
+    plt.ylim(0, plt.ylim()[1])
+
+    plt.grid()
+
+    if plt_show_flag:
+        plt.show(block=False)
+
+    else:
+        plt.savefig(
+            str(outputs_dir / f'{sim_label}_sim_min_obj_vals.png'),
             bbox_inches='tight')
 
         plt.close()

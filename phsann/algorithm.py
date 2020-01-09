@@ -11,8 +11,6 @@ import numpy as np
 from ..simultexts.misc import print_sl, print_el
 from ..cyth import (
     get_asymms_sample,
-    get_asymm_1_sample,
-    get_asymm_2_sample,
     fill_bi_var_cop_dens,
     )
 
@@ -110,20 +108,12 @@ class PhaseAnnealingAlgorithm(PAP):
 
         runn_iter, iters_wo_acpt, tol, curr_temp = test_vars
 
-        stopp_criteria = False
-
-        if self._alg_ann_runn_auto_init_temp_search_flag:
-            stopp_criteria = (
-                (runn_iter <= self._sett_ann_auto_init_temp_niters),
-                )
-
-        else:
-            stopp_criteria = (
-                (runn_iter <= self._sett_ann_max_iters),
-                (iters_wo_acpt < self._sett_ann_max_iter_wo_chng),
-                (tol > self._sett_ann_obj_tol),
-                (not np.isclose(curr_temp, 0.0)),
-                )
+        stopp_criteria = (
+            (runn_iter <= self._sett_ann_max_iters),
+            (iters_wo_acpt < self._sett_ann_max_iter_wo_chng),
+            (tol > self._sett_ann_obj_tol),
+            (not np.isclose(curr_temp, 0.0)),
+            )
 
         return stopp_criteria
 
@@ -329,6 +319,7 @@ class PhaseAnnealingAlgorithm(PAP):
 
         all_tols = []
         all_obj_vals = []
+        min_obj_vals = []
         acpts_rjts = []
 
         stopp_criteria = self._get_stopp_criteria(
@@ -396,10 +387,14 @@ class PhaseAnnealingAlgorithm(PAP):
 
                 iters_wo_acpt = 0
 
+                min_obj_vals.append(new_obj_val)
+
             else:
                 self._update_sim(new_index, old_phs)
 
                 iters_wo_acpt += 1
+
+                min_obj_vals.append(old_obj_val)
 
             runn_iter += 1
 
@@ -408,8 +403,15 @@ class PhaseAnnealingAlgorithm(PAP):
                     curr_temp *= self._sett_ann_temp_red_ratio
                     assert curr_temp >= 0.0, 'Invalid curr_temp!'
 
-            stopp_criteria = self._get_stopp_criteria(
-                (runn_iter, iters_wo_acpt, tol, curr_temp))
+                    stopp_criteria = self._get_stopp_criteria(
+                        (runn_iter, iters_wo_acpt, tol, curr_temp))
+
+                    iters_wo_acpt = 0
+
+            else:
+                stopp_criteria = (
+                    (runn_iter <= self._sett_ann_auto_init_temp_niters),
+                    )
 
         if self._alg_ann_runn_auto_init_temp_search_flag:
             acpt_rate = sum(acpts_rjts) / len(acpts_rjts)
@@ -441,6 +443,7 @@ class PhaseAnnealingAlgorithm(PAP):
                 np.array(all_obj_vals, dtype=np.float64),
                 acpts_rjts,
                 acpt_rates,
+                np.array(min_obj_vals, dtype=np.float64),
                 )
 
         if self._vb:

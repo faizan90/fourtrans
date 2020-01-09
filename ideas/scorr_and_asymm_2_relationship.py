@@ -35,20 +35,6 @@ def get_alphaed_x(probs, alpha):
     return probs
 
 
-def get_alphaed_y(probs, alpha):
-    probs = probs.copy()
-
-    a_idxs = probs < alpha
-
-    alphaed = probs[a_idxs]
-
-    alphaed = alpha - alphaed
-
-    probs[a_idxs] = alphaed
-
-    return probs
-
-
 def main():
 
     main_dir = Path(
@@ -56,10 +42,10 @@ def main():
 
     os.chdir(main_dir)
 
-    n_vals = 100
+    n_vals = 1000
     n_slices = 100
 
-    asymm_type = 2
+    asymm_type = 1
 
     suff = '1001'
 

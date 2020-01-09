@@ -122,11 +122,6 @@ class PhaseAnnealingSettings(PAD):
             assert normalize_asymms_flag is not None, (
                 'normalize_asymms_flag not a boolean!')
 
-            if normalize_asymms_flag:
-                print(
-                    'Warning: Normalization of asymmetries might be (is) '
-                    'incorrect!')
-
         assert isinstance(lag_steps, np.ndarray), (
             'lag_steps not a numpy arrray!')
 
