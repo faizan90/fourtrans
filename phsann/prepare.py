@@ -76,15 +76,23 @@ class PhaseAnnealingPrepare(PAS):
 
     def _get_asymm_1_max(self, scorr):
 
-        a_max = (
-            0.5 * (1 - scorr)) * (1 - ((0.5 * (1 - scorr)) ** (1.0 / 3.0)))
+        if self._sett_obj_asymms_normalize_flag:
+            a_max = (
+                0.5 * (1 - scorr)) * (1 - ((0.5 * (1 - scorr)) ** (1.0 / 3.0)))
+
+        else:
+            a_max = 1.0
 
         return a_max
 
     def _get_asymm_2_max(self, scorr):
 
-        a_max = (
-            0.5 * (1 + scorr)) * (1 - ((0.5 * (1 + scorr)) ** (1.0 / 3.0)))
+        if self._sett_obj_asymms_normalize_flag:
+            a_max = (
+                0.5 * (1 + scorr)) * (1 - ((0.5 * (1 + scorr)) ** (1.0 / 3.0)))
+
+        else:
+            a_max = 1.0
 
         return a_max
 

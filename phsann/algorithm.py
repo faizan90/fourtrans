@@ -9,6 +9,12 @@ from timeit import default_timer
 import numpy as np
 
 from ..simultexts.misc import print_sl, print_el
+from ..cyth import (
+    get_asymms_sample,
+    get_asymm_1_sample,
+    get_asymm_2_sample,
+    fill_bi_var_cop_dens,
+    )
 
 from .prepare import PhaseAnnealingPrepare as PAP
 
@@ -158,6 +164,64 @@ class PhaseAnnealingAlgorithm(PAP):
         self._sim_nrm = norms
 
         scorrs, asymms_1, asymms_2, ecop_dens_arrs = self._get_obj_vars(probs)
+
+        self._sim_scorrs = scorrs
+        self._sim_asymms_1 = asymms_1
+        self._sim_asymms_2 = asymms_2
+        self._sim_ecop_dens_arrs = ecop_dens_arrs
+        return
+
+    def _update_sim_at_end(self):
+
+        probs = self._sim_rnk / (self._data_ref_shape[0] + 1.0)
+
+        assert np.all((0 < probs) & (probs < 1)), 'probs out of range!'
+
+        scorrs = np.full(self._sett_obj_lag_steps.size, np.nan)
+
+        asymms_1 = np.full(self._sett_obj_lag_steps.size, np.nan)
+
+        asymms_2 = np.full(self._sett_obj_lag_steps.size, np.nan)
+
+        ecop_dens_arrs = np.full(
+            (self._sett_obj_lag_steps.size,
+             self._sett_obj_ecop_dens_bins,
+             self._sett_obj_ecop_dens_bins),
+             np.nan,
+             dtype=np.float64)
+
+        for i, lag in enumerate(self._sett_obj_lag_steps):
+            rolled_probs = np.roll(probs, lag)
+
+            scorrs[i] = np.corrcoef(probs, rolled_probs)[0, 1]
+
+            asymms_1[i], asymms_2[i] = get_asymms_sample(
+                probs, rolled_probs)
+
+            asymms_1[i] = asymms_1[i] / self._get_asymm_1_max(scorrs[i])
+
+            asymms_2[i] = asymms_2[i] / self._get_asymm_2_max(scorrs[i])
+
+            fill_bi_var_cop_dens(
+                probs, rolled_probs, ecop_dens_arrs[i, :, :])
+
+        assert np.all(np.isfinite(scorrs)), 'Invalid values in scorrs!'
+
+        assert np.all((scorrs >= -1.0) & (scorrs <= +1.0)), (
+            'scorrs out of range!')
+
+        assert np.all(np.isfinite(asymms_1)), 'Invalid values in asymms_1!'
+
+        assert np.all((asymms_1 >= -1.0) & (asymms_1 <= +1.0)), (
+            'asymms_1 out of range!')
+
+        assert np.all(np.isfinite(asymms_2)), 'Invalid values in asymms_2!'
+
+        assert np.all((asymms_2 >= -1.0) & (asymms_2 <= +1.0)), (
+            'asymms_2 out of range!')
+
+        assert np.all(np.isfinite(ecop_dens_arrs)), (
+            'Invalid values in ecop_dens_arrs!')
 
         self._sim_scorrs = scorrs
         self._sim_asymms_1 = asymms_1
@@ -353,38 +417,21 @@ class PhaseAnnealingAlgorithm(PAP):
             ret = (acpt_rate, curr_temp)
 
         else:
-            if self._sett_obj_scorr_flag:
-                sim_scorrs = self._sim_scorrs
+            self._update_sim_at_end()
 
-            else:
-                sim_scorrs = np.array([], dtype=float)
-
-            if self._sett_obj_asymm_type_1_flag:
-                sim_asymms_1 = self._sim_asymms_1
-
-            else:
-                sim_asymms_1 = np.array([], dtype=float)
-
-            if self._sett_obj_asymm_type_2_flag:
-                sim_asymms_2 = self._sim_asymms_2
-
-            else:
-                sim_asymms_2 = np.array([], dtype=float)
-
-            if self._sett_obj_ecop_dens_flag:
-                sim_ecop_dens_arrs = self._sim_ecop_dens_arrs
-
-            else:
-                sim_ecop_dens_arrs = np.array([], dtype=float)
+            acpts_rjts = np.array(acpts_rjts, dtype=bool)
+            acpt_rates = (
+                np.cumsum(acpts_rjts) /
+                np.arange(1, acpts_rjts.size + 1, dtype=float))
 
             ret = (
                 self._sim_ft.copy(),
                 self._sim_rnk.copy(),
                 self._sim_nrm.copy(),
-                sim_scorrs.copy(),
-                sim_asymms_1.copy(),
-                sim_asymms_2.copy(),
-                sim_ecop_dens_arrs.copy(),
+                self._sim_scorrs.copy(),
+                self._sim_asymms_1.copy(),
+                self._sim_asymms_2.copy(),
+                self._sim_ecop_dens_arrs.copy(),
                 runn_iter,
                 iters_wo_acpt,
                 tol,
@@ -392,7 +439,8 @@ class PhaseAnnealingAlgorithm(PAP):
                 stopp_criteria,
                 np.array(all_tols, dtype=np.float64),
                 np.array(all_obj_vals, dtype=np.float64),
-                np.array(acpts_rjts, dtype=int),
+                acpts_rjts,
+                acpt_rates,
                 )
 
         if self._vb:

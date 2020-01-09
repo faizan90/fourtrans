@@ -44,7 +44,7 @@ def main():
 
     verbose = True
 
-    sim_label = '1014'
+    sim_label = '1016'
 
     plt_show_flag = True
     plt_show_flag = False
@@ -65,6 +65,9 @@ def main():
     auto_init_temperature_flag = True
 #     auto_init_temperature_flag = False
 
+    normalize_asymms_flag = True
+#     normalize_asymms_flag = False
+
     lag_steps = np.array([1, 2, 3, 4, 5])
     ecop_bins = 20
 
@@ -77,7 +80,7 @@ def main():
         temperature_reduction_ratio = 0.992
         update_at_every_iteration_no = 200
         maximum_iterations = int(2e5)
-        maximum_without_change_iterations = 500
+        maximum_without_change_iterations = 1000
         objective_tolerance = 1e-8
         objective_tolerance_iterations = 30
 
@@ -115,8 +118,6 @@ def main():
 
     in_vals = in_ser.values
 
-    assert np.all(np.isfinite(in_vals))
-
     phsann_cls = PhaseAnnealing(verbose)
 
     phsann_cls.set_reference_data(in_vals)
@@ -127,7 +128,8 @@ def main():
         asymm_type_2_flag,
         ecop_dens_flag,
         lag_steps,
-        ecop_bins)
+        ecop_bins,
+        normalize_asymms_flag)
 
     phsann_cls.set_annealing_settings(
         initial_annealing_temperature,
@@ -161,41 +163,34 @@ def main():
     ref_asymms_1 = phsann_cls._ref_asymms_1
     ref_asymms_2 = phsann_cls._ref_asymms_2
 
+    reals = phsann_cls.get_realizations()
+
     sim_scorrss = []
     sim_asymmss_1 = []
     sim_asymmss_2 = []
 
     for i in range(n_reals):
-        print(phsann_cls._main_alg_reals[i][11])
-        if scorr_flag:
-            sim_scorrss.append(phsann_cls._main_alg_reals[i][3])
+        print(reals[i][11])
+        sim_scorrss.append(reals[i][3])
 
-        if asymm_type_1_flag:
-            sim_asymmss_1.append(phsann_cls._main_alg_reals[i][4])
+        sim_asymmss_1.append(reals[i][4])
 
-        if asymm_type_2_flag:
-            sim_asymmss_2.append(phsann_cls._main_alg_reals[i][5])
+        sim_asymmss_2.append(reals[i][5])
 
     axes = plt.subplots(2, 2, figsize=(15, 15))[1]
 
     for i in range(n_reals):
-        if scorr_flag:
-            axes[0, 1].plot(lag_steps, sim_scorrss[i], alpha=0.3, color='k')
+        axes[0, 1].plot(lag_steps, sim_scorrss[i], alpha=0.3, color='k')
 
-        if asymm_type_1_flag:
-            axes[1, 0].plot(lag_steps, sim_asymmss_1[i], alpha=0.3, color='k')
+        axes[1, 0].plot(lag_steps, sim_asymmss_1[i], alpha=0.3, color='k')
 
-        if asymm_type_2_flag:
-            axes[1, 1].plot(lag_steps, sim_asymmss_2[i], alpha=0.3, color='k')
+        axes[1, 1].plot(lag_steps, sim_asymmss_2[i], alpha=0.3, color='k')
 
-    if scorr_flag:
-        axes[0, 1].plot(lag_steps, ref_scorrs, alpha=0.7, color='r')
+    axes[0, 1].plot(lag_steps, ref_scorrs, alpha=0.7, color='r')
 
-    if asymm_type_1_flag:
-        axes[1, 0].plot(lag_steps, ref_asymms_1, alpha=0.7, color='r')
+    axes[1, 0].plot(lag_steps, ref_asymms_1, alpha=0.7, color='r')
 
-    if asymm_type_2_flag:
-        axes[1, 1].plot(lag_steps, ref_asymms_2, alpha=0.7, color='r')
+    axes[1, 1].plot(lag_steps, ref_asymms_2, alpha=0.7, color='r')
 
     axes[0, 1].grid()
     axes[1, 0].grid()
@@ -245,7 +240,7 @@ def main():
 
         row = 0
         col = 0
-        probs = phsann_cls._main_alg_reals[j][1] / (phsann_cls._ref_rnk.size + 1)
+        probs = reals[j][1] / (phsann_cls._ref_rnk.size + 1)
         for i in range(lag_steps.size):
             rolled_probs = np.roll(probs, lag_steps[i])
             axes[row, col].scatter(probs, rolled_probs, alpha=0.4)
@@ -269,7 +264,7 @@ def main():
 
     plt.figure(figsize=(30, 10))
     for j in range(n_reals):
-        plt.plot(phsann_cls._main_alg_reals[j][12], alpha=0.1, color='k')
+        plt.plot(reals[j][12], alpha=0.1, color='k')
 
     plt.grid()
 
@@ -281,9 +276,11 @@ def main():
             str(outputs_dir / f'{sim_label}_sim_tols.png'),
             bbox_inches='tight')
 
+        plt.close()
+
     plt.figure(figsize=(30, 10))
     for j in range(n_reals):
-        plt.plot(phsann_cls._main_alg_reals[j][13], alpha=0.1, color='k')
+        plt.plot(reals[j][13], alpha=0.1, color='k')
 
     plt.grid()
 
@@ -294,6 +291,24 @@ def main():
         plt.savefig(
             str(outputs_dir / f'{sim_label}_sim_obj_vals.png'),
             bbox_inches='tight')
+
+        plt.close()
+
+    plt.figure(figsize=(30, 10))
+    for j in range(n_reals):
+        plt.plot(reals[j][15], alpha=0.1, color='k')
+
+    plt.grid()
+
+    if plt_show_flag:
+        plt.show(block=False)
+
+    else:
+        plt.savefig(
+            str(outputs_dir / f'{sim_label}_sim_acpt_rates.png'),
+            bbox_inches='tight')
+
+        plt.close()
 
     if plt_show_flag:
         plt.show()
