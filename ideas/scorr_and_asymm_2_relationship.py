@@ -42,10 +42,11 @@ def main():
 
     os.chdir(main_dir)
 
-    n_vals = 1000
+    # works well when n_vals is ca. more than a 1000
+    n_vals = 10000
     n_slices = 100
 
-    asymm_type = 1
+    asymm_type = 2
 
     suff = '1001'
 

@@ -322,6 +322,8 @@ class PhaseAnnealingAlgorithm(PAP):
         min_obj_vals = []
         acpts_rjts = []
 
+        all_phss = []
+
         stopp_criteria = self._get_stopp_criteria(
             (runn_iter, iters_wo_acpt, tol, curr_temp))
 
@@ -339,7 +341,31 @@ class PhaseAnnealingAlgorithm(PAP):
                 index_ctr += 1
 
             old_phs = self._sim_phs_spec[new_index]
+
             new_phs = -np.pi + (2 * np.pi * np.random.random())
+
+            if not self._alg_ann_runn_auto_init_temp_search_flag:
+                new_phs *= (
+                    (self._sett_ann_max_iters - runn_iter) /
+                    self._sett_ann_max_iters)
+
+                new_phs += old_phs
+
+                pi_ctr = 0
+                while not (-np.pi <= new_phs <= +np.pi):
+                    if new_phs > +np.pi:
+                        new_phs = -np.pi + (new_phs - np.pi)
+
+                    elif new_phs < -np.pi:
+                        new_phs = +np.pi + (new_phs + np.pi)
+
+                    if pi_ctr > 100:
+                        raise RuntimeError(
+                            'Could not get a phase that is in range!')
+
+                    pi_ctr += 1
+
+                all_phss.append(new_phs)
 
 #             assert not np.isclose(old_phs, new_phs), 'What are the chances?'
 
@@ -444,6 +470,7 @@ class PhaseAnnealingAlgorithm(PAP):
                 acpts_rjts,
                 acpt_rates,
                 np.array(min_obj_vals, dtype=np.float64),
+                np.array(all_phss, dtype=np.float64),
                 )
 
         if self._vb:

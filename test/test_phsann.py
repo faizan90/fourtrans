@@ -17,6 +17,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 from fourtrans import PhaseAnnealing
@@ -24,6 +25,9 @@ from fourtrans import PhaseAnnealing
 DEBUG_FLAG = False
 
 plt.ioff()
+
+# has to be big enough to accomodate all plotted values
+mpl.rcParams['agg.path.chunksize'] = 100000
 
 
 def main():
@@ -44,13 +48,13 @@ def main():
 
     verbose = True
 
-    sim_label = '1018'
+    sim_label = '1021'
 
     plt_show_flag = True
     plt_show_flag = False
 
     long_test_flag = True
-    long_test_flag = False
+#     long_test_flag = False
 
     scorr_flag = True
     asymm_type_1_flag = True
@@ -63,7 +67,7 @@ def main():
     ecop_dens_flag = False
 
     auto_init_temperature_flag = True
-    auto_init_temperature_flag = False
+#     auto_init_temperature_flag = False
 
     normalize_asymms_flag = True
 #     normalize_asymms_flag = False
@@ -84,7 +88,7 @@ def main():
         objective_tolerance = 1e-8
         objective_tolerance_iterations = 30
 
-        temperature_lower_bound = 1e-7
+        temperature_lower_bound = 1e-6
         temperature_upper_bound = 1000.0
         max_search_attempts = 100
         n_iterations_per_attempt = 3000
@@ -328,6 +332,22 @@ def main():
     else:
         plt.savefig(
             str(outputs_dir / f'{sim_label}_sim_min_obj_vals.png'),
+            bbox_inches='tight')
+
+        plt.close()
+
+    plt.figure(figsize=(30, 10))
+    for j in range(n_reals):
+        plt.plot(reals[j][17], alpha=0.1, color='k')
+
+    plt.grid()
+
+    if plt_show_flag:
+        plt.show(block=False)
+
+    else:
+        plt.savefig(
+            str(outputs_dir / f'{sim_label}_sim_all_phss.png'),
             bbox_inches='tight')
 
         plt.close()
