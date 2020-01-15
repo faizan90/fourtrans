@@ -27,7 +27,7 @@ class PhaseAnnealingSettings(PAD):
         self._sett_obj_ecop_dens_flag = None
         self._sett_obj_lag_steps = None
         self._sett_obj_ecop_dens_bins = 10
-        self._sett_obj_asymms_normalize_flag = None
+        self._sett_obj_asymms_normalize_flag = True
 
         self._sett_ann_init_temp = None
         self._sett_ann_temp_red_ratio = None
@@ -62,8 +62,7 @@ class PhaseAnnealingSettings(PAD):
             asymm_type_2_flag,
             ecop_dens_flag,
             lag_steps,
-            ecop_dens_bins=None,
-            normalize_asymms_flag=None):
+            ecop_dens_bins=None):
 
         '''
         Type of objective functions to use and their respective inputs
@@ -117,11 +116,6 @@ class PhaseAnnealingSettings(PAD):
             ecop_dens_flag,
             ]), 'All objective function flags are False!'
 
-        if asymm_type_1_flag or asymm_type_2_flag:
-
-            assert normalize_asymms_flag is not None, (
-                'normalize_asymms_flag not a boolean!')
-
         assert isinstance(lag_steps, np.ndarray), (
             'lag_steps not a numpy arrray!')
 
@@ -144,9 +138,6 @@ class PhaseAnnealingSettings(PAD):
         self._sett_obj_asymm_type_2_flag = asymm_type_2_flag
         self._sett_obj_ecop_dens_flag = ecop_dens_flag
 
-        if asymm_type_1_flag or asymm_type_2_flag:
-            self._sett_obj_asymms_normalize_flag = normalize_asymms_flag
-
         self._sett_obj_lag_steps = lag_steps
 
         if ecop_dens_flag:
@@ -164,11 +155,6 @@ class PhaseAnnealingSettings(PAD):
             print(
                 'Asymmetry type 2 flag:',
                 self._sett_obj_asymm_type_2_flag)
-
-            if asymm_type_1_flag or asymm_type_2_flag:
-                print(
-                    'Asymmetry normalization flag:',
-                    self._sett_obj_asymms_normalize_flag)
 
             print(
                 'Empirical copula density flag:',

@@ -48,13 +48,13 @@ def main():
 
     verbose = True
 
-    sim_label = '1022'
+    sim_label = '1023'
 
     plt_show_flag = True
     plt_show_flag = False
 
     long_test_flag = True
-#     long_test_flag = False
+    long_test_flag = False
 
     scorr_flag = True
     asymm_type_1_flag = True
@@ -67,11 +67,7 @@ def main():
     ecop_dens_flag = False
 
     auto_init_temperature_flag = True
-#     auto_init_temperature_flag = False
-
-    # TODO: remove this flag!
-    normalize_asymms_flag = True
-#     normalize_asymms_flag = False
+    auto_init_temperature_flag = False
 
     lag_steps = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
     ecop_bins = 20
@@ -133,8 +129,7 @@ def main():
         asymm_type_2_flag,
         ecop_dens_flag,
         lag_steps,
-        ecop_bins,
-        normalize_asymms_flag)
+        ecop_bins)
 
     phsann_cls.set_annealing_settings(
         initial_annealing_temperature,
