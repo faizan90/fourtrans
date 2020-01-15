@@ -48,7 +48,7 @@ def main():
 
     verbose = True
 
-    sim_label = '1021'
+    sim_label = '1022'
 
     plt_show_flag = True
     plt_show_flag = False
@@ -69,10 +69,11 @@ def main():
     auto_init_temperature_flag = True
 #     auto_init_temperature_flag = False
 
+    # TODO: remove this flag!
     normalize_asymms_flag = True
 #     normalize_asymms_flag = False
 
-    lag_steps = np.array([1, 2, 3, 4, 5])
+    lag_steps = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
     ecop_bins = 20
 
     n_reals = 7
@@ -106,8 +107,8 @@ def main():
         objective_tolerance = 1e-8
         objective_tolerance_iterations = 20
 
-        temperature_lower_bound = 1e-7
-        temperature_upper_bound = 200.0
+        temperature_lower_bound = 1e-6
+        temperature_upper_bound = 1000.0
         max_search_attempts = 50
         n_iterations_per_attempt = 1000
         acceptance_lower_bound = 0.5

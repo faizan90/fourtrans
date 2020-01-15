@@ -276,6 +276,47 @@ class PhaseAnnealingAlgorithm(PAP):
 
         return reals
 
+    def _get_new_phs_and_idx(self, old_index, new_index, runn_iter):
+
+        index_ctr = 0
+        while (old_index == new_index):
+            new_index = self._get_sim_index()
+
+            if index_ctr > 100:
+                raise RuntimeError(
+                    'Could not get an index that is different than '
+                    'the previous!')
+
+            index_ctr += 1
+
+        old_phs = self._sim_phs_spec[new_index]
+
+        new_phs = -np.pi + (2 * np.pi * np.random.random())
+
+        if not self._alg_ann_runn_auto_init_temp_search_flag:
+            new_phs *= (
+                (self._sett_ann_max_iters - runn_iter) /
+                self._sett_ann_max_iters)
+
+            new_phs += old_phs
+
+            pi_ctr = 0
+            while not (-np.pi <= new_phs <= +np.pi):
+                if new_phs > +np.pi:
+                    new_phs = -np.pi + (new_phs - np.pi)
+
+                elif new_phs < -np.pi:
+                    new_phs = +np.pi + (new_phs + np.pi)
+
+                if pi_ctr > 100:
+                    raise RuntimeError(
+                        'Could not get a phase that is in range!')
+
+                pi_ctr += 1
+
+#         assert not np.isclose(old_phs, new_phs), 'What are the chances?'
+        return old_phs, new_phs, new_index
+
     def _get_realization_single(self, args):
 
         (real_iter,
@@ -301,6 +342,7 @@ class PhaseAnnealingAlgorithm(PAP):
         if self._data_ref_data.ndim != 1:
             raise NotImplementedError('Implemention for 1D only!')
 
+        # randomize all phases before starting
         self._gen_sim_aux_data()
 
         runn_iter = 1  # 1-index due to temp_ratio
@@ -329,45 +371,8 @@ class PhaseAnnealingAlgorithm(PAP):
 
         while all(stopp_criteria):
 
-            index_ctr = 0
-            while (old_index == new_index):
-                new_index = self._get_sim_index()
-
-                if index_ctr > 100:
-                    raise RuntimeError(
-                        'Could not get an index that is different than '
-                        'the previous!')
-
-                index_ctr += 1
-
-            old_phs = self._sim_phs_spec[new_index]
-
-            new_phs = -np.pi + (2 * np.pi * np.random.random())
-
-            if not self._alg_ann_runn_auto_init_temp_search_flag:
-                new_phs *= (
-                    (self._sett_ann_max_iters - runn_iter) /
-                    self._sett_ann_max_iters)
-
-                new_phs += old_phs
-
-                pi_ctr = 0
-                while not (-np.pi <= new_phs <= +np.pi):
-                    if new_phs > +np.pi:
-                        new_phs = -np.pi + (new_phs - np.pi)
-
-                    elif new_phs < -np.pi:
-                        new_phs = +np.pi + (new_phs + np.pi)
-
-                    if pi_ctr > 100:
-                        raise RuntimeError(
-                            'Could not get a phase that is in range!')
-
-                    pi_ctr += 1
-
-                all_phss.append(new_phs)
-
-#             assert not np.isclose(old_phs, new_phs), 'What are the chances?'
+            old_phs, new_phs, new_index = self._get_new_phs_and_idx(
+                old_index, new_index, runn_iter)
 
             self._update_sim(new_index, new_phs)
 
@@ -390,6 +395,9 @@ class PhaseAnnealingAlgorithm(PAP):
 
             tols.append(abs(old_obj_val - new_obj_val))
 
+            if not self._alg_ann_runn_auto_init_temp_search_flag:
+                all_phss.append(new_phs)
+
             if runn_iter >= tols.maxlen:
                 tol = sum(tols) / float(tols.maxlen)
                 assert np.isfinite(tol), 'Invalid tol!'
@@ -397,14 +405,6 @@ class PhaseAnnealingAlgorithm(PAP):
                 all_tols.append(tol)
 
             all_obj_vals.append(new_obj_val)
-
-#             if self._vb:
-#                 print(
-#                     runn_iter,
-#                     curr_temp,
-#                     accept_flag,
-#                     old_obj_val,
-#                     new_obj_val)
 
             if accept_flag:
                 old_index = new_index
