@@ -127,7 +127,7 @@ class PhaseAnnealingSettings(PAD):
         assert np.unique(lag_steps).size == lag_steps.size, (
             'Non-unique values in lag_steps!')
 
-        if ecop_dens_flag:
+        if ecop_dens_bins is not None:
             assert isinstance(ecop_dens_bins, int), (
                 'ecop_dens_bins is not an integer!')
 
@@ -140,7 +140,7 @@ class PhaseAnnealingSettings(PAD):
 
         self._sett_obj_lag_steps = lag_steps
 
-        if ecop_dens_flag:
+        if ecop_dens_bins is not None:
             self._sett_obj_ecop_dens_bins = ecop_dens_bins
 
         if self._vb:

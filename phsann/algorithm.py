@@ -425,8 +425,11 @@ class PhaseAnnealingAlgorithm(PAP):
             runn_iter += 1
 
             if not self._alg_ann_runn_auto_init_temp_search_flag:
+
                 if not (runn_iter % self._sett_ann_upt_evry_iter):
+
                     curr_temp *= self._sett_ann_temp_red_ratio
+
                     assert curr_temp >= 0.0, 'Invalid curr_temp!'
 
                     stopp_criteria = self._get_stopp_criteria(
@@ -448,6 +451,7 @@ class PhaseAnnealingAlgorithm(PAP):
             self._update_sim_at_end()
 
             acpts_rjts = np.array(acpts_rjts, dtype=bool)
+
             acpt_rates = (
                 np.cumsum(acpts_rjts) /
                 np.arange(1, acpts_rjts.size + 1, dtype=float))

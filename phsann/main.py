@@ -11,6 +11,10 @@ from pathos.multiprocessing import ProcessPool
 import numpy as np
 
 from ..simultexts.misc import print_sl, print_el, ret_mp_idxs
+from ..cyth import (
+    get_asymms_sample,
+    fill_bi_var_cop_dens,
+    )
 
 from .algorithm import PhaseAnnealingAlgorithm as PAA
 
@@ -58,6 +62,64 @@ class PhaseAnnealing(PAA):
 
         self._main_reals_gen_flag = False
         self._main_verify_flag = False
+        return
+
+    def _update_ref_at_end(self):
+
+        probs = self._ref_rnk / (self._data_ref_shape[0] + 1.0)
+
+        assert np.all((0 < probs) & (probs < 1)), 'probs out of range!'
+
+        scorrs = np.full(self._sett_obj_lag_steps.size, np.nan)
+
+        asymms_1 = np.full(self._sett_obj_lag_steps.size, np.nan)
+
+        asymms_2 = np.full(self._sett_obj_lag_steps.size, np.nan)
+
+        ecop_dens_arrs = np.full(
+            (self._sett_obj_lag_steps.size,
+             self._sett_obj_ecop_dens_bins,
+             self._sett_obj_ecop_dens_bins),
+             np.nan,
+             dtype=np.float64)
+
+        for i, lag in enumerate(self._sett_obj_lag_steps):
+            rolled_probs = np.roll(probs, lag)
+
+            scorrs[i] = np.corrcoef(probs, rolled_probs)[0, 1]
+
+            asymms_1[i], asymms_2[i] = get_asymms_sample(
+                probs, rolled_probs)
+
+            asymms_1[i] = asymms_1[i] / self._get_asymm_1_max(scorrs[i])
+
+            asymms_2[i] = asymms_2[i] / self._get_asymm_2_max(scorrs[i])
+
+            fill_bi_var_cop_dens(
+                probs, rolled_probs, ecop_dens_arrs[i, :, :])
+
+        assert np.all(np.isfinite(scorrs)), 'Invalid values in scorrs!'
+
+        assert np.all((scorrs >= -1.0) & (scorrs <= +1.0)), (
+            'scorrs out of range!')
+
+        assert np.all(np.isfinite(asymms_1)), 'Invalid values in asymms_1!'
+
+        assert np.all((asymms_1 >= -1.0) & (asymms_1 <= +1.0)), (
+            'asymms_1 out of range!')
+
+        assert np.all(np.isfinite(asymms_2)), 'Invalid values in asymms_2!'
+
+        assert np.all((asymms_2 >= -1.0) & (asymms_2 <= +1.0)), (
+            'asymms_2 out of range!')
+
+        assert np.all(np.isfinite(ecop_dens_arrs)), (
+            'Invalid values in ecop_dens_arrs!')
+
+        self._ref_scorrs = scorrs
+        self._ref_asymms_1 = asymms_1
+        self._ref_asymms_2 = asymms_2
+        self._ref_ecop_dens_arrs = ecop_dens_arrs
         return
 
     def _auto_temp_search(self):
@@ -220,6 +282,8 @@ class PhaseAnnealing(PAA):
             self._auto_temp_search()
 
         self._generate_realizations_regular()
+
+        self._update_ref_at_end()
 
         self._main_reals_gen_flag = True
         return

@@ -48,7 +48,7 @@ def main():
 
     verbose = True
 
-    sim_label = '1023'
+    sim_label = '1024'
 
     plt_show_flag = True
     plt_show_flag = False
@@ -72,7 +72,7 @@ def main():
     lag_steps = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
     ecop_bins = 20
 
-    n_reals = 7
+    n_reals = 1
     outputs_dir = main_dir
     n_cpus = 'auto'
 
@@ -162,12 +162,17 @@ def main():
     ref_scorrs = phsann_cls._ref_scorrs
     ref_asymms_1 = phsann_cls._ref_asymms_1
     ref_asymms_2 = phsann_cls._ref_asymms_2
+    ref_ecop_denss = phsann_cls._ref_ecop_dens_arrs
 
     reals = phsann_cls.get_realizations()
 
+    #==========================================================================
+    # bring data togather
+    #==========================================================================
     sim_scorrss = []
     sim_asymmss_1 = []
     sim_asymmss_2 = []
+    sim_ecop_denss = []
     for i in range(n_reals):
         print(reals[i][11])
         sim_scorrss.append(reals[i][3])
@@ -176,6 +181,11 @@ def main():
 
         sim_asymmss_2.append(reals[i][5])
 
+        sim_ecop_denss.append(reals[i][6])
+
+    #==========================================================================
+    # plot lag scorrs and asymms
+    #==========================================================================
     axes = plt.subplots(2, 2, figsize=(15, 15))[1]
 
     for i in range(n_reals):
@@ -205,6 +215,9 @@ def main():
 
         plt.close()
 
+    #==========================================================================
+    # plot reference ecops
+    #==========================================================================
     rows_cols = int(ceil(lag_steps.size ** 0.5))
     axes = plt.subplots(rows_cols, rows_cols, figsize=(15, 15))[1]
 
@@ -227,11 +240,14 @@ def main():
 
     else:
         plt.savefig(
-            str(outputs_dir / f'{sim_label}_ref_probs_lags.png'),
+            str(outputs_dir / f'{sim_label}_ecops_ref.png'),
             bbox_inches='tight')
 
         plt.close()
 
+    #==========================================================================
+    # plot simulated ecops
+    #==========================================================================
     for j in range(n_reals):
         rows_cols = int(ceil(lag_steps.size ** 0.5))
         axes = plt.subplots(rows_cols, rows_cols, figsize=(15, 15))[1]
@@ -255,11 +271,14 @@ def main():
 
         else:
             plt.savefig(
-                str(outputs_dir / f'{sim_label}_sim_{j}_probs_lags.png'),
+                str(outputs_dir / f'{sim_label}_ecops_sim_{j}.png'),
                 bbox_inches='tight')
 
             plt.close()
 
+    #==========================================================================
+    # plot sim tolerances
+    #==========================================================================
     plt.figure(figsize=(30, 10))
     for j in range(n_reals):
         plt.plot(reals[j][12], alpha=0.1, color='k')
@@ -273,11 +292,14 @@ def main():
 
     else:
         plt.savefig(
-            str(outputs_dir / f'{sim_label}_sim_tols.png'),
+            str(outputs_dir / f'{sim_label}_tols.png'),
             bbox_inches='tight')
 
         plt.close()
 
+    #==========================================================================
+    # plot sim obj vals
+    #==========================================================================
     plt.figure(figsize=(30, 10))
     for j in range(n_reals):
         plt.plot(reals[j][13], alpha=0.1, color='k')
@@ -291,11 +313,14 @@ def main():
 
     else:
         plt.savefig(
-            str(outputs_dir / f'{sim_label}_sim_all_obj_vals.png'),
+            str(outputs_dir / f'{sim_label}_obj_vals_all.png'),
             bbox_inches='tight')
 
         plt.close()
 
+    #==========================================================================
+    # plot sim acceptance rates
+    #==========================================================================
     plt.figure(figsize=(30, 10))
     for j in range(n_reals):
         plt.plot(reals[j][15], alpha=0.1, color='k')
@@ -309,11 +334,14 @@ def main():
 
     else:
         plt.savefig(
-            str(outputs_dir / f'{sim_label}_sim_acpt_rates.png'),
+            str(outputs_dir / f'{sim_label}_acpt_rates.png'),
             bbox_inches='tight')
 
         plt.close()
 
+    #==========================================================================
+    # plot sim min obj vals
+    #==========================================================================
     plt.figure(figsize=(30, 10))
     for j in range(n_reals):
         plt.plot(reals[j][16], alpha=0.1, color='k')
@@ -327,11 +355,14 @@ def main():
 
     else:
         plt.savefig(
-            str(outputs_dir / f'{sim_label}_sim_min_obj_vals.png'),
+            str(outputs_dir / f'{sim_label}_obj_vals_min.png'),
             bbox_inches='tight')
 
         plt.close()
 
+    #==========================================================================
+    # plot sim phases
+    #==========================================================================
     plt.figure(figsize=(30, 10))
     for j in range(n_reals):
         plt.plot(reals[j][17], alpha=0.1, color='k')
@@ -343,10 +374,88 @@ def main():
 
     else:
         plt.savefig(
-            str(outputs_dir / f'{sim_label}_sim_all_phss.png'),
+            str(outputs_dir / f'{sim_label}_phss_all.png'),
             bbox_inches='tight')
 
         plt.close()
+
+    #==========================================================================
+    # plot reference ecop densities
+    #==========================================================================
+    rows_cols = int(ceil(lag_steps.size ** 0.5))
+    axes = plt.subplots(rows_cols, rows_cols, figsize=(15, 15))[1]
+
+    dx = 1.0 / (ref_ecop_denss.shape[2] + 1.0)
+    dy = dx
+
+    y, x = np.mgrid[slice(dx, 1.0, dy), slice(dx, 1.0, dx)]
+
+    row = 0
+    col = 0
+    for i in range(lag_steps.size):
+        axes[row, col].pcolormesh(
+            x,
+            y,
+            ref_ecop_denss[i],
+            cmap='Blues',
+            alpha=0.9,
+            vmin=ref_ecop_denss.min(),
+            vmax=ref_ecop_denss.max())
+
+        axes[row, col].set_title(f'lag_step: {lag_steps[i]}')
+        axes[row, col].set_aspect('equal')
+
+        col += 1
+        if not (col % rows_cols):
+            row += 1
+            col = 0
+
+    if plt_show_flag:
+        plt.show(block=False)
+
+    else:
+        plt.savefig(
+            str(outputs_dir / f'{sim_label}_ecop_dens_ref.png'),
+            bbox_inches='tight')
+
+        plt.close()
+
+    #==========================================================================
+    # plot simulated ecop densities
+    #==========================================================================
+    for j in range(n_reals):
+        rows_cols = int(ceil(lag_steps.size ** 0.5))
+        axes = plt.subplots(rows_cols, rows_cols, figsize=(15, 15))[1]
+
+        row = 0
+        col = 0
+        for i in range(lag_steps.size):
+            axes[row, col].pcolormesh(
+                x,
+                y,
+                sim_ecop_denss[j][i],
+                cmap='Blues',
+                alpha=0.9,
+                vmin=ref_ecop_denss.min(),
+                vmax=ref_ecop_denss.max())
+
+            axes[row, col].set_title(f'lag_step: {lag_steps[i]}')
+            axes[row, col].set_aspect('equal')
+
+            col += 1
+            if not (col % rows_cols):
+                row += 1
+                col = 0
+
+        if plt_show_flag:
+            plt.show(block=False)
+
+        else:
+            plt.savefig(
+                str(outputs_dir / f'{sim_label}_ecop_dens_sim_{j}.png'),
+                bbox_inches='tight')
+
+            plt.close()
 
     if plt_show_flag:
         plt.show()
