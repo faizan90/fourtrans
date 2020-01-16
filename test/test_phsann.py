@@ -48,7 +48,7 @@ def main():
 
     verbose = True
 
-    sim_label = '1024'
+    sim_label = '1025'
 
     plt_show_flag = True
     plt_show_flag = False
@@ -67,12 +67,12 @@ def main():
     ecop_dens_flag = False
 
     auto_init_temperature_flag = True
-    auto_init_temperature_flag = False
+#     auto_init_temperature_flag = False
 
     lag_steps = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
     ecop_bins = 20
 
-    n_reals = 1
+    n_reals = 7
     outputs_dir = main_dir
     n_cpus = 'auto'
 

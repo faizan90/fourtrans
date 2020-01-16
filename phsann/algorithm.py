@@ -7,8 +7,9 @@ from collections import deque
 from timeit import default_timer
 
 import numpy as np
+from pathos.multiprocessing import ProcessPool
 
-from ..simultexts.misc import print_sl, print_el
+from ..simultexts.misc import print_sl, print_el, ret_mp_idxs
 from ..cyth import (
     get_asymms_sample,
     fill_bi_var_cop_dens,
@@ -28,6 +29,12 @@ class PhaseAnnealingAlgorithm(PAP):
         self._alg_sim_ann_init_temps = None
 
         self._alg_ann_runn_auto_init_temp_search_flag = False
+
+        self._alg_rltzns = None
+
+        self._alg_auto_temp_search_ress = None
+
+        self._alg_rltzns_gen_flag = False
 
         self._alg_verify_flag = False
         return
@@ -161,9 +168,9 @@ class PhaseAnnealingAlgorithm(PAP):
         self._sim_ecop_dens_arrs = ecop_dens_arrs
         return
 
-    def _update_sim_at_end(self):
+    def _update_at_end(self, rnks):
 
-        probs = self._sim_rnk / (self._data_ref_shape[0] + 1.0)
+        probs = rnks / (self._data_ref_shape[0] + 1.0)
 
         assert np.all((0 < probs) & (probs < 1)), 'probs out of range!'
 
@@ -213,10 +220,24 @@ class PhaseAnnealingAlgorithm(PAP):
         assert np.all(np.isfinite(ecop_dens_arrs)), (
             'Invalid values in ecop_dens_arrs!')
 
-        self._sim_scorrs = scorrs
-        self._sim_asymms_1 = asymms_1
-        self._sim_asymms_2 = asymms_2
-        self._sim_ecop_dens_arrs = ecop_dens_arrs
+        return scorrs, asymms_1, asymms_2, ecop_dens_arrs
+
+    def _update_ref_at_end(self):
+
+        (self._ref_scorrs,
+         self._ref_asymms_1,
+         self._ref_asymms_2,
+         self._ref_ecop_dens_arrs) = self._update_at_end(self._ref_rnk)
+
+        return
+
+    def _update_sim_at_end(self):
+
+        (self._sim_scorrs,
+         self._sim_asymms_1,
+         self._sim_asymms_2,
+         self._sim_ecop_dens_arrs) = self._update_at_end(self._sim_rnk)
+
         return
 
     def _get_sim_index(self):
@@ -231,34 +252,34 @@ class PhaseAnnealingAlgorithm(PAP):
 
     def _get_realization_multi(self, args):
 
-        ((real_iter_beg, real_iter_end),
+        ((rltzn_iter_beg, rltzn_iter_end),
         ) = args
 
-        reals = []
+        rltzns = []
         pre_init_temps = []
         pre_acpt_rates = []
 
-        for real_iter in range(real_iter_beg, real_iter_end):
-            real_args = (
-                real_iter,
+        for rltzn_iter in range(rltzn_iter_beg, rltzn_iter_end):
+            rltzn_args = (
+                rltzn_iter,
                 pre_init_temps,
                 pre_acpt_rates,
-                self._alg_sim_ann_init_temps[real_iter],
+                self._alg_sim_ann_init_temps[rltzn_iter],
                 )
 
-            real = self._get_realization_single(real_args)
+            rltzn = self._get_realization_single(rltzn_args)
 
-            reals.append(real)
+            rltzns.append(rltzn)
 
             if self._alg_ann_runn_auto_init_temp_search_flag:
-                pre_acpt_rates.append(real[0])
-                pre_init_temps.append(real[1])
+                pre_acpt_rates.append(rltzn[0])
+                pre_init_temps.append(rltzn[1])
 
                 if self._vb:
-                    print('acpt_rate:', real[0], 'init_temp:', real[1])
+                    print('acpt_rate:', rltzn[0], 'init_temp:', rltzn[1])
                     print('\n')
 
-                if real[0] >= self._sett_ann_auto_init_temp_acpt_bd_hi:
+                if rltzn[0] >= self._sett_ann_auto_init_temp_acpt_bd_hi:
                     if self._vb:
                         print(
                             'Acceptance is at upper bounds, not looking '
@@ -266,7 +287,7 @@ class PhaseAnnealingAlgorithm(PAP):
 
                     break
 
-                if real[1] >= self._sett_ann_auto_init_temp_temp_bd_hi:
+                if rltzn[1] >= self._sett_ann_auto_init_temp_temp_bd_hi:
                     if self._vb:
                         print(
                             'Reached upper bounds of temperature, '
@@ -274,7 +295,7 @@ class PhaseAnnealingAlgorithm(PAP):
 
                     break
 
-        return reals
+        return rltzns
 
     def _get_new_phs_and_idx(self, old_index, new_index, runn_iter):
 
@@ -319,25 +340,25 @@ class PhaseAnnealingAlgorithm(PAP):
 
     def _get_realization_single(self, args):
 
-        (real_iter,
+        (rltzn_iter,
          pre_init_temps,
          pre_acpt_rates,
          init_temp) = args
 
-        assert isinstance(real_iter, int), 'real_iter not integer!'
+        assert isinstance(rltzn_iter, int), 'rltzn_iter not integer!'
 
         if self._alg_ann_runn_auto_init_temp_search_flag:
-            assert 0 <= real_iter < self._sett_ann_auto_init_temp_atpts, (
-                    'Invalid real_iter!')
+            assert 0 <= rltzn_iter < self._sett_ann_auto_init_temp_atpts, (
+                    'Invalid rltzn_iter!')
 
         else:
-            assert 0 <= real_iter < self._sett_misc_nreals, (
-                    'Invalid real_iter!')
+            assert 0 <= rltzn_iter < self._sett_misc_n_rltzns, (
+                    'Invalid rltzn_iter!')
 
         if self._vb:
             timer_beg = default_timer()
 
-            print(f'Starting realization at index {real_iter}...')
+            print(f'Starting realization at index {rltzn_iter}...')
 
         if self._data_ref_data.ndim != 1:
             raise NotImplementedError('Implemention for 1D only!')
@@ -350,7 +371,7 @@ class PhaseAnnealingAlgorithm(PAP):
         tol = np.inf
 
         curr_temp = self._get_init_temp(
-            real_iter, pre_init_temps, pre_acpt_rates, init_temp)
+            rltzn_iter, pre_init_temps, pre_acpt_rates, init_temp)
 
         old_obj_val = self._get_obj_ftn_val()
 
@@ -481,10 +502,182 @@ class PhaseAnnealingAlgorithm(PAP):
             timer_end = default_timer()
 
             print(
-                f'Done with realization at index {real_iter} in '
+                f'Done with realization at index {rltzn_iter} in '
                 f'{timer_end - timer_beg:0.3f} seconds.')
 
         return ret
+
+    def _auto_temp_search(self):
+
+        if self._vb:
+            print_sl()
+
+            print('Generating auto_init_temp realizations...')
+
+            print_el()
+
+        assert self._alg_verify_flag, 'Call verify first!'
+
+        self._alg_ann_runn_auto_init_temp_search_flag = True
+
+        self._alg_sim_ann_init_temps = (
+            [self._sett_ann_init_temp] * self._sett_ann_auto_init_temp_atpts)
+
+        ann_init_temps = []
+        auto_temp_search_ress = []
+
+        rltzns_gen = (
+            (
+            (0, self._sett_ann_auto_init_temp_atpts),
+            )
+            for i in range(self._sett_misc_n_rltzns))
+
+        if self._sett_misc_n_cpus > 1:
+
+            mp_pool = ProcessPool(self._sett_misc_n_cpus)
+
+            mp_rets = list(
+                mp_pool.uimap(self._get_realization_multi, rltzns_gen))
+
+            mp_pool = None
+
+        else:
+            mp_rets = []
+            for rltzn_args in rltzns_gen:
+                mp_rets.append(self._get_realization_multi(rltzn_args))
+
+        if self._vb:
+            print(
+                'Selected the following temperatures with their '
+                'corresponding acceptance rates:')
+
+        not_acptd_ct = 0
+        for i in range(self._sett_misc_n_rltzns):
+            acpt_rates_temps = np.atleast_2d(mp_rets[i])
+
+            auto_temp_search_ress.append(acpt_rates_temps)
+
+            within_range_idxs = (
+                (self._sett_ann_auto_init_temp_acpt_bd_lo <=
+                 acpt_rates_temps[:, 0]) &
+                (self._sett_ann_auto_init_temp_acpt_bd_hi >=
+                 acpt_rates_temps[:, 0]))
+
+            if not within_range_idxs.sum():
+                acpt_rate = np.nan
+                ann_init_temp = np.nan
+
+            else:
+                acpt_rates_temps = np.atleast_2d(
+                    acpt_rates_temps[within_range_idxs, :])
+
+                best_acpt_rate_idx = np.argmin(
+                    (acpt_rates_temps[:, 0] -
+                     self._sett_ann_auto_init_temp_trgt_acpt_rate) ** 2)
+
+                acpt_rate, ann_init_temp = acpt_rates_temps[
+                    best_acpt_rate_idx, :]
+
+            ann_init_temps.append(ann_init_temp)
+
+            if not (
+                self._sett_ann_auto_init_temp_acpt_bd_lo <=
+                acpt_rate <=
+                self._sett_ann_auto_init_temp_acpt_bd_hi):
+
+                not_acptd_ct += 1
+
+            if self._vb:
+                print(f'Realization {i:04d}:', ann_init_temp, acpt_rate)
+
+        if self._vb:
+            print('\n')
+
+        if not_acptd_ct:
+            raise RuntimeError(
+                f'Could not find optimal simulated annealing inital '
+                f'temperatures for {not_acptd_ct} out of '
+                f'{self._sett_misc_n_rltzns} simulations!')
+
+        self._alg_sim_ann_init_temps = ann_init_temps
+        self._alg_auto_temp_search_ress = auto_temp_search_ress
+
+        if self._vb:
+            print_sl()
+
+            print('Done generating auto_init_temp realizations.')
+
+            print_el()
+
+        self._alg_ann_runn_auto_init_temp_search_flag = False
+        return
+
+    def _generate_realizations_regular(self):
+
+        if self._vb:
+            print_sl()
+
+            print('Generating regular realizations...')
+
+            print_el()
+
+        assert self._alg_verify_flag, 'Call verify first!'
+
+        self._alg_rltzns = []
+
+        mp_idxs = ret_mp_idxs(self._sett_misc_n_rltzns, self._sett_misc_n_cpus)
+
+        rltzns_gen = (
+            (
+            (mp_idxs[i], mp_idxs[i + 1]),
+            )
+            for i in range(mp_idxs.size - 1))
+
+        if self._sett_misc_n_cpus > 1:
+
+            mp_pool = ProcessPool(self._sett_misc_n_cpus)
+
+            mp_rets = list(
+                mp_pool.uimap(self._get_realization_multi, rltzns_gen))
+
+            mp_pool = None
+
+            for i in range(self._sett_misc_n_cpus):
+                self._alg_rltzns.extend(mp_rets[i])
+
+        else:
+            for rltzn_args in rltzns_gen:
+                self._alg_rltzns.extend(
+                    self._get_realization_multi(rltzn_args))
+
+        if self._vb:
+            print_sl()
+
+            print('Done generating regular realizations.')
+
+            print_el()
+
+        return
+
+    def generate_realizations(self):
+
+        '''Start the phase annealing algorithm'''
+
+        if self._sett_auto_temp_set_flag:
+            self._auto_temp_search()
+
+        self._generate_realizations_regular()
+
+        self._update_ref_at_end()
+
+        self._alg_rltzns_gen_flag = True
+        return
+
+    def get_realizations(self):
+
+        assert self._alg_rltzns_gen_flag, 'Call generate realizations first!'
+
+        return self._alg_rltzns
 
     def verify(self):
 
@@ -492,7 +685,7 @@ class PhaseAnnealingAlgorithm(PAP):
         assert self._prep_verify_flag, 'Prepare in an unverified state!'
 
         self._alg_sim_ann_init_temps = (
-            [self._sett_ann_init_temp] * self._sett_misc_nreals)
+            [self._sett_ann_init_temp] * self._sett_misc_n_rltzns)
 
         if self._vb:
             print_sl()

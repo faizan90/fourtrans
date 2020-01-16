@@ -44,8 +44,8 @@ class PhaseAnnealingSettings(PAD):
         self._sett_ann_auto_init_temp_trgt_acpt_rate = None
         self._sett_ann_auto_init_temp_ramp_rate = None
 
-        self._sett_misc_nreals = 1
-        self._sett_misc_ncpus = 1
+        self._sett_misc_n_rltzns = 1
+        self._sett_misc_n_cpus = 1
 
         self._sett_obj_set_flag = False
         self._sett_ann_set_flag = False
@@ -448,14 +448,14 @@ class PhaseAnnealingSettings(PAD):
         self._sett_auto_temp_set_flag = True
         return
 
-    def set_misc_settings(self, n_reals, outputs_dir, n_cpus=1):
+    def set_misc_settings(self, n_rltzns, outputs_dir, n_cpus=1):
 
         '''
         Some more parameters
 
         Parameters
         ----------
-        n_reals : integer
+        n_rltzns : integer
             The number of realizations to generate. Should be > 0
         outputs_dir : str, Path-like
             Path to the directory where the outputs will be stored.
@@ -472,8 +472,8 @@ class PhaseAnnealingSettings(PAD):
 
             print('Setting misc. settings for phase annealing...\n')
 
-        assert isinstance(n_reals, int), 'n_reals not an integer!'
-        assert 0 < n_reals, 'Invalid n_reals!'
+        assert isinstance(n_rltzns, int), 'n_rltzns not an integer!'
+        assert 0 < n_rltzns, 'Invalid n_rltzns!'
 
         outputs_dir = Path(outputs_dir)
 
@@ -495,21 +495,21 @@ class PhaseAnnealingSettings(PAD):
 
             assert n_cpus > 0, 'Invalid n_cpus!'
 
-        if n_reals < n_cpus:
-            n_cpus = n_reals
+        if n_rltzns < n_cpus:
+            n_cpus = n_rltzns
 
-        self._sett_misc_nreals = n_reals
+        self._sett_misc_n_rltzns = n_rltzns
         self._sett_misc_outs_dir = outputs_dir
-        self._sett_misc_ncpus = n_cpus
+        self._sett_misc_n_cpus = n_cpus
 
         if self._vb:
-            print('Number of realizations:', self._sett_misc_nreals)
+            print('Number of realizations:', self._sett_misc_n_rltzns)
 
             print('Outputs directory:', self._sett_misc_outs_dir)
 
             print(
                 'Number of maximum process(es) to use:',
-                self._sett_misc_ncpus)
+                self._sett_misc_n_cpus)
 
             print_el()
 
