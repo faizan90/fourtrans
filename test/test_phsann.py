@@ -10,7 +10,6 @@ import os
 import sys
 import time
 import timeit
-from math import ceil
 import traceback as tb
 from pathlib import Path
 
@@ -20,7 +19,7 @@ import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-from fourtrans import PhaseAnnealing
+from fourtrans import PhaseAnnealing, PhaseAnnealingPlot
 
 DEBUG_FLAG = True
 
@@ -48,11 +47,15 @@ def main():
 
     verbose = True
 
-    sim_label = '1025'
+    sim_label = '1026'
 
-    plt_show_flag = True
-    plt_show_flag = False
-    plt_show_flag = None
+    h5_name = 'phsann.h5'
+
+    gen_rltzns_flag = True
+#     gen_rltzns_flag = False
+
+    plt_flag = True
+#     plt_flag = False
 
     long_test_flag = True
     long_test_flag = False
@@ -70,12 +73,12 @@ def main():
     auto_init_temperature_flag = True
     auto_init_temperature_flag = False
 
-    lag_steps = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+    lag_steps = np.array([1, 2, 3, 4, 5, 6, 7])
     ecop_bins = 20
 
-    n_reals = 10
+    n_reals = 3
     outputs_dir = main_dir / sim_label
-    n_cpus = 'auto'
+    n_cpus = 1  # 'auto'
 
     if long_test_flag:
         initial_annealing_temperature = 0.0001
@@ -113,358 +116,69 @@ def main():
         target_acpt_rate = 0.7
         ramp_rate = 2.0
 
-    in_df = pd.read_csv(in_file_path, index_col=0, sep=sep)
-    in_df.index = pd.to_datetime(in_df.index, format=time_fmt)
+    if gen_rltzns_flag:
+        in_df = pd.read_csv(in_file_path, index_col=0, sep=sep)
+        in_df.index = pd.to_datetime(in_df.index, format=time_fmt)
 
-    in_ser = in_df.loc[beg_time:end_time, stn_no]
+        in_ser = in_df.loc[beg_time:end_time, stn_no]
 
-    in_vals = in_ser.values
+        in_vals = in_ser.values
 
-    phsann_cls = PhaseAnnealing(verbose)
+        phsann_cls = PhaseAnnealing(verbose)
 
-    phsann_cls.set_reference_data(in_vals)
+        phsann_cls.set_reference_data(in_vals)
 
-    phsann_cls.set_objective_settings(
-        scorr_flag,
-        asymm_type_1_flag,
-        asymm_type_2_flag,
-        ecop_dens_flag,
-        lag_steps,
-        ecop_bins)
+        phsann_cls.set_objective_settings(
+            scorr_flag,
+            asymm_type_1_flag,
+            asymm_type_2_flag,
+            ecop_dens_flag,
+            lag_steps,
+            ecop_bins)
 
-    phsann_cls.set_annealing_settings(
-        initial_annealing_temperature,
-        temperature_reduction_ratio,
-        update_at_every_iteration_no,
-        maximum_iterations,
-        maximum_without_change_iterations,
-        objective_tolerance,
-        objective_tolerance_iterations)
+        phsann_cls.set_annealing_settings(
+            initial_annealing_temperature,
+            temperature_reduction_ratio,
+            update_at_every_iteration_no,
+            maximum_iterations,
+            maximum_without_change_iterations,
+            objective_tolerance,
+            objective_tolerance_iterations)
 
-    if auto_init_temperature_flag:
-        phsann_cls.set_annealing_auto_temperature_settings(
-                temperature_lower_bound,
-                temperature_upper_bound,
-                max_search_attempts,
-                n_iterations_per_attempt,
-                acceptance_lower_bound,
-                acceptance_upper_bound,
-                target_acpt_rate,
-                ramp_rate)
+        if auto_init_temperature_flag:
+            phsann_cls.set_annealing_auto_temperature_settings(
+                    temperature_lower_bound,
+                    temperature_upper_bound,
+                    max_search_attempts,
+                    n_iterations_per_attempt,
+                    acceptance_lower_bound,
+                    acceptance_upper_bound,
+                    target_acpt_rate,
+                    ramp_rate)
 
-    phsann_cls.set_misc_settings(n_reals, outputs_dir, n_cpus)
+        phsann_cls.set_misc_settings(n_reals, outputs_dir, n_cpus)
 
-    phsann_cls.prepare()
+        phsann_cls.prepare()
 
-    phsann_cls.verify()
+        phsann_cls.verify()
 
-    phsann_cls.generate_realizations()
+        phsann_cls.generate_realizations()
 
-    ref_scorrs = phsann_cls._ref_scorrs
-    ref_asymms_1 = phsann_cls._ref_asymms_1
-    ref_asymms_2 = phsann_cls._ref_asymms_2
-    ref_ecop_denss = phsann_cls._ref_ecop_dens_arrs
+        phsann_cls.save_realizations()
 
-    phsann_cls.save_realizations()
-
-    if plt_show_flag is None:
-        return
+    if plt_flag:
+        phsann_plt_cls = PhaseAnnealingPlot(verbose)
 
-    reals = phsann_cls.get_realizations()
-
-    #==========================================================================
-    # bring data togather
-    #==========================================================================
-    sim_scorrss = []
-    sim_asymmss_1 = []
-    sim_asymmss_2 = []
-    sim_ecop_denss = []
-    for i in range(n_reals):
-        print(reals[i][11])
-        sim_scorrss.append(reals[i][3])
+        phsann_plt_cls.set_input(outputs_dir / h5_name)
 
-        sim_asymmss_1.append(reals[i][4])
+        phsann_plt_cls.set_output(outputs_dir)
 
-        sim_asymmss_2.append(reals[i][5])
-
-        sim_ecop_denss.append(reals[i][6])
-
-    #==========================================================================
-    # plot lag scorrs and asymms
-    #==========================================================================
-    axes = plt.subplots(2, 2, figsize=(15, 15))[1]
+        phsann_plt_cls.verify()
 
-    for i in range(n_reals):
-        axes[0, 1].plot(lag_steps, sim_scorrss[i], alpha=0.3, color='k')
+        phsann_plt_cls.plot_opt_state_vars()
 
-        axes[1, 0].plot(lag_steps, sim_asymmss_1[i], alpha=0.3, color='k')
+        phsann_plt_cls.plot_comparison()
 
-        axes[1, 1].plot(lag_steps, sim_asymmss_2[i], alpha=0.3, color='k')
-
-    axes[0, 1].plot(lag_steps, ref_scorrs, alpha=0.7, color='r')
-
-    axes[1, 0].plot(lag_steps, ref_asymms_1, alpha=0.7, color='r')
-
-    axes[1, 1].plot(lag_steps, ref_asymms_2, alpha=0.7, color='r')
-
-    axes[0, 1].grid()
-    axes[1, 0].grid()
-    axes[1, 1].grid()
-
-    if plt_show_flag:
-        plt.show(block=False)
-
-    else:
-        plt.savefig(
-            str(outputs_dir / f'{sim_label}_obj_cmpr.png'),
-            bbox_inches='tight')
-
-        plt.close()
-
-    #==========================================================================
-    # plot reference ecops
-    #==========================================================================
-    rows_cols = int(ceil(lag_steps.size ** 0.5))
-    axes = plt.subplots(rows_cols, rows_cols, figsize=(15, 15))[1]
-
-    row = 0
-    col = 0
-    probs = phsann_cls._ref_rnk / (phsann_cls._ref_rnk.size + 1)
-    for i in range(lag_steps.size):
-        rolled_probs = np.roll(probs, lag_steps[i])
-        axes[row, col].scatter(probs, rolled_probs, alpha=0.4)
-        axes[row, col].grid()
-        axes[row, col].set_title(f'lag_step: {lag_steps[i]}')
-
-        col += 1
-        if not (col % rows_cols):
-            row += 1
-            col = 0
-
-    if plt_show_flag:
-        plt.show(block=False)
-
-    else:
-        plt.savefig(
-            str(outputs_dir / f'{sim_label}_ecops_ref.png'),
-            bbox_inches='tight')
-
-        plt.close()
-
-    #==========================================================================
-    # plot simulated ecops
-    #==========================================================================
-    for j in range(n_reals):
-        rows_cols = int(ceil(lag_steps.size ** 0.5))
-        axes = plt.subplots(rows_cols, rows_cols, figsize=(15, 15))[1]
-
-        row = 0
-        col = 0
-        probs = reals[j][1] / (phsann_cls._ref_rnk.size + 1)
-        for i in range(lag_steps.size):
-            rolled_probs = np.roll(probs, lag_steps[i])
-            axes[row, col].scatter(probs, rolled_probs, alpha=0.4)
-            axes[row, col].grid()
-            axes[row, col].set_title(f'sim: {j}, lag_step: {lag_steps[i]}')
-
-            col += 1
-            if not (col % rows_cols):
-                row += 1
-                col = 0
-
-        if plt_show_flag:
-            plt.show(block=False)
-
-        else:
-            plt.savefig(
-                str(outputs_dir / f'{sim_label}_ecops_sim_{j}.png'),
-                bbox_inches='tight')
-
-            plt.close()
-
-    #==========================================================================
-    # plot sim tolerances
-    #==========================================================================
-    plt.figure(figsize=(30, 10))
-    for j in range(n_reals):
-        plt.plot(reals[j][12], alpha=0.1, color='k')
-
-    plt.ylim(0, plt.ylim()[1])
-
-    plt.grid()
-
-    if plt_show_flag:
-        plt.show(block=False)
-
-    else:
-        plt.savefig(
-            str(outputs_dir / f'{sim_label}_tols.png'),
-            bbox_inches='tight')
-
-        plt.close()
-
-    #==========================================================================
-    # plot sim obj vals
-    #==========================================================================
-    plt.figure(figsize=(30, 10))
-    for j in range(n_reals):
-        plt.plot(reals[j][13], alpha=0.1, color='k')
-
-    plt.ylim(0, plt.ylim()[1])
-
-    plt.grid()
-
-    if plt_show_flag:
-        plt.show(block=False)
-
-    else:
-        plt.savefig(
-            str(outputs_dir / f'{sim_label}_obj_vals_all.png'),
-            bbox_inches='tight')
-
-        plt.close()
-
-    #==========================================================================
-    # plot sim acceptance rates
-    #==========================================================================
-    plt.figure(figsize=(30, 10))
-    for j in range(n_reals):
-        plt.plot(reals[j][15], alpha=0.1, color='k')
-
-    plt.ylim(0, 1.0)
-
-    plt.grid()
-
-    if plt_show_flag:
-        plt.show(block=False)
-
-    else:
-        plt.savefig(
-            str(outputs_dir / f'{sim_label}_acpt_rates.png'),
-            bbox_inches='tight')
-
-        plt.close()
-
-    #==========================================================================
-    # plot sim min obj vals
-    #==========================================================================
-    plt.figure(figsize=(30, 10))
-    for j in range(n_reals):
-        plt.plot(reals[j][16], alpha=0.1, color='k')
-
-    plt.ylim(0, plt.ylim()[1])
-
-    plt.grid()
-
-    if plt_show_flag:
-        plt.show(block=False)
-
-    else:
-        plt.savefig(
-            str(outputs_dir / f'{sim_label}_obj_vals_min.png'),
-            bbox_inches='tight')
-
-        plt.close()
-
-    #==========================================================================
-    # plot sim phases
-    #==========================================================================
-    plt.figure(figsize=(30, 10))
-    for j in range(n_reals):
-        plt.plot(reals[j][17], alpha=0.1, color='k')
-
-    plt.grid()
-
-    if plt_show_flag:
-        plt.show(block=False)
-
-    else:
-        plt.savefig(
-            str(outputs_dir / f'{sim_label}_phss_all.png'),
-            bbox_inches='tight')
-
-        plt.close()
-
-    #==========================================================================
-    # plot reference ecop densities
-    #==========================================================================
-    rows_cols = int(ceil(lag_steps.size ** 0.5))
-    axes = plt.subplots(rows_cols, rows_cols, figsize=(15, 15))[1]
-
-    dx = 1.0 / (ref_ecop_denss.shape[2] + 1.0)
-    dy = dx
-
-    y, x = np.mgrid[slice(dx, 1.0, dy), slice(dx, 1.0, dx)]
-
-    row = 0
-    col = 0
-    for i in range(lag_steps.size):
-        axes[row, col].pcolormesh(
-            x,
-            y,
-            ref_ecop_denss[i],
-            cmap='Blues',
-            alpha=0.9,
-            vmin=ref_ecop_denss.min(),
-            vmax=ref_ecop_denss.max())
-
-        axes[row, col].set_title(f'lag_step: {lag_steps[i]}')
-        axes[row, col].set_aspect('equal')
-
-        col += 1
-        if not (col % rows_cols):
-            row += 1
-            col = 0
-
-    if plt_show_flag:
-        plt.show(block=False)
-
-    else:
-        plt.savefig(
-            str(outputs_dir / f'{sim_label}_ecop_dens_ref.png'),
-            bbox_inches='tight')
-
-        plt.close()
-
-    #==========================================================================
-    # plot simulated ecop densities
-    #==========================================================================
-    for j in range(n_reals):
-        rows_cols = int(ceil(lag_steps.size ** 0.5))
-        axes = plt.subplots(rows_cols, rows_cols, figsize=(15, 15))[1]
-
-        row = 0
-        col = 0
-        for i in range(lag_steps.size):
-            axes[row, col].pcolormesh(
-                x,
-                y,
-                sim_ecop_denss[j][i],
-                cmap='Blues',
-                alpha=0.9,
-                vmin=ref_ecop_denss.min(),
-                vmax=ref_ecop_denss.max())
-
-            axes[row, col].set_title(f'lag_step: {lag_steps[i]}')
-            axes[row, col].set_aspect('equal')
-
-            col += 1
-            if not (col % rows_cols):
-                row += 1
-                col = 0
-
-        if plt_show_flag:
-            plt.show(block=False)
-
-        else:
-            plt.savefig(
-                str(outputs_dir / f'{sim_label}_ecop_dens_sim_{j}.png'),
-                bbox_inches='tight')
-
-            plt.close()
-
-    if plt_show_flag:
-        plt.show()
     return
 
 

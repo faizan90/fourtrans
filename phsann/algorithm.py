@@ -31,12 +31,12 @@ SimRltznData = namedtuple(
      'tol',
      'fin_temp',
      'stopp_criteria',
-     'all_tols',
-     'all_obj_vals',
+     'tols_all',
+     'obj_vals_all',
      'acpts_rjts',
      'acpt_rates',
-     'min_obj_val',
-     'all_phss',
+     'obj_vals_min',
+     'phss_all',
     ]
     )
 
@@ -403,12 +403,12 @@ class PhaseAnnealingAlgorithm(PAP):
 
         tols = deque(maxlen=self._sett_ann_obj_tol_iters)
 
-        all_tols = []
-        all_obj_vals = []
-        min_obj_vals = []
+        tols_all = []
+        obj_vals_all = []
+        obj_vals_min = []
         acpts_rjts = []
 
-        all_phss = []
+        phss_all = []
 
         stopp_criteria = self._get_stopp_criteria(
             (runn_iter, iters_wo_acpt, tol, curr_temp))
@@ -440,15 +440,15 @@ class PhaseAnnealingAlgorithm(PAP):
             tols.append(abs(old_obj_val - new_obj_val))
 
             if not self._alg_ann_runn_auto_init_temp_search_flag:
-                all_phss.append(new_phs)
+                phss_all.append(new_phs)
 
             if runn_iter >= tols.maxlen:
                 tol = sum(tols) / float(tols.maxlen)
                 assert np.isfinite(tol), 'Invalid tol!'
 
-                all_tols.append(tol)
+                tols_all.append(tol)
 
-            all_obj_vals.append(new_obj_val)
+            obj_vals_all.append(new_obj_val)
 
             if accept_flag:
                 old_index = new_index
@@ -457,14 +457,14 @@ class PhaseAnnealingAlgorithm(PAP):
 
                 iters_wo_acpt = 0
 
-                min_obj_vals.append(new_obj_val)
+                obj_vals_min.append(new_obj_val)
 
             else:
                 self._update_sim(new_index, old_phs)
 
                 iters_wo_acpt += 1
 
-                min_obj_vals.append(old_obj_val)
+                obj_vals_min.append(old_obj_val)
 
             runn_iter += 1
 
@@ -513,12 +513,12 @@ class PhaseAnnealingAlgorithm(PAP):
                 tol,
                 curr_temp,
                 np.array(stopp_criteria),
-                np.array(all_tols, dtype=np.float64),
-                np.array(all_obj_vals, dtype=np.float64),
+                np.array(tols_all, dtype=np.float64),
+                np.array(obj_vals_all, dtype=np.float64),
                 acpts_rjts,
                 acpt_rates,
-                np.array(min_obj_vals, dtype=np.float64),
-                np.array(all_phss, dtype=np.float64),
+                np.array(obj_vals_min, dtype=np.float64),
+                np.array(phss_all, dtype=np.float64),
                 ))
 
         if self._vb:

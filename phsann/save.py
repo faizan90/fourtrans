@@ -246,6 +246,35 @@ class PhaseAnnealingSave(PAA):
 
         return
 
+    def update_h5_file_name(self, new_name):
+
+        if self._vb:
+            print_sl()
+
+            print('Updating output HDF5 file name...')
+
+        assert isinstance(new_name, str), 'new_name not a string!'
+
+        assert new_name, 'new_name is empty!'
+        assert '.' in new_name, 'new_name has no extension!'
+
+        old_name = self._save_h5_name
+
+        self._save_h5_name = new_name
+
+        if self._vb:
+            print(f'Changed name from {old_name} to {self._save_h5_name}!')
+
+            print_el()
+
+        return
+
+    def get_h5_file_path(self):
+
+        assert self._alg_rltzns_gen_flag, 'Call generate_realizations first!'
+
+        return self._sett_misc_outs_dir / self._save_h5_name
+
     def verify(self):
 
         PAA._PhaseAnnealingAlgorithm__verify(self)

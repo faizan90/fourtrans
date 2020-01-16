@@ -18,4 +18,5 @@ from .cyth import (
 
 from .simultexts import SimultaneousExtremes, SimultaneousExtremesPlot
 
-from .phsann import PhaseAnnealing
+from .phsann import PhaseAnnealing, PhaseAnnealingPlot
+
