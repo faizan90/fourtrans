@@ -3,8 +3,8 @@ Created on Dec 27, 2019
 
 @author: Faizan
 '''
-from collections import deque
 from timeit import default_timer
+from collections import deque, namedtuple
 
 import numpy as np
 from pathos.multiprocessing import ProcessPool
@@ -16,6 +16,29 @@ from ..cyth import (
     )
 
 from .prepare import PhaseAnnealingPrepare as PAP
+
+SimRltznData = namedtuple(
+    'SimRltznData',
+    ['ft',
+     'rnk',
+     'nrm',
+     'scorrs',
+     'asymms_1',
+     'asymms_2',
+     'ecop_dens',
+     'runn_iter',
+     'iters_wo_acpt',
+     'tol',
+     'fin_temp',
+     'stopp_criteria',
+     'all_tols',
+     'all_obj_vals',
+     'acpts_rjts',
+     'acpt_rates',
+     'min_obj_val',
+     'all_phss',
+    ]
+    )
 
 
 class PhaseAnnealingAlgorithm(PAP):
@@ -116,7 +139,7 @@ class PhaseAnnealingAlgorithm(PAP):
         runn_iter, iters_wo_acpt, tol, curr_temp = test_vars
 
         stopp_criteria = (
-            (runn_iter <= self._sett_ann_max_iters),
+            (runn_iter < self._sett_ann_max_iters),
             (iters_wo_acpt < self._sett_ann_max_iter_wo_chng),
             (tol > self._sett_ann_obj_tol),
             (not np.isclose(curr_temp, 0.0)),
@@ -360,13 +383,13 @@ class PhaseAnnealingAlgorithm(PAP):
 
             print(f'Starting realization at index {rltzn_iter}...')
 
-        if self._data_ref_data.ndim != 1:
+        if self._data_ref_rltzn.ndim != 1:
             raise NotImplementedError('Implemention for 1D only!')
 
         # randomize all phases before starting
         self._gen_sim_aux_data()
 
-        runn_iter = 1  # 1-index due to temp_ratio
+        runn_iter = 0
         iters_wo_acpt = 0
         tol = np.inf
 
@@ -453,10 +476,10 @@ class PhaseAnnealingAlgorithm(PAP):
 
                     assert curr_temp >= 0.0, 'Invalid curr_temp!'
 
-                    stopp_criteria = self._get_stopp_criteria(
-                        (runn_iter, iters_wo_acpt, tol, curr_temp))
-
                     iters_wo_acpt = 0
+
+                stopp_criteria = self._get_stopp_criteria(
+                    (runn_iter, iters_wo_acpt, tol, curr_temp))
 
             else:
                 stopp_criteria = (
@@ -477,7 +500,7 @@ class PhaseAnnealingAlgorithm(PAP):
                 np.cumsum(acpts_rjts) /
                 np.arange(1, acpts_rjts.size + 1, dtype=float))
 
-            ret = (
+            ret = SimRltznData._make((
                 self._sim_ft.copy(),
                 self._sim_rnk.copy(),
                 self._sim_nrm.copy(),
@@ -489,14 +512,14 @@ class PhaseAnnealingAlgorithm(PAP):
                 iters_wo_acpt,
                 tol,
                 curr_temp,
-                stopp_criteria,
+                np.array(stopp_criteria),
                 np.array(all_tols, dtype=np.float64),
                 np.array(all_obj_vals, dtype=np.float64),
                 acpts_rjts,
                 acpt_rates,
                 np.array(min_obj_vals, dtype=np.float64),
                 np.array(all_phss, dtype=np.float64),
-                )
+                ))
 
         if self._vb:
             timer_end = default_timer()
@@ -675,7 +698,7 @@ class PhaseAnnealingAlgorithm(PAP):
 
     def get_realizations(self):
 
-        assert self._alg_rltzns_gen_flag, 'Call generate realizations first!'
+        assert self._alg_rltzns_gen_flag, 'Call generate_realizations first!'
 
         return self._alg_rltzns
 

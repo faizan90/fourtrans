@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 
 from fourtrans import PhaseAnnealing
 
-DEBUG_FLAG = False
+DEBUG_FLAG = True
 
 plt.ioff()
 
@@ -52,6 +52,7 @@ def main():
 
     plt_show_flag = True
     plt_show_flag = False
+    plt_show_flag = None
 
     long_test_flag = True
     long_test_flag = False
@@ -67,13 +68,13 @@ def main():
     ecop_dens_flag = False
 
     auto_init_temperature_flag = True
-#     auto_init_temperature_flag = False
+    auto_init_temperature_flag = False
 
     lag_steps = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
     ecop_bins = 20
 
-    n_reals = 7
-    outputs_dir = main_dir
+    n_reals = 10
+    outputs_dir = main_dir / sim_label
     n_cpus = 'auto'
 
     if long_test_flag:
@@ -163,6 +164,11 @@ def main():
     ref_asymms_1 = phsann_cls._ref_asymms_1
     ref_asymms_2 = phsann_cls._ref_asymms_2
     ref_ecop_denss = phsann_cls._ref_ecop_dens_arrs
+
+    phsann_cls.save_realizations()
+
+    if plt_show_flag is None:
+        return
 
     reals = phsann_cls.get_realizations()
 

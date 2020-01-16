@@ -525,7 +525,7 @@ class PhaseAnnealingSettings(PAD):
         assert self._sett_ann_set_flag, 'Call set_annealing_settings first!'
         assert self._sett_misc_set_flag, 'Call set_misc_settings first!'
 
-        if self._data_ref_data.ndim != 1:
+        if self._data_ref_rltzn.ndim != 1:
             raise NotImplementedError('Algorithm meant for 1D only!')
 
         if self._sett_obj_scorr_flag:

@@ -26,15 +26,15 @@ class PhaseAnnealing(PAS):
     form of inputs. For usage you can also refer to test_phsann.py in the
     test directory.
 
-    1. set_reference_data
-    2. set_objective_settings
-    3. set_annealing_settings
-    4. set_annealing_auto_temperature_settings (optional)
-    5. set_misc_settings
-    6. prepare
-    7. verify
-    8. generate_realizations
-    9. get_realizations (optional)
+    01. set_reference_data
+    02. set_objective_settings
+    03. set_annealing_settings
+    04. set_annealing_auto_temperature_settings (optional)
+    05. set_misc_settings
+    06. prepare
+    07. verify
+    08. generate_realizations
+    09. get_realizations (optional)
     10. save_realizations (optional)
 
     Outputs

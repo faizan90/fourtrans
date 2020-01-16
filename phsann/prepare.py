@@ -36,6 +36,7 @@ class PhaseAnnealingPrepare(PAS):
         self._ref_asymms_2 = None
         self._ref_ecop_dens_arrs = None
 
+        # Be careful with these
         self._sim_rnk = None
         self._sim_nrm = None
         self._sim_ft = None
@@ -194,10 +195,10 @@ class PhaseAnnealingPrepare(PAS):
 
     def _gen_ref_aux_data(self):
 
-        if self._data_ref_data.ndim != 1:
+        if self._data_ref_rltzn.ndim != 1:
             raise NotImplementedError('Implementation for 1D only!')
 
-        ranks, probs, norms = self._get_ranks_probs_norms(self._data_ref_data)
+        ranks, probs, norms = self._get_ranks_probs_norms(self._data_ref_rltzn)
 
         ft = np.fft.rfft(norms)
 
@@ -229,7 +230,7 @@ class PhaseAnnealingPrepare(PAS):
 
         assert self._prep_ref_aux_flag, 'Call _gen_ref_aux_data first!'
 
-        if self._data_ref_data.ndim != 1:
+        if self._data_ref_rltzn.ndim != 1:
             raise NotImplementedError('Implementation for 1D only!')
 
         rands = np.random.random((self._data_ref_shape[0] // 2) - 1)

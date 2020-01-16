@@ -26,7 +26,7 @@ class PhaseAnnealingData:
 
         self._vb = verbose
 
-        self._data_ref_data = None
+        self._data_ref_rltzn = None
         self._data_ref_shape = None
 
         self._data_min_pts = 3
@@ -35,15 +35,15 @@ class PhaseAnnealingData:
         self._data_verify_flag = False
         return
 
-    def set_reference_data(self, ref_data):
+    def set_reference_data(self, ref_rltzn):
 
         '''
         Set the reference data array
 
         Parameters
         ----------
-        ref_data : 1D float64 np.ndarray
-            The reference data array. No NaNs or Infinity allowed.
+        ref_rltzn : 1D float64 np.ndarray
+            The reference realization/data array. No NaNs or Infinitys allowed.
         '''
 
         if self._vb:
@@ -51,24 +51,28 @@ class PhaseAnnealingData:
 
             print('Setting reference data for phase annealing...\n')
 
-        assert isinstance(ref_data, np.ndarray), 'ref_data not a numpy array!'
-        assert ref_data.ndim == 1, 'ref_data not a 1D array!'
-        assert np.all(np.isfinite(ref_data)), 'Invalid values in ref_data!'
-        assert ref_data.dtype == np.float64, 'ref_data dtype not np.float64!'
+        assert isinstance(ref_rltzn, np.ndarray), (
+            'ref_rltzn not a numpy array!')
 
-        if ref_data.shape[0] % 2:
-            ref_data = ref_data[:-1]
+        assert ref_rltzn.ndim == 1, 'ref_rltzn not a 1D array!'
+        assert np.all(np.isfinite(ref_rltzn)), 'Invalid values in ref_rltzn!'
+        assert ref_rltzn.dtype == np.float64, 'ref_rltzn dtype not np.float64!'
+
+        if ref_rltzn.shape[0] % 2:
+            ref_rltzn = ref_rltzn[:-1]
 
             print('Warning: dropped last step for even steps!\n')
 
-        assert 0 < self._data_min_pts <= ref_data.shape[0], (
-            'ref_data has too few steps!')
+        assert 0 < self._data_min_pts <= ref_rltzn.shape[0], (
+            'ref_rltzn has too few steps!')
 
-        self._data_ref_data = ref_data
-        self._data_ref_shape = ref_data.shape
+        self._data_ref_rltzn = ref_rltzn
+        self._data_ref_shape = ref_rltzn.shape
 
         if self._vb:
-            print(f'Reference data set with shape: {self._data_ref_shape}')
+            print(
+                f'Reference realization set with shape: '
+                f'{self._data_ref_shape}')
 
             print_el()
 
