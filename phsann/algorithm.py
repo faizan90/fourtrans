@@ -263,7 +263,7 @@ class PhaseAnnealingAlgorithm(PAP):
 
         return
 
-    def _get_sim_idx(self):
+    def _get_new_idx(self):
 
         index = np.random.random()
         index *= ((self._data_ref_shape[0] // 2) - 2)
@@ -324,7 +324,7 @@ class PhaseAnnealingAlgorithm(PAP):
 
         index_ctr = 0
         while (old_index == new_index):
-            new_index = self._get_sim_idx()
+            new_index = self._get_new_idx()
 
             if index_ctr > 100:
                 raise RuntimeError(
@@ -398,7 +398,7 @@ class PhaseAnnealingAlgorithm(PAP):
 
         old_obj_val = self._get_obj_ftn_val()
 
-        old_index = self._get_sim_idx()
+        old_index = self._get_new_idx()
         new_index = old_index
 
         tols = deque(maxlen=self._sett_ann_obj_tol_iters)
@@ -472,7 +472,7 @@ class PhaseAnnealingAlgorithm(PAP):
 
                 if not (runn_iter % self._sett_ann_upt_evry_iter):
 
-                    curr_temp *= self._sett_ann_temp_red_ratio
+                    curr_temp *= self._sett_ann_temp_red_rate
 
                     assert curr_temp >= 0.0, 'Invalid curr_temp!'
 
@@ -613,12 +613,9 @@ class PhaseAnnealingAlgorithm(PAP):
             if self._vb:
                 print(f'Realization {i:04d}:', ann_init_temp, acpt_rate)
 
-        if self._vb:
-            print('\n')
-
         if not_acptd_ct:
             raise RuntimeError(
-                f'Could not find optimal simulated annealing inital '
+                f'\nCould not find optimal simulated annealing inital '
                 f'temperatures for {not_acptd_ct} out of '
                 f'{self._sett_misc_n_rltzns} simulations!')
 

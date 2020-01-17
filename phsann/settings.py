@@ -30,7 +30,7 @@ class PhaseAnnealingSettings(PAD):
         self._sett_obj_asymms_normalize_flag = True
 
         self._sett_ann_init_temp = None
-        self._sett_ann_temp_red_ratio = None
+        self._sett_ann_temp_red_rate = None
         self._sett_ann_upt_evry_iter = None
         self._sett_ann_max_iters = None
         self._sett_ann_max_iter_wo_chng = None
@@ -176,7 +176,7 @@ class PhaseAnnealingSettings(PAD):
     def set_annealing_settings(
             self,
             initial_annealing_temperature,
-            temperature_reduction_ratio,
+            temperature_reduction_rate,
             update_at_every_iteration_no,
             maximum_iterations,
             maximum_without_change_iterations,
@@ -191,8 +191,8 @@ class PhaseAnnealingSettings(PAD):
         initial_annealing_temperature : float
             The starting temperature of the annealing temperature. Should be
             > 0 and < infinity!
-        temperature_reduction_ratio : float
-            The ratio by which to reduce the temperature after
+        temperature_reduction_rate : float
+            The rate by which to reduce the temperature after
             update_at_every_iteration_no have passed. Should be > 0 and <= 1.
         update_at_every_iteration_no : integer
             When to update the temperature. Should be > 0.
@@ -220,8 +220,8 @@ class PhaseAnnealingSettings(PAD):
         assert isinstance(initial_annealing_temperature, float), (
             'initial_annealing_temperature not a float!')
 
-        assert isinstance(temperature_reduction_ratio, float), (
-            'temperature_reduction_ratio not a float!')
+        assert isinstance(temperature_reduction_rate, float), (
+            'temperature_reduction_rate not a float!')
 
         assert isinstance(update_at_every_iteration_no, int), (
             'update_at_every_iteration_no not an integer!')
@@ -241,8 +241,8 @@ class PhaseAnnealingSettings(PAD):
         assert 0 < initial_annealing_temperature < np.inf, (
             'Invalid initial_annealing_temperature!')
 
-        assert 0 < temperature_reduction_ratio <= 1, (
-            'Invalid temperature_reduction_ratio!')
+        assert 0 < temperature_reduction_rate <= 1, (
+            'Invalid temperature_reduction_rate!')
 
         assert (
             0 <
@@ -259,7 +259,7 @@ class PhaseAnnealingSettings(PAD):
             'Invalid objective_tolerance!')
 
         self._sett_ann_init_temp = initial_annealing_temperature
-        self._sett_ann_temp_red_ratio = temperature_reduction_ratio
+        self._sett_ann_temp_red_rate = temperature_reduction_rate
         self._sett_ann_upt_evry_iter = update_at_every_iteration_no
         self._sett_ann_max_iters = maximum_iterations
         self._sett_ann_max_iter_wo_chng = maximum_without_change_iterations
@@ -272,7 +272,7 @@ class PhaseAnnealingSettings(PAD):
                 'Initial annealing temperature:', self._sett_ann_init_temp)
 
             print(
-                'Temperature reduction ratio:', self._sett_ann_temp_red_ratio)
+                'Temperature reduction rate:', self._sett_ann_temp_red_rate)
 
             print(
                 'Temperature update iteration:', self._sett_ann_upt_evry_iter)

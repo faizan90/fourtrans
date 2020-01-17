@@ -47,7 +47,7 @@ def main():
 
     verbose = True
 
-    sim_label = '1026'
+    sim_label = 'test_phs_red_wo_01'
 
     h5_name = 'phsann.h5'
 
@@ -58,7 +58,7 @@ def main():
 #     plt_flag = False
 
     long_test_flag = True
-    long_test_flag = False
+#     long_test_flag = False
 
     scorr_flag = True
     asymm_type_1_flag = True
@@ -71,14 +71,14 @@ def main():
     ecop_dens_flag = False
 
     auto_init_temperature_flag = True
-    auto_init_temperature_flag = False
+#     auto_init_temperature_flag = False
 
-    lag_steps = np.array([1, 2, 3, 4, 5, 6, 7])
+    lag_steps = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
     ecop_bins = 20
 
-    n_reals = 3
+    n_reals = 7
     outputs_dir = main_dir / sim_label
-    n_cpus = 1  # 'auto'
+    n_cpus = 'auto'
 
     if long_test_flag:
         initial_annealing_temperature = 0.0001
@@ -89,7 +89,7 @@ def main():
         objective_tolerance = 1e-8
         objective_tolerance_iterations = 30
 
-        temperature_lower_bound = 1e-6
+        temperature_lower_bound = 1e-5
         temperature_upper_bound = 1000.0
         max_search_attempts = 100
         n_iterations_per_attempt = 3000
@@ -107,7 +107,7 @@ def main():
         objective_tolerance = 1e-8
         objective_tolerance_iterations = 20
 
-        temperature_lower_bound = 1e-6
+        temperature_lower_bound = 1e-5
         temperature_upper_bound = 1000.0
         max_search_attempts = 50
         n_iterations_per_attempt = 1000
