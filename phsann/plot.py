@@ -98,17 +98,21 @@ class PhaseAnnealingPlot:
 
         assert self._plt_verify_flag, 'Plot in an unverified state!'
 
+        opt_state_dir = self._plt_outputs_dir / 'optimization_state_variables'
+
+        opt_state_dir.mkdir(exist_ok=True)
+
         h5_hdl = h5py.File(self._plt_in_h5_file, mode='r', driver=None)
 
-        self._plot_tols_all(h5_hdl)
+        self._plot_tols_all(h5_hdl, opt_state_dir)
 
-        self._plot_obj_vals_all(h5_hdl)
+        self._plot_obj_vals_all(h5_hdl, opt_state_dir)
 
-        self._plot_obj_vals_min(h5_hdl)
+        self._plot_obj_vals_min(h5_hdl, opt_state_dir)
 
-        self._plot_acpt_rates(h5_hdl)
+        self._plot_acpt_rates(h5_hdl, opt_state_dir)
 
-        self._plot_phss_all(h5_hdl)
+        self._plot_phss_all(h5_hdl, opt_state_dir)
 
         h5_hdl.close()
 
@@ -127,13 +131,17 @@ class PhaseAnnealingPlot:
 
         assert self._plt_verify_flag, 'Plot in an unverified state!'
 
+        cmpr_dir = self._plt_outputs_dir / 'comparison'
+
+        cmpr_dir.mkdir(exist_ok=True)
+
         h5_hdl = h5py.File(self._plt_in_h5_file, mode='r', driver=None)
 
-        self._plot_cmpr_scorr_asymms(h5_hdl)
+        self._plot_cmpr_scorr_asymms(h5_hdl, cmpr_dir)
 
-        self._plot_cmpr_ecop_denss(h5_hdl)
+        self._plot_cmpr_ecop_denss(h5_hdl, cmpr_dir)
 
-        self._plot_cmpr_ecop_scatter(h5_hdl)
+        self._plot_cmpr_ecop_scatter(h5_hdl, cmpr_dir)
 
         h5_hdl.close()
 
@@ -151,7 +159,7 @@ class PhaseAnnealingPlot:
         self._plt_verify_flag = True
         return
 
-    def _plot_tols_all(self, h5_hdl):
+    def _plot_tols_all(self, h5_hdl, out_dir):
 
         sim_grp_main = h5_hdl['data_sim_rltzns']
 
@@ -179,13 +187,12 @@ class PhaseAnnealingPlot:
         plt.grid()
 
         plt.savefig(
-            str(self._plt_outputs_dir / f'opt_state__tols_all.png'),
-            bbox_inches='tight')
+            str(out_dir / f'opt_state__tols_all.png'), bbox_inches='tight')
 
         plt.close()
         return
 
-    def _plot_obj_vals_all(self, h5_hdl):
+    def _plot_obj_vals_all(self, h5_hdl, out_dir):
 
         sim_grp_main = h5_hdl['data_sim_rltzns']
 
@@ -206,13 +213,12 @@ class PhaseAnnealingPlot:
         plt.grid()
 
         plt.savefig(
-            str(self._plt_outputs_dir / f'opt_state__obj_vals_all.png'),
-            bbox_inches='tight')
+            str(out_dir / f'opt_state__obj_vals_all.png'), bbox_inches='tight')
 
         plt.close()
         return
 
-    def _plot_obj_vals_min(self, h5_hdl):
+    def _plot_obj_vals_min(self, h5_hdl, out_dir):
 
         sim_grp_main = h5_hdl['data_sim_rltzns']
 
@@ -233,13 +239,12 @@ class PhaseAnnealingPlot:
         plt.grid()
 
         plt.savefig(
-            str(self._plt_outputs_dir / f'opt_state__obj_vals_min.png'),
-            bbox_inches='tight')
+            str(out_dir / f'opt_state__obj_vals_min.png'), bbox_inches='tight')
 
         plt.close()
         return
 
-    def _plot_acpt_rates(self, h5_hdl):
+    def _plot_acpt_rates(self, h5_hdl, out_dir):
 
         sim_grp_main = h5_hdl['data_sim_rltzns']
 
@@ -260,13 +265,12 @@ class PhaseAnnealingPlot:
         plt.grid()
 
         plt.savefig(
-            str(self._plt_outputs_dir / f'opt_state__acpt_rates.png'),
-            bbox_inches='tight')
+            str(out_dir / f'opt_state__acpt_rates.png'), bbox_inches='tight')
 
         plt.close()
         return
 
-    def _plot_phss_all(self, h5_hdl):
+    def _plot_phss_all(self, h5_hdl, out_dir):
 
         sim_grp_main = h5_hdl['data_sim_rltzns']
 
@@ -285,13 +289,12 @@ class PhaseAnnealingPlot:
         plt.grid()
 
         plt.savefig(
-            str(self._plt_outputs_dir / f'opt_state__phss_all.png'),
-            bbox_inches='tight')
+            str(out_dir / f'opt_state__phss_all.png'), bbox_inches='tight')
 
         plt.close()
         return
 
-    def _plot_cmpr_scorr_asymms(self, h5_hdl):
+    def _plot_cmpr_scorr_asymms(self, h5_hdl, out_dir):
 
         axes = plt.subplots(1, 3, figsize=(18, 6))[1]
 
@@ -371,8 +374,7 @@ class PhaseAnnealingPlot:
         plt.tight_layout()
 
         plt.savefig(
-            str(self._plt_outputs_dir / f'cmpr__scorrs_asymms.png'),
-            bbox_inches='tight')
+            str(out_dir / f'cmpr__scorrs_asymms.png'), bbox_inches='tight')
 
         plt.close()
         return
@@ -384,7 +386,8 @@ class PhaseAnnealingPlot:
             vmin,
             vmax,
             ecop_denss,
-            cmap_mappable_beta):
+            cmap_mappable_beta,
+            out_dir):
 
         rows = int(ceil(lag_steps.size ** 0.5))
         cols = ceil(lag_steps.size / rows)
@@ -448,13 +451,13 @@ class PhaseAnnealingPlot:
             extend='max')
 
         plt.savefig(
-            str(self._plt_outputs_dir / f'cmpr__ecop_denss_{fig_suff}.png'),
+            str(out_dir / f'cmpr__ecop_denss_{fig_suff}.png'),
             bbox_inches='tight')
 
         plt.close()
         return
 
-    def _plot_cmpr_ecop_denss(self, h5_hdl):
+    def _plot_cmpr_ecop_denss(self, h5_hdl, out_dir):
 
         lag_steps = h5_hdl['settings/_sett_obj_lag_steps']
 
@@ -479,7 +482,8 @@ class PhaseAnnealingPlot:
             vmin,
             vmax,
             ecop_denss,
-            cmap_mappable_beta)
+            cmap_mappable_beta,
+            out_dir)
 
         sim_grp_main = h5_hdl['data_sim_rltzns']
 
@@ -493,7 +497,8 @@ class PhaseAnnealingPlot:
                 vmin,
                 vmax,
                 ecop_denss,
-                cmap_mappable_beta)
+                cmap_mappable_beta,
+                out_dir)
 
         return
 
@@ -501,7 +506,8 @@ class PhaseAnnealingPlot:
             self,
             lag_steps,
             fig_suff,
-            probs):
+            probs,
+            out_dir):
 
         rows = int(ceil(lag_steps.size ** 0.5))
         cols = ceil(lag_steps.size / rows)
@@ -545,13 +551,13 @@ class PhaseAnnealingPlot:
                 col = 0
 
         plt.savefig(
-            str(self._plt_outputs_dir / f'cmpr__ecops_scatter_{fig_suff}.png'),
+            str(out_dir / f'cmpr__ecops_scatter_{fig_suff}.png'),
             bbox_inches='tight')
 
         plt.close()
         return
 
-    def _plot_cmpr_ecop_scatter(self, h5_hdl):
+    def _plot_cmpr_ecop_scatter(self, h5_hdl, out_dir):
 
         lag_steps = h5_hdl['settings/_sett_obj_lag_steps']
 
@@ -559,7 +565,7 @@ class PhaseAnnealingPlot:
         probs = rnks / (rnks.size + 1)
         fig_suff = 'ref'
 
-        self._plot_cmpr_ecop_scatter_base(lag_steps, fig_suff, probs)
+        self._plot_cmpr_ecop_scatter_base(lag_steps, fig_suff, probs, out_dir)
 
         sim_grp_main = h5_hdl['data_sim_rltzns']
 
@@ -568,6 +574,7 @@ class PhaseAnnealingPlot:
             probs = rnks / (rnks.size + 1)
             fig_suff = f'sim_{rltzn_lab}'
 
-            self._plot_cmpr_ecop_scatter_base(lag_steps, fig_suff, probs)
+            self._plot_cmpr_ecop_scatter_base(
+                lag_steps, fig_suff, probs, out_dir)
 
         return

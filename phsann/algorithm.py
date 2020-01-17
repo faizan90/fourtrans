@@ -263,7 +263,7 @@ class PhaseAnnealingAlgorithm(PAP):
 
         return
 
-    def _get_sim_index(self):
+    def _get_sim_idx(self):
 
         index = np.random.random()
         index *= ((self._data_ref_shape[0] // 2) - 2)
@@ -273,7 +273,7 @@ class PhaseAnnealingAlgorithm(PAP):
 
         return int(index)
 
-    def _get_realization_multi(self, args):
+    def _get_rltzn_multi(self, args):
 
         ((rltzn_iter_beg, rltzn_iter_end),
         ) = args
@@ -290,7 +290,7 @@ class PhaseAnnealingAlgorithm(PAP):
                 self._alg_sim_ann_init_temps[rltzn_iter],
                 )
 
-            rltzn = self._get_realization_single(rltzn_args)
+            rltzn = self._get_rltzn_single(rltzn_args)
 
             rltzns.append(rltzn)
 
@@ -324,7 +324,7 @@ class PhaseAnnealingAlgorithm(PAP):
 
         index_ctr = 0
         while (old_index == new_index):
-            new_index = self._get_sim_index()
+            new_index = self._get_sim_idx()
 
             if index_ctr > 100:
                 raise RuntimeError(
@@ -361,7 +361,7 @@ class PhaseAnnealingAlgorithm(PAP):
 #         assert not np.isclose(old_phs, new_phs), 'What are the chances?'
         return old_phs, new_phs, new_index
 
-    def _get_realization_single(self, args):
+    def _get_rltzn_single(self, args):
 
         (rltzn_iter,
          pre_init_temps,
@@ -398,7 +398,7 @@ class PhaseAnnealingAlgorithm(PAP):
 
         old_obj_val = self._get_obj_ftn_val()
 
-        old_index = self._get_sim_index()
+        old_index = self._get_sim_idx()
         new_index = old_index
 
         tols = deque(maxlen=self._sett_ann_obj_tol_iters)
@@ -560,14 +560,14 @@ class PhaseAnnealingAlgorithm(PAP):
             mp_pool = ProcessPool(self._sett_misc_n_cpus)
 
             mp_rets = list(
-                mp_pool.uimap(self._get_realization_multi, rltzns_gen))
+                mp_pool.uimap(self._get_rltzn_multi, rltzns_gen))
 
             mp_pool = None
 
         else:
             mp_rets = []
             for rltzn_args in rltzns_gen:
-                mp_rets.append(self._get_realization_multi(rltzn_args))
+                mp_rets.append(self._get_rltzn_multi(rltzn_args))
 
         if self._vb:
             print(
@@ -635,7 +635,7 @@ class PhaseAnnealingAlgorithm(PAP):
         self._alg_ann_runn_auto_init_temp_search_flag = False
         return
 
-    def _generate_realizations_regular(self):
+    def _gen_rltzns_rglr(self):
 
         if self._vb:
             print_sl()
@@ -661,7 +661,7 @@ class PhaseAnnealingAlgorithm(PAP):
             mp_pool = ProcessPool(self._sett_misc_n_cpus)
 
             mp_rets = list(
-                mp_pool.uimap(self._get_realization_multi, rltzns_gen))
+                mp_pool.uimap(self._get_rltzn_multi, rltzns_gen))
 
             mp_pool = None
 
@@ -671,7 +671,7 @@ class PhaseAnnealingAlgorithm(PAP):
         else:
             for rltzn_args in rltzns_gen:
                 self._alg_rltzns.extend(
-                    self._get_realization_multi(rltzn_args))
+                    self._get_rltzn_multi(rltzn_args))
 
         if self._vb:
             print_sl()
@@ -689,7 +689,7 @@ class PhaseAnnealingAlgorithm(PAP):
         if self._sett_auto_temp_set_flag:
             self._auto_temp_search()
 
-        self._generate_realizations_regular()
+        self._gen_rltzns_rglr()
 
         self._update_ref_at_end()
 
