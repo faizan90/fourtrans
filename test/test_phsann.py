@@ -47,7 +47,7 @@ def main():
 
     verbose = True
 
-    sim_label = 'test_phs_red_wo_01'
+    sim_label = 'test_phs_red_w_type_1_04'
 
     h5_name = 'phsann.h5'
 
@@ -82,12 +82,13 @@ def main():
 
     if long_test_flag:
         initial_annealing_temperature = 0.0001
-        temperature_reduction_ratio = 0.992
-        update_at_every_iteration_no = 200
+        temperature_reduction_ratio = 0.99
+        update_at_every_iteration_no = 100
         maximum_iterations = int(2e5)
         maximum_without_change_iterations = 1000
         objective_tolerance = 1e-8
         objective_tolerance_iterations = 30
+        phase_reduction_rate = 0.99
 
         temperature_lower_bound = 1e-5
         temperature_upper_bound = 1000.0
@@ -106,6 +107,7 @@ def main():
         maximum_without_change_iterations = 50
         objective_tolerance = 1e-8
         objective_tolerance_iterations = 20
+        phase_reduction_rate = 0.99
 
         temperature_lower_bound = 1e-5
         temperature_upper_bound = 1000.0
@@ -143,7 +145,8 @@ def main():
             maximum_iterations,
             maximum_without_change_iterations,
             objective_tolerance,
-            objective_tolerance_iterations)
+            objective_tolerance_iterations,
+            phase_reduction_rate)
 
         if auto_init_temperature_flag:
             phsann_cls.set_annealing_auto_temperature_settings(

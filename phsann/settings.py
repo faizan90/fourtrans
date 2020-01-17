@@ -34,6 +34,7 @@ class PhaseAnnealingSettings(PAD):
         self._sett_ann_upt_evry_iter = None
         self._sett_ann_max_iters = None
         self._sett_ann_max_iter_wo_chng = None
+        self._sett_ann_phs_red_rate = None
 
         self._sett_ann_auto_init_temp_temp_bd_lo = None
         self._sett_ann_auto_init_temp_temp_bd_hi = None
@@ -181,7 +182,8 @@ class PhaseAnnealingSettings(PAD):
             maximum_iterations,
             maximum_without_change_iterations,
             objective_tolerance,
-            objective_tolerance_iterations):
+            objective_tolerance_iterations,
+            phase_reduction_rate):
 
         '''
         Simulated annealing algorithm parameters
@@ -238,6 +240,9 @@ class PhaseAnnealingSettings(PAD):
         assert isinstance(objective_tolerance_iterations, int), (
             'objective_tolerance_iterations not an integer!')
 
+        assert isinstance(phase_reduction_rate, float), (
+            'phase_reduction_rate is not an integer!')
+
         assert 0 < initial_annealing_temperature < np.inf, (
             'Invalid initial_annealing_temperature!')
 
@@ -258,6 +263,8 @@ class PhaseAnnealingSettings(PAD):
         assert 0 <= objective_tolerance <= np.inf, (
             'Invalid objective_tolerance!')
 
+        assert 0 < phase_reduction_rate <= 1, 'Invalid phase_reduction_rate!'
+
         self._sett_ann_init_temp = initial_annealing_temperature
         self._sett_ann_temp_red_rate = temperature_reduction_rate
         self._sett_ann_upt_evry_iter = update_at_every_iteration_no
@@ -265,6 +272,7 @@ class PhaseAnnealingSettings(PAD):
         self._sett_ann_max_iter_wo_chng = maximum_without_change_iterations
         self._sett_ann_obj_tol = objective_tolerance
         self._sett_ann_obj_tol_iters = objective_tolerance_iterations
+        self._sett_ann_phs_red_rate = phase_reduction_rate
 
         if self._vb:
 
@@ -291,6 +299,8 @@ class PhaseAnnealingSettings(PAD):
             print(
                 'Objective function tolerance iterations:',
                 self._sett_ann_obj_tol_iters)
+
+            print('Phase reduction rate:', self._sett_ann_phs_red_rate)
 
             print_el()
 

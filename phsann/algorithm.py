@@ -37,6 +37,8 @@ SimRltznData = namedtuple(
      'acpt_rates',
      'obj_vals_min',
      'phss_all',
+     'temps_all',
+     'phs_red_rates_all',
     ]
     )
 
@@ -136,13 +138,18 @@ class PhaseAnnealingAlgorithm(PAP):
 
     def _get_stopp_criteria(self, test_vars):
 
-        runn_iter, iters_wo_acpt, tol, curr_temp = test_vars
+        (runn_iter,
+         iters_wo_acpt,
+         tol,
+         curr_temp,
+         curr_phs_red_rate) = test_vars
 
         stopp_criteria = (
             (runn_iter < self._sett_ann_max_iters),
             (iters_wo_acpt < self._sett_ann_max_iter_wo_chng),
             (tol > self._sett_ann_obj_tol),
             (not np.isclose(curr_temp, 0.0)),
+            (not np.isclose(curr_phs_red_rate, 0.0)),
             )
 
         return stopp_criteria
@@ -320,7 +327,8 @@ class PhaseAnnealingAlgorithm(PAP):
 
         return rltzns
 
-    def _get_new_phs_and_idx(self, old_index, new_index, runn_iter):
+    def _get_new_phs_and_idx(
+            self, old_index, new_index, curr_phs_red_rate, runn_iter):
 
         index_ctr = 0
         while (old_index == new_index):
@@ -338,9 +346,13 @@ class PhaseAnnealingAlgorithm(PAP):
         new_phs = -np.pi + (2 * np.pi * np.random.random())
 
         if not self._alg_ann_runn_auto_init_temp_search_flag:
-            new_phs *= (
-                (self._sett_ann_max_iters - runn_iter) /
-                self._sett_ann_max_iters)
+            if False:
+                new_phs *= curr_phs_red_rate
+
+            else:
+                new_phs *= (
+                    (self._sett_ann_max_iters - runn_iter) /
+                    self._sett_ann_max_iters)
 
             new_phs += old_phs
 
@@ -396,6 +408,8 @@ class PhaseAnnealingAlgorithm(PAP):
         curr_temp = self._get_init_temp(
             rltzn_iter, pre_init_temps, pre_acpt_rates, init_temp)
 
+        curr_phs_red_rate = self._sett_ann_phs_red_rate
+
         old_obj_val = self._get_obj_ftn_val()
 
         old_index = self._get_new_idx()
@@ -409,14 +423,16 @@ class PhaseAnnealingAlgorithm(PAP):
         acpts_rjts = []
 
         phss_all = []
+        temps_all = [[runn_iter, curr_temp]]
+        phs_red_rates_all = [[runn_iter, curr_phs_red_rate]]
 
         stopp_criteria = self._get_stopp_criteria(
-            (runn_iter, iters_wo_acpt, tol, curr_temp))
+            (runn_iter, iters_wo_acpt, tol, curr_temp, curr_phs_red_rate))
 
         while all(stopp_criteria):
 
             old_phs, new_phs, new_index = self._get_new_phs_and_idx(
-                old_index, new_index, runn_iter)
+                old_index, new_index, curr_phs_red_rate, runn_iter)
 
             self._update_sim(new_index, new_phs)
 
@@ -472,14 +488,33 @@ class PhaseAnnealingAlgorithm(PAP):
 
                 if not (runn_iter % self._sett_ann_upt_evry_iter):
 
+                    temps_all.append([runn_iter - 1, curr_temp])
+
                     curr_temp *= self._sett_ann_temp_red_rate
 
                     assert curr_temp >= 0.0, 'Invalid curr_temp!'
 
+                    temps_all.append([runn_iter, curr_temp])
+
+                    phs_red_rates_all.append(
+                        [runn_iter - 1, curr_phs_red_rate])
+
+                    curr_phs_red_rate *= self._sett_ann_phs_red_rate
+
+                    assert curr_phs_red_rate >= 0.0, (
+                        'Invalid curr_phs_red_rate!')
+
+                    phs_red_rates_all.append(
+                        [runn_iter, curr_phs_red_rate])
+
                     iters_wo_acpt = 0
 
                 stopp_criteria = self._get_stopp_criteria(
-                    (runn_iter, iters_wo_acpt, tol, curr_temp))
+                    (runn_iter,
+                     iters_wo_acpt,
+                     tol,
+                     curr_temp,
+                     curr_phs_red_rate))
 
             else:
                 stopp_criteria = (
@@ -519,6 +554,8 @@ class PhaseAnnealingAlgorithm(PAP):
                 acpt_rates,
                 np.array(obj_vals_min, dtype=np.float64),
                 np.array(phss_all, dtype=np.float64),
+                np.array(temps_all, dtype=np.float64),
+                np.array(phs_red_rates_all, dtype=np.float64),
                 ))
 
         if self._vb:
@@ -558,9 +595,13 @@ class PhaseAnnealingAlgorithm(PAP):
         if self._sett_misc_n_cpus > 1:
 
             mp_pool = ProcessPool(self._sett_misc_n_cpus)
+            mp_pool.restart(True)
 
             mp_rets = list(
                 mp_pool.uimap(self._get_rltzn_multi, rltzns_gen))
+
+            mp_pool.close()
+            mp_pool.join()
 
             mp_pool = None
 
@@ -656,9 +697,13 @@ class PhaseAnnealingAlgorithm(PAP):
         if self._sett_misc_n_cpus > 1:
 
             mp_pool = ProcessPool(self._sett_misc_n_cpus)
+            mp_pool.restart(True)
 
             mp_rets = list(
                 mp_pool.uimap(self._get_rltzn_multi, rltzns_gen))
+
+            mp_pool.close()
+            mp_pool.join()
 
             mp_pool = None
 

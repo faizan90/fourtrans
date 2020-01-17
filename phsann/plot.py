@@ -114,6 +114,10 @@ class PhaseAnnealingPlot:
 
         self._plot_phss_all(h5_hdl, opt_state_dir)
 
+        self._plot_temps_all(h5_hdl, opt_state_dir)
+
+        self._plot_phs_red_rates_all(h5_hdl, opt_state_dir)
+
         h5_hdl.close()
 
         if self._vb:
@@ -290,6 +294,61 @@ class PhaseAnnealingPlot:
 
         plt.savefig(
             str(out_dir / f'opt_state__phss_all.png'), bbox_inches='tight')
+
+        plt.close()
+        return
+
+    def _plot_temps_all(self, h5_hdl, out_dir):
+
+        sim_grp_main = h5_hdl['data_sim_rltzns']
+
+        plt.figure(figsize=(20, 7))
+
+        for rltzn_lab in sim_grp_main:
+            temps_all = sim_grp_main[f'{rltzn_lab}/temps_all']
+
+            plt.plot(
+                temps_all[:, 0],
+                temps_all[:, 1],
+                alpha=0.1,
+                color='k')
+
+        plt.xlabel('Iteration')
+
+        plt.ylabel(f'Annealing temperature')
+
+        plt.grid()
+
+        plt.savefig(
+            str(out_dir / f'opt_state__temps_all.png'), bbox_inches='tight')
+
+        plt.close()
+        return
+
+    def _plot_phs_red_rates_all(self, h5_hdl, out_dir):
+
+        sim_grp_main = h5_hdl['data_sim_rltzns']
+
+        plt.figure(figsize=(20, 7))
+
+        for rltzn_lab in sim_grp_main:
+            temps_all = sim_grp_main[f'{rltzn_lab}/phs_red_rates_all']
+
+            plt.plot(
+                temps_all[:, 0],
+                temps_all[:, 1],
+                alpha=0.1,
+                color='k')
+
+        plt.xlabel('Iteration')
+
+        plt.ylabel(f'Phase increment reduction rate')
+
+        plt.grid()
+
+        plt.savefig(
+            str(out_dir / f'opt_state__phs_red_rates_all.png'),
+            bbox_inches='tight')
 
         plt.close()
         return
