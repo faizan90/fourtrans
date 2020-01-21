@@ -34,6 +34,10 @@ class PhaseAnnealingSettings(PAD):
         self._sett_ann_upt_evry_iter = None
         self._sett_ann_max_iters = None
         self._sett_ann_max_iter_wo_chng = None
+        self._sett_ann_obj_tol = None
+        self._sett_ann_obj_tol_iters = None
+        self._sett_ann_acpt_rate_iters = None
+        self._sett_ann_phs_red_rate_type = None
         self._sett_ann_phs_red_rate = None
 
         self._sett_ann_auto_init_temp_temp_bd_lo = None
@@ -46,6 +50,7 @@ class PhaseAnnealingSettings(PAD):
         self._sett_ann_auto_init_temp_ramp_rate = None
 
         self._sett_misc_n_rltzns = 1
+        self._sett_misc_outs_dir = None
         self._sett_misc_n_cpus = 1
 
         self._sett_obj_set_flag = False
@@ -183,7 +188,9 @@ class PhaseAnnealingSettings(PAD):
             maximum_without_change_iterations,
             objective_tolerance,
             objective_tolerance_iterations,
-            phase_reduction_rate):
+            acceptance_rate_iterations,
+            phase_reduction_rate_type,
+            phase_reduction_rate=None):
 
         '''
         Simulated annealing algorithm parameters
@@ -204,14 +211,31 @@ class PhaseAnnealingSettings(PAD):
         maximum_without_change_iterations : integer
             To stop looking for an optimum after
             maximum_without_change_iterations consecutive iterations do not
-            yield a better optimum. Should be > 0 and <= maximum_iterations.
+            yield a better optimum. Should be > 0.
         objective_tolerance : float
             To stop the optimization if mean of the absolute differences
-            between consective objective_tolerance_iterations iterations
+            between consecutive objective_tolerance_iterations iterations
             is less than or equal to objective_tolerance. Should be >= 0.
         objective_tolerance_iterations : integer
-            See the parameter objective_tolerance. Should be > 0 and <=
-            update_at_every_iteration_no.
+            See the parameter objective_tolerance. Should be > 0.
+        acceptance_rate_iterations : integer
+            Number to iterations to take for mean acceptance rate. Should be
+            greater than 0.
+        phase_reduction_rate_type : integer
+            How to limit the magnitude of the newly generated phases.
+            A number between 0 and 3.
+            0:    No limiting performed.
+            1:    A linear reduction with respect to the maximum iterations is
+                  applied. The more the iteration number the less the change.
+            2:    Reduce the rate by multiplying the previous rate by
+                  phase_reduction_rate.
+            3:    Reduce the reduction rate is equal to the mean
+                  accepatance rate of previous acceptance_rate_iterations.
+        phase_reduction_rate : float
+            If phase_reduction_rate_type is 2, then the new phase reduction
+            rate is previous multiplied by phase_reduction_rate_type. Should
+            be > 0 and <= 1.
+
         '''
 
         if self._vb:
@@ -240,8 +264,8 @@ class PhaseAnnealingSettings(PAD):
         assert isinstance(objective_tolerance_iterations, int), (
             'objective_tolerance_iterations not an integer!')
 
-        assert isinstance(phase_reduction_rate, float), (
-            'phase_reduction_rate is not an integer!')
+        assert isinstance(acceptance_rate_iterations, int), (
+            'acceptance_rate_iterations not an integer!')
 
         assert 0 < initial_annealing_temperature < np.inf, (
             'Invalid initial_annealing_temperature!')
@@ -249,21 +273,39 @@ class PhaseAnnealingSettings(PAD):
         assert 0 < temperature_reduction_rate <= 1, (
             'Invalid temperature_reduction_rate!')
 
-        assert (
-            0 <
-            objective_tolerance_iterations <=
-            update_at_every_iteration_no <=
-            maximum_without_change_iterations <=
-            maximum_iterations), (
-                'Inconsistent or invalid objective_tolerance_iterations, '
-                'update_at_every_iteration_no, '
-                'maximum_without_change_iterations, maximum_iterations'
-                'values!')
+        assert maximum_iterations >= 0, 'Invalid maximum_iterations!'
+
+        assert update_at_every_iteration_no >= 0, (
+            'Invalid update_at_every_iteration_no!')
+
+        assert maximum_without_change_iterations >= 0, (
+            'Invalid maximum_without_change_iterations!')
 
         assert 0 <= objective_tolerance <= np.inf, (
             'Invalid objective_tolerance!')
 
-        assert 0 < phase_reduction_rate <= 1, 'Invalid phase_reduction_rate!'
+        assert objective_tolerance_iterations >= 0, (
+            'Invalid objective_tolerance_iterations!')
+
+        assert acceptance_rate_iterations >= 0, (
+            'Invalid acceptance_rate_iterations!')
+
+        assert 0 <= phase_reduction_rate_type <= 3, (
+            'Invalid phase_reduction_rate_type!')
+
+        if phase_reduction_rate_type == 2:
+
+            assert isinstance(phase_reduction_rate, float), (
+                'phase_reduction_rate is not a float!')
+
+            assert 0 < phase_reduction_rate <= 1, (
+                'Invalid phase_reduction_rate!')
+
+        elif phase_reduction_rate_type in (0, 1, 3):
+            pass
+
+        else:
+            raise NotImplementedError('Unknown phase_reduction_rate_type!')
 
         self._sett_ann_init_temp = initial_annealing_temperature
         self._sett_ann_temp_red_rate = temperature_reduction_rate
@@ -272,7 +314,17 @@ class PhaseAnnealingSettings(PAD):
         self._sett_ann_max_iter_wo_chng = maximum_without_change_iterations
         self._sett_ann_obj_tol = objective_tolerance
         self._sett_ann_obj_tol_iters = objective_tolerance_iterations
-        self._sett_ann_phs_red_rate = phase_reduction_rate
+        self._sett_ann_acpt_rate_iters = acceptance_rate_iterations
+        self._sett_ann_phs_red_rate_type = phase_reduction_rate_type
+
+        if phase_reduction_rate_type == 2:
+            self._sett_ann_phs_red_rate = phase_reduction_rate
+
+        elif phase_reduction_rate_type in (0, 1, 3):
+            pass
+
+        else:
+            raise NotImplementedError('Unknown phase_reduction_rate_type!')
 
         if self._vb:
 
@@ -299,6 +351,14 @@ class PhaseAnnealingSettings(PAD):
             print(
                 'Objective function tolerance iterations:',
                 self._sett_ann_obj_tol_iters)
+
+            print(
+                'Acceptance rate iterations:',
+                self._sett_ann_acpt_rate_iters)
+
+            print(
+                'Phase reduction rate type:',
+                self._sett_ann_phs_red_rate_type)
 
             print('Phase reduction rate:', self._sett_ann_phs_red_rate)
 

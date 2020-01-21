@@ -26,19 +26,22 @@ SimRltznData = namedtuple(
      'asymms_1',
      'asymms_2',
      'ecop_dens',
-     'runn_iter',
+     'iter_ctr',
      'iters_wo_acpt',
      'tol',
      'fin_temp',
      'stopp_criteria',
-     'tols_all',
+     'tols',
      'obj_vals_all',
-     'acpts_rjts',
-     'acpt_rates',
+     'acpts_rjts_all',
+     'acpt_rates_all',
      'obj_vals_min',
      'phss_all',
-     'temps_all',
-     'phs_red_rates_all',
+     'temps',
+     'phs_red_rates',
+     'idxs_all',
+     'idxs_acpt',
+     'acpt_rates_dfrntl',
     ]
     )
 
@@ -62,6 +65,46 @@ class PhaseAnnealingAlgorithm(PAP):
         self._alg_rltzns_gen_flag = False
 
         self._alg_verify_flag = False
+        return
+
+    def generate_realizations(self):
+
+        '''Start the phase annealing algorithm'''
+
+        if self._sett_auto_temp_set_flag:
+            self._auto_temp_search()
+
+        self._gen_rltzns_rglr()
+
+        self._update_ref_at_end()
+
+        self._alg_rltzns_gen_flag = True
+        return
+
+    def get_realizations(self):
+
+        assert self._alg_rltzns_gen_flag, 'Call generate_realizations first!'
+
+        return self._alg_rltzns
+
+    def verify(self):
+
+        PAP._PhaseAnnealingPrepare__verify(self)
+        assert self._prep_verify_flag, 'Prepare in an unverified state!'
+
+        self._alg_sim_ann_init_temps = (
+            [self._sett_ann_init_temp] * self._sett_misc_n_rltzns)
+
+        if self._vb:
+            print_sl()
+
+            print(
+                'Phase annealing algorithm requirements verified '
+                'successfully!')
+
+            print_el()
+
+        self._alg_verify_flag = True
         return
 
     def _get_init_temp(
@@ -138,18 +181,20 @@ class PhaseAnnealingAlgorithm(PAP):
 
     def _get_stopp_criteria(self, test_vars):
 
-        (runn_iter,
+        (iter_ctr,
          iters_wo_acpt,
          tol,
-         curr_temp,
-         curr_phs_red_rate) = test_vars
+         temp,
+         phs_red_rate,
+         acpt_rate) = test_vars
 
         stopp_criteria = (
-            (runn_iter < self._sett_ann_max_iters),
+            (iter_ctr < self._sett_ann_max_iters),
             (iters_wo_acpt < self._sett_ann_max_iter_wo_chng),
             (tol > self._sett_ann_obj_tol),
-            (not np.isclose(curr_temp, 0.0)),
-            (not np.isclose(curr_phs_red_rate, 0.0)),
+            (not np.isclose(temp, 0.0)),
+            (not np.isclose(phs_red_rate, 0.0)),
+            (not np.isclose(acpt_rate, 0.0)),
             )
 
         return stopp_criteria
@@ -196,78 +241,6 @@ class PhaseAnnealingAlgorithm(PAP):
         self._sim_asymms_1 = asymms_1
         self._sim_asymms_2 = asymms_2
         self._sim_ecop_dens_arrs = ecop_dens_arrs
-        return
-
-    def _update_at_end(self, rnks):
-
-        probs = rnks / (self._data_ref_shape[0] + 1.0)
-
-        assert np.all((0 < probs) & (probs < 1)), 'probs out of range!'
-
-        scorrs = np.full(self._sett_obj_lag_steps.size, np.nan)
-
-        asymms_1 = np.full(self._sett_obj_lag_steps.size, np.nan)
-
-        asymms_2 = np.full(self._sett_obj_lag_steps.size, np.nan)
-
-        ecop_dens_arrs = np.full(
-            (self._sett_obj_lag_steps.size,
-             self._sett_obj_ecop_dens_bins,
-             self._sett_obj_ecop_dens_bins),
-             np.nan,
-             dtype=np.float64)
-
-        for i, lag in enumerate(self._sett_obj_lag_steps):
-            rolled_probs = np.roll(probs, lag)
-
-            scorrs[i] = np.corrcoef(probs, rolled_probs)[0, 1]
-
-            asymms_1[i], asymms_2[i] = get_asymms_sample(
-                probs, rolled_probs)
-
-            asymms_1[i] = asymms_1[i] / self._get_asymm_1_max(scorrs[i])
-
-            asymms_2[i] = asymms_2[i] / self._get_asymm_2_max(scorrs[i])
-
-            fill_bi_var_cop_dens(
-                probs, rolled_probs, ecop_dens_arrs[i, :, :])
-
-        assert np.all(np.isfinite(scorrs)), 'Invalid values in scorrs!'
-
-        assert np.all((scorrs >= -1.0) & (scorrs <= +1.0)), (
-            'scorrs out of range!')
-
-        assert np.all(np.isfinite(asymms_1)), 'Invalid values in asymms_1!'
-
-        assert np.all((asymms_1 >= -1.0) & (asymms_1 <= +1.0)), (
-            'asymms_1 out of range!')
-
-        assert np.all(np.isfinite(asymms_2)), 'Invalid values in asymms_2!'
-
-        assert np.all((asymms_2 >= -1.0) & (asymms_2 <= +1.0)), (
-            'asymms_2 out of range!')
-
-        assert np.all(np.isfinite(ecop_dens_arrs)), (
-            'Invalid values in ecop_dens_arrs!')
-
-        return scorrs, asymms_1, asymms_2, ecop_dens_arrs
-
-    def _update_ref_at_end(self):
-
-        (self._ref_scorrs,
-         self._ref_asymms_1,
-         self._ref_asymms_2,
-         self._ref_ecop_dens_arrs) = self._update_at_end(self._ref_rnk)
-
-        return
-
-    def _update_sim_at_end(self):
-
-        (self._sim_scorrs,
-         self._sim_asymms_1,
-         self._sim_asymms_2,
-         self._sim_ecop_dens_arrs) = self._update_at_end(self._sim_rnk)
-
         return
 
     def _get_new_idx(self):
@@ -327,52 +300,6 @@ class PhaseAnnealingAlgorithm(PAP):
 
         return rltzns
 
-    def _get_new_phs_and_idx(
-            self, old_index, new_index, curr_phs_red_rate, runn_iter):
-
-        index_ctr = 0
-        while (old_index == new_index):
-            new_index = self._get_new_idx()
-
-            if index_ctr > 100:
-                raise RuntimeError(
-                    'Could not get an index that is different than '
-                    'the previous!')
-
-            index_ctr += 1
-
-        old_phs = self._sim_phs_spec[new_index]
-
-        new_phs = -np.pi + (2 * np.pi * np.random.random())
-
-        if not self._alg_ann_runn_auto_init_temp_search_flag:
-            if False:
-                new_phs *= curr_phs_red_rate
-
-            else:
-                new_phs *= (
-                    (self._sett_ann_max_iters - runn_iter) /
-                    self._sett_ann_max_iters)
-
-            new_phs += old_phs
-
-            pi_ctr = 0
-            while not (-np.pi <= new_phs <= +np.pi):
-                if new_phs > +np.pi:
-                    new_phs = -np.pi + (new_phs - np.pi)
-
-                elif new_phs < -np.pi:
-                    new_phs = +np.pi + (new_phs + np.pi)
-
-                if pi_ctr > 100:
-                    raise RuntimeError(
-                        'Could not get a phase that is in range!')
-
-                pi_ctr += 1
-
-#         assert not np.isclose(old_phs, new_phs), 'What are the chances?'
-        return old_phs, new_phs, new_index
-
     def _get_rltzn_single(self, args):
 
         (rltzn_iter,
@@ -401,49 +328,84 @@ class PhaseAnnealingAlgorithm(PAP):
         # randomize all phases before starting
         self._gen_sim_aux_data()
 
-        runn_iter = 0
-        iters_wo_acpt = 0
-        tol = np.inf
+        # initialize sim anneal variables
 
-        curr_temp = self._get_init_temp(
+        iter_ctr = 0
+        phs_red_rate = 1.0
+
+        temp = self._get_init_temp(
             rltzn_iter, pre_init_temps, pre_acpt_rates, init_temp)
-
-        curr_phs_red_rate = self._sett_ann_phs_red_rate
-
-        old_obj_val = self._get_obj_ftn_val()
 
         old_index = self._get_new_idx()
         new_index = old_index
 
-        tols = deque(maxlen=self._sett_ann_obj_tol_iters)
+        old_obj_val = self._get_obj_ftn_val()
 
-        tols_all = []
-        obj_vals_all = []
-        obj_vals_min = []
-        acpts_rjts = []
+        if self._alg_ann_runn_auto_init_temp_search_flag:
+            stopp_criteria = (
+                (iter_ctr <= self._sett_ann_auto_init_temp_niters),
+                )
 
-        phss_all = []
-        temps_all = [[runn_iter, curr_temp]]
-        phs_red_rates_all = [[runn_iter, curr_phs_red_rate]]
+        else:
+            iters_wo_acpt = 0
+            tol = np.inf
+            acpt_rate = 1.0
 
-        stopp_criteria = self._get_stopp_criteria(
-            (runn_iter, iters_wo_acpt, tol, curr_temp, curr_phs_red_rate))
+            tols_dfrntl = deque(maxlen=self._sett_ann_obj_tol_iters)
+
+            acpts_rjts_dfrntl = deque(maxlen=self._sett_ann_acpt_rate_iters)
+
+            stopp_criteria = self._get_stopp_criteria(
+                (iter_ctr,
+                 iters_wo_acpt,
+                 tol,
+                 temp,
+                 phs_red_rate,
+                 acpt_rate))
+
+        # initialize diagnostic variables
+        acpts_rjts_all = []
+
+        if not self._alg_ann_runn_auto_init_temp_search_flag:
+            tols = []
+
+            obj_vals_all = []
+            obj_vals_min = []
+
+            idxs_all = []
+            idxs_acpt = []
+
+            phss_all = []
+            phs_red_rates = [[iter_ctr, phs_red_rate]]
+
+            temps = [[iter_ctr, temp]]
+
+            acpt_rates_dfrntl = [[iter_ctr, acpt_rate]]
+
+        else:
+            pass
 
         while all(stopp_criteria):
 
+            #==================================================================
+            # Simulated annealing start
+            #==================================================================
+
             old_phs, new_phs, new_index = self._get_new_phs_and_idx(
-                old_index, new_index, curr_phs_red_rate, runn_iter)
+                old_index, new_index, phs_red_rate)
 
             self._update_sim(new_index, new_phs)
 
             new_obj_val = self._get_obj_ftn_val()
 
-            if new_obj_val < old_obj_val:
+            old_new_diff = old_obj_val - new_obj_val
+
+            if old_new_diff > 0:
                 accept_flag = True
 
             else:
                 rand_p = np.random.random()
-                boltz_p = np.exp((old_obj_val - new_obj_val) / curr_temp)
+                boltz_p = np.exp(old_new_diff / temp)
 
                 if rand_p < boltz_p:
                     accept_flag = True
@@ -451,89 +413,120 @@ class PhaseAnnealingAlgorithm(PAP):
                 else:
                     accept_flag = False
 
-            acpts_rjts.append(accept_flag)
-
-            tols.append(abs(old_obj_val - new_obj_val))
-
-            if not self._alg_ann_runn_auto_init_temp_search_flag:
-                phss_all.append(new_phs)
-
-            if runn_iter >= tols.maxlen:
-                tol = sum(tols) / float(tols.maxlen)
-                assert np.isfinite(tol), 'Invalid tol!'
-
-                tols_all.append(tol)
-
-            obj_vals_all.append(new_obj_val)
-
             if accept_flag:
                 old_index = new_index
 
                 old_obj_val = new_obj_val
 
-                iters_wo_acpt = 0
-
-                obj_vals_min.append(new_obj_val)
-
             else:
                 self._update_sim(new_index, old_phs)
 
-                iters_wo_acpt += 1
+            iter_ctr += 1
+
+            #==================================================================
+            # Simulated annealing end
+            #==================================================================
+
+            acpts_rjts_all.append(accept_flag)
+
+            if self._alg_ann_runn_auto_init_temp_search_flag:
+                stopp_criteria = (
+                    (iter_ctr <= self._sett_ann_auto_init_temp_niters),
+                    )
+
+            else:
+                tols_dfrntl.append(abs(old_new_diff))
 
                 obj_vals_min.append(old_obj_val)
+                obj_vals_all.append(new_obj_val)
 
-            runn_iter += 1
+                acpts_rjts_dfrntl.append(accept_flag)
 
-            if not self._alg_ann_runn_auto_init_temp_search_flag:
+                phss_all.append(new_phs)
+                idxs_all.append(new_index)
 
-                if not (runn_iter % self._sett_ann_upt_evry_iter):
+                if iter_ctr >= tols_dfrntl.maxlen:
+                    tol = sum(tols_dfrntl) / float(tols_dfrntl.maxlen)
+                    assert np.isfinite(tol), 'Invalid tol!'
 
-                    temps_all.append([runn_iter - 1, curr_temp])
+                    tols.append(tol)
 
-                    curr_temp *= self._sett_ann_temp_red_rate
-
-                    assert curr_temp >= 0.0, 'Invalid curr_temp!'
-
-                    temps_all.append([runn_iter, curr_temp])
-
-                    phs_red_rates_all.append(
-                        [runn_iter - 1, curr_phs_red_rate])
-
-                    curr_phs_red_rate *= self._sett_ann_phs_red_rate
-
-                    assert curr_phs_red_rate >= 0.0, (
-                        'Invalid curr_phs_red_rate!')
-
-                    phs_red_rates_all.append(
-                        [runn_iter, curr_phs_red_rate])
+                if accept_flag:
+                    idxs_acpt.append((iter_ctr - 1, new_index))
 
                     iters_wo_acpt = 0
 
+                else:
+                    iters_wo_acpt += 1
+
+                if iter_ctr >= acpts_rjts_dfrntl.maxlen:
+                    acpt_rates_dfrntl.append([iter_ctr - 1, acpt_rate])
+
+                    acpt_rate = (
+                        sum(acpts_rjts_dfrntl) /
+                        float(acpts_rjts_dfrntl.maxlen))
+
+                    acpt_rates_dfrntl.append([iter_ctr, acpt_rate])
+
+                if not (iter_ctr % self._sett_ann_upt_evry_iter):
+
+                    temps.append([iter_ctr - 1, temp])
+
+                    temp *= self._sett_ann_temp_red_rate
+
+                    assert temp >= 0.0, 'Invalid temp!'
+
+                    temps.append([iter_ctr, temp])
+
+                    phs_red_rates.append([iter_ctr - 1, phs_red_rate])
+
+                    if self._sett_ann_phs_red_rate_type == 0:
+                        pass
+
+                    elif self._sett_ann_phs_red_rate_type == 1:
+                        phs_red_rate = (
+                            (self._sett_ann_max_iters - iter_ctr) /
+                            self._sett_ann_max_iters)
+
+                    elif self._sett_ann_phs_red_rate_type == 2:
+                        phs_red_rate *= self._sett_ann_phs_red_rate
+
+                    elif self._sett_ann_phs_red_rate_type == 3:
+
+                        # An unstable mean of acpts_rjts_dfrntl is a problem.
+                        # So, it has to be long enough.
+                        phs_red_rate = acpt_rate
+
+                    else:
+                        raise NotImplemented(
+                            'Unknown _sett_ann_phs_red_rate_type:',
+                            self._sett_ann_phs_red_rate_type)
+
+                    assert phs_red_rate >= 0.0, (
+                        'Invalid phs_red_rate!')
+
+                    phs_red_rates.append([iter_ctr, phs_red_rate])
+
                 stopp_criteria = self._get_stopp_criteria(
-                    (runn_iter,
+                    (iter_ctr,
                      iters_wo_acpt,
                      tol,
-                     curr_temp,
-                     curr_phs_red_rate))
-
-            else:
-                stopp_criteria = (
-                    (runn_iter <= self._sett_ann_auto_init_temp_niters),
-                    )
+                     temp,
+                     phs_red_rate,
+                     acpt_rate))
 
         if self._alg_ann_runn_auto_init_temp_search_flag:
-            acpt_rate = sum(acpts_rjts) / len(acpts_rjts)
 
-            ret = (acpt_rate, curr_temp)
+            ret = (sum(acpts_rjts_all) / len(acpts_rjts_all), temp)
 
         else:
             self._update_sim_at_end()
 
-            acpts_rjts = np.array(acpts_rjts, dtype=bool)
+            acpts_rjts_all = np.array(acpts_rjts_all, dtype=bool)
 
-            acpt_rates = (
-                np.cumsum(acpts_rjts) /
-                np.arange(1, acpts_rjts.size + 1, dtype=float))
+            acpt_rates_all = (
+                np.cumsum(acpts_rjts_all) /
+                np.arange(1, acpts_rjts_all.size + 1, dtype=float))
 
             ret = SimRltznData._make((
                 self._sim_ft.copy(),
@@ -543,19 +536,22 @@ class PhaseAnnealingAlgorithm(PAP):
                 self._sim_asymms_1.copy(),
                 self._sim_asymms_2.copy(),
                 self._sim_ecop_dens_arrs.copy(),
-                runn_iter,
+                iter_ctr,
                 iters_wo_acpt,
                 tol,
-                curr_temp,
+                temp,
                 np.array(stopp_criteria),
-                np.array(tols_all, dtype=np.float64),
+                np.array(tols, dtype=np.float64),
                 np.array(obj_vals_all, dtype=np.float64),
-                acpts_rjts,
-                acpt_rates,
+                acpts_rjts_all,
+                acpt_rates_all,
                 np.array(obj_vals_min, dtype=np.float64),
                 np.array(phss_all, dtype=np.float64),
-                np.array(temps_all, dtype=np.float64),
-                np.array(phs_red_rates_all, dtype=np.float64),
+                np.array(temps, dtype=np.float64),
+                np.array(phs_red_rates, dtype=np.float64),
+                np.array(idxs_all, dtype=np.uint64),
+                np.array(idxs_acpt, dtype=np.uint64),
+                np.array(acpt_rates_dfrntl, dtype=np.float64),
                 ))
 
         if self._vb:
@@ -566,6 +562,45 @@ class PhaseAnnealingAlgorithm(PAP):
                 f'{timer_end - timer_beg:0.3f} seconds.')
 
         return ret
+
+    def _get_new_phs_and_idx(self, old_index, new_index, phs_red_rate):
+
+        index_ctr = 0
+        while (old_index == new_index):
+            new_index = self._get_new_idx()
+
+            if index_ctr > 100:
+                raise RuntimeError(
+                    'Could not get an index that is different than '
+                    'the previous!')
+
+            index_ctr += 1
+
+        old_phs = self._sim_phs_spec[new_index]
+
+        new_phs = -np.pi + (2 * np.pi * np.random.random())
+
+        if not self._alg_ann_runn_auto_init_temp_search_flag:
+            new_phs *= phs_red_rate
+
+            new_phs += old_phs
+
+            pi_ctr = 0
+            while not (-np.pi <= new_phs <= +np.pi):
+                if new_phs > +np.pi:
+                    new_phs = -np.pi + (new_phs - np.pi)
+
+                elif new_phs < -np.pi:
+                    new_phs = +np.pi + (new_phs + np.pi)
+
+                if pi_ctr > 100:
+                    raise RuntimeError(
+                        'Could not get a phase that is in range!')
+
+                pi_ctr += 1
+
+#         assert not np.isclose(old_phs, new_phs), 'What are the chances?'
+        return old_phs, new_phs, new_index
 
     def _auto_temp_search(self):
 
@@ -724,44 +759,76 @@ class PhaseAnnealingAlgorithm(PAP):
 
         return
 
-    def generate_realizations(self):
+    def _update_at_end(self, rnks):
 
-        '''Start the phase annealing algorithm'''
+        probs = rnks / (self._data_ref_shape[0] + 1.0)
 
-        if self._sett_auto_temp_set_flag:
-            self._auto_temp_search()
+        assert np.all((0 < probs) & (probs < 1)), 'probs out of range!'
 
-        self._gen_rltzns_rglr()
+        scorrs = np.full(self._sett_obj_lag_steps.size, np.nan)
 
-        self._update_ref_at_end()
+        asymms_1 = np.full(self._sett_obj_lag_steps.size, np.nan)
 
-        self._alg_rltzns_gen_flag = True
+        asymms_2 = np.full(self._sett_obj_lag_steps.size, np.nan)
+
+        ecop_dens_arrs = np.full(
+            (self._sett_obj_lag_steps.size,
+             self._sett_obj_ecop_dens_bins,
+             self._sett_obj_ecop_dens_bins),
+             np.nan,
+             dtype=np.float64)
+
+        for i, lag in enumerate(self._sett_obj_lag_steps):
+            rolled_probs = np.roll(probs, lag)
+
+            scorrs[i] = np.corrcoef(probs, rolled_probs)[0, 1]
+
+            asymms_1[i], asymms_2[i] = get_asymms_sample(
+                probs, rolled_probs)
+
+            asymms_1[i] = asymms_1[i] / self._get_asymm_1_max(scorrs[i])
+
+            asymms_2[i] = asymms_2[i] / self._get_asymm_2_max(scorrs[i])
+
+            fill_bi_var_cop_dens(
+                probs, rolled_probs, ecop_dens_arrs[i, :, :])
+
+        assert np.all(np.isfinite(scorrs)), 'Invalid values in scorrs!'
+
+        assert np.all((scorrs >= -1.0) & (scorrs <= +1.0)), (
+            'scorrs out of range!')
+
+        assert np.all(np.isfinite(asymms_1)), 'Invalid values in asymms_1!'
+
+        assert np.all((asymms_1 >= -1.0) & (asymms_1 <= +1.0)), (
+            'asymms_1 out of range!')
+
+        assert np.all(np.isfinite(asymms_2)), 'Invalid values in asymms_2!'
+
+        assert np.all((asymms_2 >= -1.0) & (asymms_2 <= +1.0)), (
+            'asymms_2 out of range!')
+
+        assert np.all(np.isfinite(ecop_dens_arrs)), (
+            'Invalid values in ecop_dens_arrs!')
+
+        return scorrs, asymms_1, asymms_2, ecop_dens_arrs
+
+    def _update_ref_at_end(self):
+
+        (self._ref_scorrs,
+         self._ref_asymms_1,
+         self._ref_asymms_2,
+         self._ref_ecop_dens_arrs) = self._update_at_end(self._ref_rnk)
+
         return
 
-    def get_realizations(self):
+    def _update_sim_at_end(self):
 
-        assert self._alg_rltzns_gen_flag, 'Call generate_realizations first!'
+        (self._sim_scorrs,
+         self._sim_asymms_1,
+         self._sim_asymms_2,
+         self._sim_ecop_dens_arrs) = self._update_at_end(self._sim_rnk)
 
-        return self._alg_rltzns
-
-    def verify(self):
-
-        PAP._PhaseAnnealingPrepare__verify(self)
-        assert self._prep_verify_flag, 'Prepare in an unverified state!'
-
-        self._alg_sim_ann_init_temps = (
-            [self._sett_ann_init_temp] * self._sett_misc_n_rltzns)
-
-        if self._vb:
-            print_sl()
-
-            print(
-                'Phase annealing algorithm requirements verified '
-                'successfully!')
-
-            print_el()
-
-        self._alg_verify_flag = True
         return
 
     __verify = verify

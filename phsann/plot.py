@@ -104,19 +104,25 @@ class PhaseAnnealingPlot:
 
         h5_hdl = h5py.File(self._plt_in_h5_file, mode='r', driver=None)
 
-        self._plot_tols_all(h5_hdl, opt_state_dir)
+        self._plot_tols(h5_hdl, opt_state_dir)
 
         self._plot_obj_vals_all(h5_hdl, opt_state_dir)
 
         self._plot_obj_vals_min(h5_hdl, opt_state_dir)
 
-        self._plot_acpt_rates(h5_hdl, opt_state_dir)
+        self._plot_acpt_rates_all(h5_hdl, opt_state_dir)
 
         self._plot_phss_all(h5_hdl, opt_state_dir)
 
-        self._plot_temps_all(h5_hdl, opt_state_dir)
+        self._plot_temps(h5_hdl, opt_state_dir)
 
-        self._plot_phs_red_rates_all(h5_hdl, opt_state_dir)
+        self._plot_phs_red_rates(h5_hdl, opt_state_dir)
+
+        self._plot_idxs_all(h5_hdl, opt_state_dir)
+
+        self._plot_idxs_acpt(h5_hdl, opt_state_dir)
+
+        self._plot_acpt_rates_dfrntl(h5_hdl, opt_state_dir)
 
         h5_hdl.close()
 
@@ -163,7 +169,7 @@ class PhaseAnnealingPlot:
         self._plt_verify_flag = True
         return
 
-    def _plot_tols_all(self, h5_hdl, out_dir):
+    def _plot_tols(self, h5_hdl, out_dir):
 
         sim_grp_main = h5_hdl['data_sim_rltzns']
 
@@ -173,11 +179,11 @@ class PhaseAnnealingPlot:
 
         for rltzn_lab in sim_grp_main:
             tol_iters = np.arange(
-                sim_grp_main[f'{rltzn_lab}/tols_all'].shape[0]) + beg_iters
+                sim_grp_main[f'{rltzn_lab}/tols'].shape[0]) + beg_iters
 
             plt.plot(
                 tol_iters,
-                sim_grp_main[f'{rltzn_lab}/tols_all'],
+                sim_grp_main[f'{rltzn_lab}/tols'],
                 alpha=0.1,
                 color='k')
 
@@ -186,12 +192,13 @@ class PhaseAnnealingPlot:
         plt.xlabel('Iteration')
 
         plt.ylabel(
-            f'Mean absolute difference\nof previous {beg_iters} iterations')
+            f'Mean absolute objective function\ndifference of previous '
+            f'{beg_iters} iterations')
 
         plt.grid()
 
         plt.savefig(
-            str(out_dir / f'opt_state__tols_all.png'), bbox_inches='tight')
+            str(out_dir / f'opt_state__tols.png'), bbox_inches='tight')
 
         plt.close()
         return
@@ -248,7 +255,7 @@ class PhaseAnnealingPlot:
         plt.close()
         return
 
-    def _plot_acpt_rates(self, h5_hdl, out_dir):
+    def _plot_acpt_rates_all(self, h5_hdl, out_dir):
 
         sim_grp_main = h5_hdl['data_sim_rltzns']
 
@@ -256,11 +263,11 @@ class PhaseAnnealingPlot:
 
         for rltzn_lab in sim_grp_main:
             plt.plot(
-                sim_grp_main[f'{rltzn_lab}/acpt_rates'],
+                sim_grp_main[f'{rltzn_lab}/acpt_rates_all'],
                 alpha=0.1,
                 color='k')
 
-        plt.ylim(0, plt.ylim()[1])
+        plt.ylim(0, 1)
 
         plt.xlabel('Iteration')
 
@@ -298,14 +305,66 @@ class PhaseAnnealingPlot:
         plt.close()
         return
 
-    def _plot_temps_all(self, h5_hdl, out_dir):
+    def _plot_idxs_all(self, h5_hdl, out_dir):
 
         sim_grp_main = h5_hdl['data_sim_rltzns']
 
         plt.figure(figsize=(20, 7))
 
         for rltzn_lab in sim_grp_main:
-            temps_all = sim_grp_main[f'{rltzn_lab}/temps_all']
+            plt.plot(
+                sim_grp_main[f'{rltzn_lab}/idxs_all'],
+                alpha=0.1,
+                color='k')
+
+        plt.xlabel('Iteration')
+
+        plt.ylabel(f'Index')
+
+        plt.grid()
+
+        plt.savefig(
+            str(out_dir / f'opt_state__idxs_all.png'), bbox_inches='tight')
+
+        plt.close()
+        return
+
+    def _plot_idxs_acpt(self, h5_hdl, out_dir):
+
+        sim_grp_main = h5_hdl['data_sim_rltzns']
+
+        plt.figure(figsize=(20, 7))
+
+        for rltzn_lab in sim_grp_main:
+
+            idxs_acpt = sim_grp_main[f'{rltzn_lab}/idxs_acpt']
+
+            plt.plot(
+                idxs_acpt[:, 0],
+                idxs_acpt[:, 1],
+                alpha=0.1,
+                color='k')
+
+        plt.xlabel('Iteration')
+
+        plt.ylabel(f'Index')
+
+        plt.grid()
+
+        plt.savefig(
+            str(out_dir / f'opt_state__idxs_acpt.png'), bbox_inches='tight')
+
+        plt.close()
+        return
+
+    def _plot_temps(self, h5_hdl, out_dir):
+
+        sim_grp_main = h5_hdl['data_sim_rltzns']
+
+        plt.figure(figsize=(20, 7))
+
+        for rltzn_lab in sim_grp_main:
+            temps_all = sim_grp_main[f'{rltzn_lab}/temps']
 
             plt.plot(
                 temps_all[:, 0],
@@ -320,25 +379,27 @@ class PhaseAnnealingPlot:
         plt.grid()
 
         plt.savefig(
-            str(out_dir / f'opt_state__temps_all.png'), bbox_inches='tight')
+            str(out_dir / f'opt_state__temps.png'), bbox_inches='tight')
 
         plt.close()
         return
 
-    def _plot_phs_red_rates_all(self, h5_hdl, out_dir):
+    def _plot_phs_red_rates(self, h5_hdl, out_dir):
 
         sim_grp_main = h5_hdl['data_sim_rltzns']
 
         plt.figure(figsize=(20, 7))
 
         for rltzn_lab in sim_grp_main:
-            temps_all = sim_grp_main[f'{rltzn_lab}/phs_red_rates_all']
+            temps_all = sim_grp_main[f'{rltzn_lab}/phs_red_rates']
 
             plt.plot(
                 temps_all[:, 0],
                 temps_all[:, 1],
                 alpha=0.1,
                 color='k')
+
+        plt.ylim(0, 1)
 
         plt.xlabel('Iteration')
 
@@ -347,7 +408,42 @@ class PhaseAnnealingPlot:
         plt.grid()
 
         plt.savefig(
-            str(out_dir / f'opt_state__phs_red_rates_all.png'),
+            str(out_dir / f'opt_state__phs_red_rates.png'),
+            bbox_inches='tight')
+
+        plt.close()
+        return
+
+    def _plot_acpt_rates_dfrntl(self, h5_hdl, out_dir):
+
+        acpt_rate_iters = (
+            h5_hdl['settings'].attrs['_sett_ann_acpt_rate_iters'])
+
+        sim_grp_main = h5_hdl['data_sim_rltzns']
+
+        plt.figure(figsize=(20, 7))
+
+        for rltzn_lab in sim_grp_main:
+            acpt_rate_dfrntl = sim_grp_main[f'{rltzn_lab}/acpt_rates_dfrntl']
+
+            plt.plot(
+                acpt_rate_dfrntl[:, 0],
+                acpt_rate_dfrntl[:, 1],
+                alpha=0.1,
+                color='k')
+
+        plt.ylim(0, 1)
+
+        plt.xlabel('Iteration')
+
+        plt.ylabel(
+            f'Mean acceptance rate for the\npast {acpt_rate_iters} '
+            f'iterations')
+
+        plt.grid()
+
+        plt.savefig(
+            str(out_dir / f'opt_state__acpt_rates_dfrntl.png'),
             bbox_inches='tight')
 
         plt.close()

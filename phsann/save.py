@@ -19,7 +19,7 @@ from .algorithm import PhaseAnnealingAlgorithm as PAA
 class PhaseAnnealingSave(PAA):
 
     '''
-    Save reference, realizations flags, settings to HDF5
+    Save reference, realizations flags and settings to HDF5
     '''
 
     def __init__(self, verbose):

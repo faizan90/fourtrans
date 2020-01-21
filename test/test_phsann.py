@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 
 from fourtrans import PhaseAnnealing, PhaseAnnealingPlot
 
-DEBUG_FLAG = True
+DEBUG_FLAG = False
 
 plt.ioff()
 
@@ -47,7 +47,7 @@ def main():
 
     verbose = True
 
-    sim_label = 'test_phs_red_w_type_1_04'
+    sim_label = 'test_phs_red_type_4_01_test'
 
     h5_name = 'phsann.h5'
 
@@ -58,7 +58,10 @@ def main():
 #     plt_flag = False
 
     long_test_flag = True
-#     long_test_flag = False
+    long_test_flag = False
+
+    auto_init_temperature_flag = True
+#     auto_init_temperature_flag = False
 
     scorr_flag = True
     asymm_type_1_flag = True
@@ -70,25 +73,22 @@ def main():
 #     asymm_type_2_flag = False
     ecop_dens_flag = False
 
-    auto_init_temperature_flag = True
-#     auto_init_temperature_flag = False
-
     lag_steps = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
     ecop_bins = 20
 
-    n_reals = 7
+    n_reals = 1
     outputs_dir = main_dir / sim_label
     n_cpus = 'auto'
 
     if long_test_flag:
         initial_annealing_temperature = 0.0001
-        temperature_reduction_ratio = 0.99
+        temperature_reduction_ratio = 0.995
         update_at_every_iteration_no = 100
         maximum_iterations = int(2e5)
         maximum_without_change_iterations = 1000
         objective_tolerance = 1e-8
         objective_tolerance_iterations = 30
-        phase_reduction_rate = 0.99
+        phase_reduction_rate = 0.999
 
         temperature_lower_bound = 1e-5
         temperature_upper_bound = 1000.0
@@ -97,7 +97,11 @@ def main():
         acceptance_lower_bound = 0.5
         acceptance_upper_bound = 0.8
         target_acpt_rate = 0.7
-        ramp_rate = 2.0
+        ramp_rate = 3.0
+
+        acceptance_rate_iterations = 1000
+        phase_reduction_rate_type = 4
+        phase_reduction_rate = 0.999
 
     else:
         initial_annealing_temperature = 0.0001
@@ -112,11 +116,15 @@ def main():
         temperature_lower_bound = 1e-5
         temperature_upper_bound = 1000.0
         max_search_attempts = 50
-        n_iterations_per_attempt = 1000
+        n_iterations_per_attempt = 1000  # has to be stable
         acceptance_lower_bound = 0.5
         acceptance_upper_bound = 0.8
         target_acpt_rate = 0.7
-        ramp_rate = 2.0
+        ramp_rate = 3.0
+
+        acceptance_rate_iterations = 50
+        phase_reduction_rate_type = 1
+        phase_reduction_rate = 0.95
 
     if gen_rltzns_flag:
         in_df = pd.read_csv(in_file_path, index_col=0, sep=sep)
@@ -146,6 +154,8 @@ def main():
             maximum_without_change_iterations,
             objective_tolerance,
             objective_tolerance_iterations,
+            acceptance_rate_iterations,
+            phase_reduction_rate_type,
             phase_reduction_rate)
 
         if auto_init_temperature_flag:
