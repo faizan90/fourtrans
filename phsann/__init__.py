@@ -6,8 +6,6 @@ Created on Dec 27, 2019
 
 import matplotlib as mpl
 
-mpl.rc('font', size=16)
-
 # has to be big enough to accomodate all plotted values
 mpl.rcParams['agg.path.chunksize'] = 100000
 

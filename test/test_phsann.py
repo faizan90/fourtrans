@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 
 from fourtrans import PhaseAnnealing, PhaseAnnealingPlot
 
-DEBUG_FLAG = False
+DEBUG_FLAG = True
 
 plt.ioff()
 
