@@ -51,7 +51,7 @@ class SimultaneousExtremesDataAndSettings:
         time_ser_df : pd.DataFrame
             A DataFrame holding the data of each column (station) as a
             time series. The index should be of the type pd.DatetimeIndex.
-            The values should be a subclass of np.floating. The columns
+            The values should be a subclass of np.floating. The columns names
             are cast to strings upon setup. Values may be NaN but not all
             of them for a given station.
         '''
@@ -76,7 +76,12 @@ class SimultaneousExtremesDataAndSettings:
         assert not time_ser_df.index.duplicated(keep=False).sum(), (
             'Duplicate time steps in time_ser_df!')
 
-        self._data_df = time_ser_df
+        self._data_df = time_ser_df.copy()
+
+        if self._data_df.shape[0] % 2:
+            self._data_df = self._data_df.iloc[:-1, :]
+
+        assert not (self._data_df.shape[0] % 2), 'Input not having even steps!'
 
         self._data_df.columns = [str(stn) for stn in self._data_df.columns]
 

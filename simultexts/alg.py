@@ -121,19 +121,19 @@ class SimultaneousExtremesAlgorithm(SEDS):
             somewhere in between these two bounds. For each step on which an
             event has occurred, the frequency counter is incremented by one
             if events of same magnitude happen within a given time window
-            on ALL stations. The probability of simultaneous extremes for
-            this case is the freqeuncy counter divided by the total
+            on aLL stations. The probability of simultaneous extremes for
+            this case is the frequency counter divided by the total
             number of events.
 
             10. All the data computed above is written to the HDF5 database.
 
-            11. If sim_auto_corrs_flag is True then the each wave contribution
+            11. If sim_auto_corrs_flag is True then each wave contribution
             to the total of the observed and simulated are computed and saved
             to the HDF5 database.
 
         Structure of the HDF5 database:
-            All data inside the HDF5 database can be plotted by plotting
-            class by setting the appropriate flags to True.
+            All data inside the HDF5 database can be plotted by the
+            SimultaneousExtremesPlot by setting the appropriate flags to True.
 
             Datasets:
                 excd_probs: sorted exceedance probabilites array.
@@ -159,7 +159,7 @@ class SimultaneousExtremesAlgorithm(SEDS):
             Datasets inside simultexts_sims for each combination:
                 ref_evts: Number of events for a corresponding exceedance
                     probability in a reference station. Depends on the
-                    length of series only.
+                    length of the input series only.
 
                 ref_evts_ext: Same as ref_evts but for the extended simulated
                     series.
@@ -172,13 +172,13 @@ class SimultaneousExtremesAlgorithm(SEDS):
 
                 neb_evts_{STATION_LABEL}: The frequency counts of simultaneous
                     extremes with STATION_LABEL station as the reference.
-                    It's a 4D integer array. First dimension is simulation
-                    number. Second is neighboring station (stations left
+                    It's a 4D integer array. First dimension is the simulation
+                    number. Second is the neighboring station (stations left
                     after removing the reference station from the combination).
-                    Third is exceedence probability. Forth is time window.
-                    e.g. We have a combination (A, B, C), exceedance
+                    Third is the exceedence probability. Forth is the time
+                    window. e.g. We have a combination (A, B, C), exceedance
                     probabilities [0.0001, 0.001, 0.005] and time windows [
-                    0, 1, 3]. Lets call the variable as freqs_arr.
+                    0, 1, 3]. Let's call the variable as freqs_arr.
                     Suppose B is the reference station. We want to know
                     the frequency for the observed and simulation 5 for the
                     exceedance probability 0.001 and time window 3 with
@@ -186,7 +186,7 @@ class SimultaneousExtremesAlgorithm(SEDS):
                     and the simulated is freqs_arr[5, 1, 1, 2].
 
                 ft_corrs_{STATION_LABEL}: The cummulative contribution of
-                each wave to a given series. It's shape depends on n_steps_ext.
+                each wave to a given series. Its shape depends on n_steps_ext.
                 The total number is equal to (n_steps_ext * n_sims) + 1. The
                 first one is for the observed and hence the additional 1. Each
                 row represents a simulation.
@@ -253,7 +253,8 @@ class SimultaneousExtremesAlgorithm(SEDS):
         if self._vb:
             print_sl()
             print(
-                f'Done computing simultaneous extremes frequencies\n'
+                f'Done computing/saving simultaneous extremes frequencies '
+                f'for all combinations.\n'
                 f'Total simulation time was: '
                 f'{default_timer() - main_sim_beg_time:0.3f} seconds')
             print_el()
@@ -299,7 +300,7 @@ class SimultaneousExtremesAlgorithm(SEDS):
             h5_hdl = h5py.File(self._h5_path, mode='w', driver=None)
 
         else:
-            h5_hdl = h5py.File(self._h5_path, mode='r+', driver=None)
+            raise IOError('Output HDF5 file exists already!')
 
         if 'simultexts_sims' not in h5_hdl:
             h5_hdl.create_group('simultexts_sims')
@@ -371,8 +372,7 @@ class SimultaneousExtremesFrequencyComputerMP:
 
         sim_chunk_gen = ((
             obs_vals_df,
-            (sim_chunks_idxs[i], sim_chunks_idxs[i + 1]),
-            self._mp_lock,)
+            (sim_chunks_idxs[i], sim_chunks_idxs[i + 1]),)
 
             for i in range(sim_chunks_idxs.shape[0] - 1))
 
@@ -388,24 +388,38 @@ class SimultaneousExtremesFrequencyComputerMP:
                 print_sl()
 
             print(
-                f'INFO: Finished in '
+                f'INFO: Finished computing sub-station combinations in '
                 f'{default_timer() - sim_beg_time:0.3f} seconds.')
 
             print_el()
 
         if self._save_sim_cdfs_flag or self._save_sim_acorrs_flag:
-            with self._mp_lock:
-                self._write_stats_to_hdf5(tuple(obs_vals_df.columns))
+            if self._vb_old:
+                if self._vb_old and not self._vb:
+                    print_sl()
 
-        if self._vb_old:
-            if self._vb_old and not self._vb:
-                print_sl()
+                print(
+                    f'INFO: Computing/writing extra sub-station '
+                    f'information to HDF5...')
 
-            print(
-                f'INFO: Finished in '
-                f'{default_timer() - sim_beg_time:0.3f} seconds.')
+            comb_str = str(tuple(obs_vals_df.columns))
 
-            print_el()
+            stats_gen = ((
+                obs_vals_df.columns[i], comb_str,)
+
+                for i in range(obs_vals_df.shape[1]))
+
+            if sub_mp_pool is not None:
+                list(sub_mp_pool.uimap(self._write_stats_to_hdf5, stats_gen))
+                sub_mp_pool.clear()
+
+            else:
+                list(map(self._write_stats_to_hdf5, stats_gen))
+
+            if self._vb_old:
+                print(f'INFO: Done!')
+
+                print_el()
 
         if sub_mp_pool is not None:
             sub_mp_pool.join()
@@ -414,7 +428,7 @@ class SimultaneousExtremesFrequencyComputerMP:
 
     def _get_stn_comb_freqs(self, args):
 
-        obs_vals_df, sim_chunk_idxs, mp_lock = args
+        obs_vals_df, sim_chunk_idxs = args
 
         n_sims_chunk = sim_chunk_idxs[1] - sim_chunk_idxs[0]
 
@@ -754,7 +768,7 @@ class SimultaneousExtremesFrequencyComputerMP:
                 sim_no_idx,
                 all_stn_combs)
 
-        with mp_lock:
+        with self._mp_lock:
             self._write_freqs_data_to_hdf5(
                 stn_comb, arrs_dict, sim_chunk_idxs, all_stn_combs)
         return
@@ -767,6 +781,10 @@ class SimultaneousExtremesFrequencyComputerMP:
             arrs_dict,
             stn_idxs_swth_dict,
             sim_no_idx):
+
+        '''
+        Pair-wise frequency of simultext when event happens at a ref_stn.
+        '''
 
         for ref_stn_i, ref_stn in enumerate(stn_comb):
             max_ep_le_idxs = (
@@ -813,6 +831,10 @@ class SimultaneousExtremesFrequencyComputerMP:
             sim_no_idx,
             all_stn_combs):
 
+        '''
+        Frequency of events when all had an event in a time window.
+        '''
+
         max_ep_bools_df = sim_vals_probs_df <= max_ep
         max_ep_idxs = max_ep_bools_df.any(axis=1).values
         max_ep_df = sim_vals_probs_df.loc[max_ep_idxs, :]
@@ -824,8 +846,7 @@ class SimultaneousExtremesFrequencyComputerMP:
             ep_idxs = (ep_bools_df).any(axis=1).values
             ep_df = ep_bools_df.loc[ep_idxs]
 
-            for ep_stn_comb_i, ep_stn_comb_str in enumerate(
-                all_stn_combs):
+            for ep_stn_comb_i, ep_stn_comb_str in enumerate(all_stn_combs):
 
                 ep_stn_comb = eval(ep_stn_comb_str)
 
@@ -844,6 +865,7 @@ class SimultaneousExtremesFrequencyComputerMP:
                         back_idx = max(0, evt_idx - tw)
                         forw_idx = evt_idx + tw
 
+                        # At least once in the window per stn
                         simult_ext_evt = simult_ep_df.loc[
                             back_idx:forw_idx].any(axis=0).all()
 
@@ -1064,99 +1086,100 @@ class SimultaneousExtremesFrequencyComputerMP:
 
         return corrs_dict
 
-    def _write_stats_to_hdf5(self, stn_comb):
+    def _write_stats_to_hdf5(self, args):
 
-        '''Must be called with a Lock'''
+        stn, stn_comb_str = args
 
         assert any([self._save_sim_cdfs_flag, self._save_sim_acorrs_flag])
 
-        stn_comb_str = str(stn_comb)
+        h5_hdl = h5py.File(self._h5_path, mode='r', driver=None)
 
-        h5_hdl = h5py.File(self._h5_path, mode='r+', driver=None)
-
-        sims_grp = h5_hdl['simultexts_sims']
-
-        stn_grp = sims_grp[stn_comb_str]
+        stn_grp = h5_hdl['simultexts_sims'][stn_comb_str]
 
         n_steps = stn_grp['n_steps'][...]
 
         n_steps_ext = stn_grp['n_steps_ext'][...]
 
-        for stn in stn_comb:
-            sims_key = f'sim_sers_{stn}'
+        stn_sims = stn_grp[f'sim_sers_{stn}'][...]
 
-            stn_sims = stn_grp[sims_key][...]
-
-            stn_refr_ser = stn_sims[0, :]
-            stn_sim_sers = stn_sims[1:, :]
-
-            if self._save_sim_cdfs_flag:
-                sort_stn_refr_ser = np.sort(stn_refr_ser[:n_steps])
-
-                cdfs_arr = np.full((4, n_steps_ext), np.nan, dtype=float)
-                cdfs_arr[0, :n_steps] = sort_stn_refr_ser
-
-                if self._n_sims:
-                    sort_stn_sim_sers = np.sort(stn_sim_sers, axis=1)
-                    sort_avg_stn_sim_sers = sort_stn_sim_sers.mean(axis=0)
-                    sort_min_stn_sim_sers = sort_stn_sim_sers.min(axis=0)
-                    sort_max_stn_sim_sers = sort_stn_sim_sers.max(axis=0)
-
-                    # mins, means and maxs sorted values (cdfs)
-                    cdfs_arr[1, :] = sort_avg_stn_sim_sers
-                    cdfs_arr[2, :] = sort_min_stn_sim_sers
-                    cdfs_arr[3, :] = sort_max_stn_sim_sers
-
-                stn_grp[f'sim_cdfs_{stn}'] = cdfs_arr
-
-                sort_stn_sim_sers = stn_sim_sers = None
-
-            if self._save_sim_acorrs_flag:
-                n_corr_steps = min(self._max_acorr_steps, n_steps)
-
-                auto_pcorrs = np.full(
-                    (self._n_sims + 1, n_corr_steps), np.nan)
-
-                auto_scorrs = auto_pcorrs.copy()
-
-                for i in range(self._n_sims + 1):
-                    sim_ser = stn_sims[i, :]
-
-                    if not i:
-                        sim_ser = sim_ser[:n_steps]
-
-                    rank_sim = rankdata(sim_ser)
-
-                    for j in range(n_corr_steps):
-                        auto_pcorrs[i, j] = np.corrcoef(
-                            sim_ser, np.roll(sim_ser, j))[0, 1]
-
-                        auto_scorrs[i, j] = np.corrcoef(
-                            rank_sim, np.roll(rank_sim, j))[0, 1]
-
-                acorrs_arr = np.full((8, n_corr_steps), np.nan, dtype=float)
-
-                # pearson
-                acorrs_arr[0] = auto_pcorrs[0, :]
-
-                if self._n_sims:
-                    acorrs_arr[1] = auto_pcorrs[1:, :].mean(axis=0)
-                    acorrs_arr[2] = auto_pcorrs[1:, :].min(axis=0)
-                    acorrs_arr[3] = auto_pcorrs[1:, :].max(axis=0)
-
-                # spearman
-                acorrs_arr[4] = auto_scorrs[0, :]
-
-                if self._n_sims:
-                    acorrs_arr[5] = auto_scorrs[1:, :].mean(axis=0)
-                    acorrs_arr[6] = auto_scorrs[1:, :].min(axis=0)
-                    acorrs_arr[7] = auto_scorrs[1:, :].max(axis=0)
-
-                stn_grp[f'sim_acorrs_{stn}'] = acorrs_arr
-
-            # del stn_grp[sims_key]  # comment this to keep the simulations
-            stn_refr_ser = stn_sim_sers = stn_sims = None
-
-            h5_hdl.flush()
         h5_hdl.close()
+
+        stn_refr_ser = stn_sims[0, :]
+        stn_sim_sers = stn_sims[1:, :]
+
+        if self._save_sim_cdfs_flag:
+            sort_stn_refr_ser = np.sort(stn_refr_ser[:n_steps])
+
+            cdfs_arr = np.full((4, n_steps_ext), np.nan, dtype=float)
+            cdfs_arr[0, :n_steps] = sort_stn_refr_ser
+
+            if self._n_sims:
+                sort_stn_sim_sers = np.sort(stn_sim_sers, axis=1)
+                sort_avg_stn_sim_sers = sort_stn_sim_sers.mean(axis=0)
+                sort_min_stn_sim_sers = sort_stn_sim_sers.min(axis=0)
+                sort_max_stn_sim_sers = sort_stn_sim_sers.max(axis=0)
+
+                # mins, means and maxs sorted values (cdfs)
+                cdfs_arr[1, :] = sort_avg_stn_sim_sers
+                cdfs_arr[2, :] = sort_min_stn_sim_sers
+                cdfs_arr[3, :] = sort_max_stn_sim_sers
+
+            with self._mp_lock:
+                print(f'sim_cdfs_{stn}')
+                h5_hdl = h5py.File(self._h5_path, mode='r+', driver=None)
+                stn_grp = h5_hdl['simultexts_sims'][stn_comb_str]
+                stn_grp[f'sim_cdfs_{stn}'] = cdfs_arr
+                h5_hdl.close()
+
+            sort_stn_sim_sers = stn_sim_sers = None
+
+        if self._save_sim_acorrs_flag:
+            n_corr_steps = min(self._max_acorr_steps, n_steps)
+
+            auto_pcorrs = np.full(
+                (self._n_sims + 1, n_corr_steps), np.nan)
+
+            auto_scorrs = auto_pcorrs.copy()
+
+            for i in range(self._n_sims + 1):
+                sim_ser = stn_sims[i, :]
+
+                if not i:
+                    sim_ser = sim_ser[:n_steps]
+
+                rank_sim = rankdata(sim_ser)
+
+                for j in range(n_corr_steps):
+                    auto_pcorrs[i, j] = np.corrcoef(
+                        sim_ser, np.roll(sim_ser, j))[0, 1]
+
+                    auto_scorrs[i, j] = np.corrcoef(
+                        rank_sim, np.roll(rank_sim, j))[0, 1]
+
+            acorrs_arr = np.full((8, n_corr_steps), np.nan, dtype=float)
+
+            # pearson
+            acorrs_arr[0] = auto_pcorrs[0, :]
+
+            if self._n_sims:
+                acorrs_arr[1] = auto_pcorrs[1:, :].mean(axis=0)
+                acorrs_arr[2] = auto_pcorrs[1:, :].min(axis=0)
+                acorrs_arr[3] = auto_pcorrs[1:, :].max(axis=0)
+
+            # spearman
+            acorrs_arr[4] = auto_scorrs[0, :]
+
+            if self._n_sims:
+                acorrs_arr[5] = auto_scorrs[1:, :].mean(axis=0)
+                acorrs_arr[6] = auto_scorrs[1:, :].min(axis=0)
+                acorrs_arr[7] = auto_scorrs[1:, :].max(axis=0)
+
+            with self._mp_lock:
+                print(f'sim_acorrs_{stn}')
+                h5_hdl = h5py.File(self._h5_path, mode='r+', driver=None)
+                stn_grp = h5_hdl['simultexts_sims'][stn_comb_str]
+                stn_grp[f'sim_acorrs_{stn}'] = acorrs_arr
+                h5_hdl.close()
+
+        stn_refr_ser = stn_sim_sers = stn_sims = None
         return

@@ -277,7 +277,7 @@ class SimultaneousExtremesPlot:
             print_el()
 
         assert all(exst_list), (
-            'Some or all the required variables are not in '
+            'At least one required variable is not in '
             'the input HDF5 file!')
         return
 
@@ -305,48 +305,48 @@ class SimultaneousExtremesPlot:
 
         if self._plot_freqs_flag:
             self._out_dirs_dict['freq_figs'] = (
-                self._out_dir / 'simultexts_freqs_figs')
+                self._out_dir / 'freqs_figs')
 
             self._out_dirs_dict['freq_tabs'] = (
-                self._out_dir / 'simultexts_freqs_tables')
+                self._out_dir / 'freqs_tables')
 
         if self._plot_clusters_flag:
             self._out_dirs_dict['binary_cluster_figs'] = (
-                self._out_dir / 'simultexts_binary_cluster_figs')
+                self._out_dir / 'binary_cluster_figs')
 
             self._out_dirs_dict['nD_cluster_figs'] = (
-                self._out_dir / 'simultexts_nD_cluster_figs')
+                self._out_dir / 'nD_cluster_figs')
 
             self._out_dirs_dict['nD_cluster_prob_dist_figs'] = (
-                self._out_dir / 'simultexts_nD_cluster_prob_dist_figs')
+                self._out_dir / 'nD_cluster_prob_dist_figs')
 
         if self._plot_sim_cdfs_flag:
             assert saved_sim_cdfs_flag, (
                 'CDFs data not saved inside the HDF5!')
 
             self._out_dirs_dict['cdfs_figs'] = (
-                self._out_dir / 'simultexts_sim_cdfs_figs')
+                self._out_dir / 'sim_cdfs_figs')
 
         if self._plot_auto_corrs_flag:
             assert saved_sim_acorrs_flag, (
                 'Auto correlation data not saved inside the HDF5!')
 
             self._out_dirs_dict['pcorr_figs'] = (
-                self._out_dir / 'simultexts_sim_pcorr_figs')
+                self._out_dir / 'sim_pcorr_figs')
 
             self._out_dirs_dict['scorr_figs'] = (
-                self._out_dir / 'simultexts_sim_scorr_figs')
+                self._out_dir / 'sim_scorr_figs')
 
         if self._plot_ft_cumm_corrs_flag:
             assert saved_sim_ft_cumm_corrs_flag, (
                 'Fourier cummulative correlation not saved inside HDF5!')
 
             self._out_dirs_dict['ft_corr_figs'] = (
-                self._out_dir / 'simultexts_ft_pcorr_figs')
+                self._out_dir / 'ft_pcorr_figs')
 
         if self._plot_ft_pair_corrs_dist_flag:
             self._out_dirs_dict['ft_corr_dist_figs'] = (
-                self._out_dir / 'simultexts_ft_pcorr_dist_figs')
+                self._out_dir / 'ft_pcorr_dist_figs')
 
         for dir_path in self._out_dirs_dict.values():
             dir_path.mkdir(exist_ok=True)
@@ -1260,7 +1260,11 @@ class PlotSimultaneousExtremesMP:
 
                     ep_tw_stn_comb = eval(ep_tw_stn_comb_str)
 
-                    stns_str = ', '.join(ep_tw_stn_comb)
+                    if len(ep_tw_stn_comb) > 10:
+                        stns_str = '>10'
+
+                    else:
+                        stns_str = ', '.join(ep_tw_stn_comb)
 
                     ep_tw_stn_comb_cts = simult_ext_evts_cts[
                         :, ep_i, tw_i, ep_stn_comb_i]
@@ -1377,20 +1381,26 @@ class PlotSimultaneousExtremesMP:
                             bins=hist_bins,
                             label='sim.',
                             alpha=0.8,
-                            rwidth=0.8,
+                            rwidth=1.0,
                             color='C0')
 
                         y_min, y_max = plt.ylim()
 
                         plt.axvline(
-                            obs_prob, y_min, y_max, label='obs.', color='red')
+                            obs_prob,
+                            y_min,
+                            y_max,
+                            label='obs.',
+                            color='red',
+                            lw=4)
 
                         plt.axvline(
                             mean_prob,
                             y_min,
                             y_max,
                             label='sim. mean',
-                            color='limegreen')
+                            color='limegreen',
+                            lw=2)
 
                         plt.grid()
                         plt.legend()
