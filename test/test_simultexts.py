@@ -23,7 +23,7 @@ def main():
     clusters_shp = r'watersheds.shp'
     clusters_shp_fld = 'DN'
 
-    out_dir = 'test_05_scorr'
+    out_dir = 'test_08_dep_type'
 
 #     stns = ['420', '427', '454']  # , '3470', '3465', '3421'
 #     excd_probs = [0.001, 0.005]  # [0.001, 0.005, 0.0001, 0.0005, 0.00001]  #
@@ -33,12 +33,13 @@ def main():
 #     excd_probs = [0.001, 0.005, 0.0001, 0.0005]  # , 0.00001]
 #     time_windows = [2, 10, 1, 3, 0]
 
-    stns = ['427', '454', '420']
-    excd_probs = [0.0001, 0.0005]  # , 0.00001]
+    stns = ['427', '454', '420', '3470', '3465', '3421']
+    excd_probs = [0.0001, 0.0005, 0.01]  # , 0.00001]
     time_windows = [2, 1, 0, ]
     tfm_type = 'prob'
+    dep_type_threshs = (0.01, 0.99)
 
-    n_sims = 100
+    n_sims = 20
 
     n_cpus = 'auto'
 
@@ -58,13 +59,13 @@ def main():
     plot_sim_ft_pair_corrs_dist_flag = False
 
     verbose_flag = True
-    overwrite_flag = True
+#     overwrite_flag = True
     cmpt_simultexts_flag = True
-    save_sim_cdfs_flag = True
-    save_sim_corrs_flag = True
-    save_sim_ft_cumm_corrs_flag = True
+#     save_sim_cdfs_flag = True
+#     save_sim_corrs_flag = True
+#     save_sim_ft_cumm_corrs_flag = True
 #     plot_freqs_flag = True
-#     plot_clusters_flag = True
+    plot_clusters_flag = True
 #     plot_sim_cdfs_flag = True
 #     plot_sim_auto_corrs_flag = True
 #     plot_sim_ft_corrs_flag = True
@@ -75,15 +76,6 @@ def main():
     in_df.index = pd.to_datetime(in_df.index, format='%Y-%m-%d')
 
     in_df = in_df.loc[:, stns]
-
-    #==========================================================================
-#     # Binary series
-#     assert len(excd_probs) == 1
-#
-#     in_probs_df = 1.0 - (in_df.rank(method='max') / (in_df.shape[0] + 1.0))
-#
-#     in_df = (in_probs_df <= excd_probs[0]).astype(float)
-    #==========================================================================
 
     if cmpt_simultexts_flag:
         SE = SimultaneousExtremes(verbose_flag, overwrite_flag)
@@ -124,6 +116,8 @@ def main():
         SEP = SimultaneousExtremesPlot(verbose_flag)
 
         SEP.set_outputs_directory(out_dir)
+
+        SEP.set_dependence_type_thresholds(*dep_type_threshs)
 
         SEP.set_misc_settings(n_cpus)
 

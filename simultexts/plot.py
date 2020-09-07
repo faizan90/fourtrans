@@ -13,12 +13,16 @@ import numpy as np
 import pandas as pd
 import shapefile as shpf
 import matplotlib.pyplot as plt
+from scipy.stats import rankdata
 from descartes import PolygonPatch
 from pathos.multiprocessing import ProcessPool
 
 from .misc import print_sl, print_el, ret_mp_idxs
 
 plt.ioff()
+
+font_size_global = 16
+plt.rcParams.update({'font.size': font_size_global})
 
 
 class SimultaneousExtremesPlot:
@@ -47,6 +51,7 @@ class SimultaneousExtremesPlot:
         self._out_dirs_dict = {}
         self._clusters_shp_loc = None
         self._clusters_shp_fld = None
+        self._dep_type_threshs = None
 
         self._set_out_dir_flag = False
         self._set_plot_verify_flag = False
@@ -77,6 +82,58 @@ class SimultaneousExtremesPlot:
             print_el()
 
         self._set_out_dir_flag = True
+        return
+
+    def set_dependence_type_thresholds(self, sub, sup):
+
+        '''
+        Thresholds for dependence type classification. These are all
+        non-exceedence probabilities. Dependences that are nor sub/super-
+        gaussian according to the criteria as classifed as gaussian.
+
+        These criteria are only shown for nD cluster type figures.
+
+        If these parameters are set then the nD cluster figures are divided
+        saved into three different directories based on dependence type
+        namely: sub_gaussion, super_gaussian and gaussian. An additional
+        directory dep_type_stats is also created in the outputs directory.
+        It holds the addtional information about the combinations related to
+        the dependence type e.g. Frequencies.
+
+        Parameters:
+        -----------
+        sub : float
+            Limit for classification as a sub-gaussian dependence. If the
+            observed probability for an extreme event is lower than sub
+            (exclusive) probability then the dependence is classified as
+            sub-gaussian.
+        sup : float
+            Limit for classification as a super-gaussian dependence. If the
+            observed probability for an extreme event is higher than sup
+            (exclusive) probability then the dependence is classified as
+            super-gaussian.
+        '''
+
+        assert isinstance(sub, float), 'sub not a float!'
+        assert isinstance(sup, float), 'sup not a float!'
+
+        assert sub < sup, (
+            'Input thresholds must follow the order sub < sup!')
+
+        assert sub > 0, 'Sub must be greater than zero!'
+        assert sup < 1, 'Sup must be less than one!'
+
+        self._dep_type_threshs = (sub, sup)
+
+        if self._vb:
+            print_sl()
+
+            print('INFO: Set the dependence type thresholds!')
+            print(f'\tSub-Gaussian: {sub}')
+            print(f'\tSuper-Gaussian: {sup}')
+
+            print_el()
+
         return
 
     def set_misc_settings(self, n_cpus):
@@ -319,6 +376,10 @@ class SimultaneousExtremesPlot:
 
             self._out_dirs_dict['nD_cluster_prob_dist_figs'] = (
                 self._out_dir / 'nD_cluster_prob_dist_figs')
+
+            if self._dep_type_threshs is not None:
+                self._out_dirs_dict['nD_cluster_dep_stats'] = (
+                    self._out_dir / 'nD_cluster_dep_type_stats')
 
         if self._plot_sim_cdfs_flag:
             assert saved_sim_cdfs_flag, (
@@ -638,6 +699,7 @@ class PlotSimultaneousExtremesMP:
             '_plot_ft_cumm_corrs_flag',
             '_plot_ft_pair_corrs_dist_flag',
             '_cluster_feats_dict',
+            '_dep_type_threshs',
             ]
 
         for _var in take_sep_cls_var_labs:
@@ -718,13 +780,17 @@ class PlotSimultaneousExtremesMP:
                 for i in range(all_stn_combs_chunk_idxs.shape[0] - 1))
 
             if sub_mp_pool is not None:
-                list(sub_mp_pool.uimap(
+                ress = list(sub_mp_pool.uimap(
                     self._plot_nD_clusters, nD_clusters_gen))
 
                 sub_mp_pool.clear()
 
             else:
-                list(map(self._plot_nD_clusters, nD_clusters_gen))
+                ress = list(map(self._plot_nD_clusters, nD_clusters_gen))
+
+            if self._dep_type_threshs is not None:
+                self._plot_dep_type_stats(
+                    ress, sub_mp_pool, stn_comb_data.comb_lab)
 
         if self._plot_ft_pair_corrs_dist_flag:
             self._plot_ft_pair_corrs_dists((
@@ -774,6 +840,217 @@ class PlotSimultaneousExtremesMP:
                     ref_stn, stn_comb_grp, stn_comb_data)
 
         h5_hdl.close()
+        return
+
+    def _get_cluster_simult_evts_data(
+            self, stn_comb, ep_stn_comb_beg_i, ep_stn_comb_end_i):
+
+        h5_hdl = h5py.File(self._h5_path, 'r', driver=None)
+        stn_comb_grp = h5_hdl['simultexts_sims'][stn_comb]
+
+        assert 'simult_ext_evts_cts' in stn_comb_grp, (
+            f'Required variable simult_ext_evts_cts for the given '
+            f'combination not in the input HDF5!')
+
+        assert 'all_stn_combs' in stn_comb_grp, (
+            f'Required variable all_stn_combs for the given '
+            f'combination not in the input HDF5!')
+
+        simult_ext_evts_cts = stn_comb_grp['simult_ext_evts_cts'][...]
+        sub_all_stn_combs = stn_comb_grp['all_stn_combs'][
+            ep_stn_comb_beg_i:ep_stn_comb_end_i]
+
+        h5_hdl.close()
+        return (simult_ext_evts_cts, sub_all_stn_combs)
+
+    def _get_dep_type(self, all_probs, obs_prob):
+
+        '''
+        Configured for repeating values.
+        '''
+
+        all_probs_x = np.unique(all_probs)
+
+        all_probs_y_min = np.unique(rankdata(
+            all_probs, method='min') - 1) / all_probs.size
+
+        obs_sim_prob_min = np.interp(
+            obs_prob,
+            all_probs_x,
+            all_probs_y_min,
+            left=-1,
+            right=2)
+
+        all_probs_y_max = np.unique(rankdata(
+            all_probs, method='max')) / all_probs.size
+
+        obs_sim_prob_max = np.interp(
+            obs_prob,
+            all_probs_x,
+            all_probs_y_max,
+            left=-1,
+            right=2)
+
+        if obs_sim_prob_max < self._dep_type_threshs[0]:
+            dep_type = 'Sub-Gaussian'
+
+        elif obs_sim_prob_min > self._dep_type_threshs[1]:
+            dep_type = 'Super-Gaussian'
+
+        else:
+            dep_type = 'Gaussian'
+
+        return dep_type
+
+    def _plot_dep_type_stats(self, ress, sub_mp_pool, comb_lab):
+
+        '''
+        res is the raw output of self._plot_nD_clusters.
+        '''
+
+        if len(ress) > 1:
+            comb_dep_type_stats = ress[0]
+
+        else:
+            comb_dep_type_stats = {}
+            for res in ress:
+                for key in res:
+                    if key not in comb_dep_type_stats:
+                        comb_dep_type_stats[key] = res[key]
+
+                    else:
+                        comb_dep_type_stats[key] += res[key]
+
+        fig_size = (8, 7)
+
+        y_ticks = np.arange(3)
+
+        y_tick_labels = ['Sub-\nGaussian', 'Gaussian', 'Super-\nGaussian']
+
+        table_text = []
+
+        for (ep_i, tw_i, n_stns), dt_freqs in comb_dep_type_stats.items():
+
+            ep = self._eps[ep_i]
+            tw = self._tws[tw_i]
+
+            plt.figure(figsize=fig_size)
+
+            sum_freqs = dt_freqs.sum()
+
+            table_text.append((ep, tw, n_stns, sum_freqs, *dt_freqs))
+
+            plt.barh(y_ticks, dt_freqs / sum_freqs, align='center', alpha=0.9)
+
+            plt.xlabel('Relative frequency')
+            plt.ylabel('Dependence Type')
+
+            plt.yticks(y_ticks, y_tick_labels)
+
+            plt.grid()
+
+            plt.title(
+                f'Dependence type for {n_stns}D '
+                f'in combination {comb_lab}\n'
+                f'Event exceedance probability: {ep}'
+                f', time window: {tw} steps\n'
+                f'No. of simulations: {self._n_sims}, '
+                f'Sum of frequencies: {sum_freqs}',
+                loc='right')
+
+            fig_name = (
+                f'nD_clusters_dep_type_{comb_lab}_EP{ep}_TW{tw}_N{n_stns}.png')
+
+            plt.savefig(
+                str(self._out_dirs_dict['nD_cluster_dep_stats'] / fig_name),
+                bbox_inches='tight')
+
+            plt.close()
+
+        fig_size = (12, len(table_text) * 0.7)
+        font_size = font_size_global
+
+        table_fig = plt.figure(figsize=fig_size)
+
+        col_labels = [
+            'Exceedence \nProbability',
+            'Time \nWindow',
+            'No. \nStations',
+            'Sum \nFrequencies',
+            *y_tick_labels]
+
+        table_text = np.array(table_text, dtype=float)
+
+        sumry_txt_name = f'nD_clusters_dep_type_summary_{comb_lab}.csv'
+
+        sumry_df = pd.DataFrame(
+            data=table_text,
+            columns=[col_label.replace('\n', '') for col_label in col_labels],
+            dtype=float)
+
+        sumry_df.to_csv(
+                str(self._out_dirs_dict['nD_cluster_dep_stats'] /
+                    sumry_txt_name),
+                sep=';')
+
+        table_text = table_text.astype(str)
+
+        for i in range(table_text.shape[0]):
+            for j in range(table_text.shape[1]):
+                if table_text[i, j].endswith('.0'):
+                    table_text[i, j] = table_text[i, j][:-2]
+
+        table_ax = plt.table(
+            cellText=table_text,
+            bbox=[0, 0, 1, 1],
+            rowLabels=np.arange(table_text.shape[0]),
+            colLabels=col_labels,
+            rowLoc='right',
+            colLoc='left',
+            cellLoc='right')
+
+        table_ax.auto_set_font_size(False)
+        table_ax.set_fontsize(font_size)
+
+        # adjust header text if too wide
+        renderer = table_fig.canvas.get_renderer()
+        table_cells = table_ax.get_celld()
+
+        max_text_width = 0
+        cell_tups = list(table_cells.keys())
+        for cell_tup in cell_tups:
+            if cell_tup[0] == 0:
+                curr_text_width = table_cells[cell_tup].get_text()
+                curr_text_width = curr_text_width.get_window_extent(renderer)
+                curr_text_width = curr_text_width.width
+                if curr_text_width > max_text_width:
+                    max_text_width = curr_text_width
+
+        table_cells = table_ax.get_celld()
+        padding = table_cells[(0, 0)].PAD
+        cell_width = (
+            float(table_cells[(0, 0)].get_window_extent(renderer).width))
+        cell_width = cell_width - (2. * padding * cell_width)
+
+        new_font_size = font_size * cell_width / max_text_width
+
+        if new_font_size < font_size:
+            cell_tups = list(table_cells.keys())
+            for cell_tup in cell_tups:
+                if cell_tup[0] == 0:
+                    table_cells[cell_tup].set_fontsize(new_font_size)
+
+        plt.axis('off')
+
+        plt.title(f'Dependence type summary for {comb_lab}\n', loc='right')
+
+        fig_name = f'nD_clusters_dep_type_summary_{comb_lab}.png'
+
+        plt.savefig(
+            str(self._out_dirs_dict['nD_cluster_dep_stats'] / fig_name),
+            bbox_inches='tight')
+
+        plt.close()
         return
 
     def _plot_ft_pair_corrs_dists(self, args):
@@ -900,27 +1177,6 @@ class PlotSimultaneousExtremesMP:
 
         h5_hdl.close()
         return
-
-    def _get_cluster_simult_evts_data(
-            self, stn_comb, ep_stn_comb_beg_i, ep_stn_comb_end_i):
-
-        h5_hdl = h5py.File(self._h5_path, 'r', driver=None)
-        stn_comb_grp = h5_hdl['simultexts_sims'][stn_comb]
-
-        assert 'simult_ext_evts_cts' in stn_comb_grp, (
-            f'Required variable simult_ext_evts_cts for the given '
-            f'combination not in the input HDF5!')
-
-        assert 'all_stn_combs' in stn_comb_grp, (
-            f'Required variable all_stn_combs for the given '
-            f'combination not in the input HDF5!')
-
-        simult_ext_evts_cts = stn_comb_grp['simult_ext_evts_cts'][...]
-        sub_all_stn_combs = stn_comb_grp['all_stn_combs'][
-            ep_stn_comb_beg_i:ep_stn_comb_end_i]
-
-        h5_hdl.close()
-        return (simult_ext_evts_cts, sub_all_stn_combs)
 
     def _plot_ft_cumm_diff_corrs(
             self, ref_stn, stn_comb_grp, stn_comb_data, corr_type):
@@ -1253,6 +1509,27 @@ class PlotSimultaneousExtremesMP:
         cmap_mappable = plt.cm.ScalarMappable(cmap=cmap)
         cmap_mappable.set_array([])
 
+        if self._dep_type_threshs is not None:
+            # Order matters.
+            # Make changes to ylabels in _plot_dep_type_stats if changed here.
+            sub_out_dirs = {
+                'Sub-Gaussian': 'sub_gaussian',
+                'Gaussian': 'gaussian',
+                'Super-Gaussian': 'super_gaussian'}
+
+            for dir_path in sub_out_dirs.values():
+                (self._out_dirs_dict['nD_cluster_figs'] / dir_path
+                    ).mkdir(exist_ok=True)
+
+                (self._out_dirs_dict['nD_cluster_prob_dist_figs'] / dir_path
+                    ).mkdir(exist_ok=True)
+
+            dep_type_stats_dict = {}
+            dep_types = list(sub_out_dirs.keys())
+
+        else:
+            dep_type_stats_dict = None
+
         for ep_i, ep in enumerate(self._eps):
             for tw_i, tw in enumerate(self._tws):
                 for ep_stn_comb_i, ep_tw_stn_comb_str in enumerate(
@@ -1273,7 +1550,28 @@ class PlotSimultaneousExtremesMP:
                         ep_tw_stn_comb_ct[1]
                         for ep_tw_stn_comb_ct in ep_tw_stn_comb_cts[1:]])
 
+                    all_probs.sort()
+
                     obs_prob = ep_tw_stn_comb_cts[0][1]
+
+                    if self._dep_type_threshs is not None:
+                        dep_type = self._get_dep_type(all_probs, obs_prob)
+
+                        out_dir = f'{sub_out_dirs[dep_type]}/'
+
+                        dep_stats_key = (ep_i, tw_i, len(ep_tw_stn_comb))
+
+                        if dep_stats_key not in dep_type_stats_dict:
+                            dep_type_stats_dict[
+                                dep_stats_key] = np.zeros(3, dtype=int)
+
+                        dep_type_stats_dict[
+                            dep_stats_key][dep_types.index(dep_type)] += 1
+
+                    else:
+                        dep_type = 'Not available'
+
+                        out_dir = ''
 
                     if self._n_sims:
                         min_prob = all_probs.min()
@@ -1359,10 +1657,12 @@ class PlotSimultaneousExtremesMP:
                         f'Obs. prob: {obs_prob:0.4f}, Simulated prob min: '
                         f'{min_prob:0.4f}, mean: {mean_prob:0.4f}, '
                         f'max: {max_prob:0.4f}\n'
+                        f'Dependence Type: {dep_type}\n'
                         f'Stations: {stns_str}',
                         loc='right')
 
                     fig_name = (
+                        f'{out_dir}'
                         f'nD_clusters_{comb_lab}_EP{ep}_TW{tw}_'
                         f'N{len(ep_tw_stn_comb)}_{ep_stn_comb_i}.png')
 
@@ -1420,20 +1720,24 @@ class PlotSimultaneousExtremesMP:
                             f'Obs. prob: {obs_prob:0.4f}, Simulated prob min: '
                             f'{min_prob:0.4f}, mean: {mean_prob:0.4f}, '
                             f'max: {max_prob:0.4f}\n'
+                            f'Dependence Type: {dep_type}\n'
                             f'Stations: {stns_str}',
                             loc='right')
 
                         fig_name = (
-                            f'nD_clusters_sim_prob_hist_{comb_lab}_EP{ep}_TW{tw}_'
-                            f'N{len(ep_tw_stn_comb)}_{ep_stn_comb_i}.png')
+                            f'{out_dir}'
+                            f'nD_clusters_sim_prob_hist_{comb_lab}_'
+                            f'EP{ep}_TW{tw}_N{len(ep_tw_stn_comb)}_'
+                            f'{ep_stn_comb_i}.png')
 
                         plt.savefig(
-                            str(self._out_dirs_dict['nD_cluster_prob_dist_figs'] /
-                                fig_name),
+                            str(self._out_dirs_dict[
+                                'nD_cluster_prob_dist_figs'] / fig_name),
                             bbox_inches='tight')
 
                         plt.close()
-        return
+
+        return dep_type_stats_dict
 
     def _plot_sim_cdfs__corrs(self, ref_stn, stn_comb_grp, stn_comb_data):
 
