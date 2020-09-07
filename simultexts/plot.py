@@ -1356,7 +1356,7 @@ class PlotSimultaneousExtremesMP:
                         f'No. of common steps: {n_steps}, '
                         f'No. of extended steps: {n_steps_ext}, '
                         f'No. of simulations: {self._n_sims}\n'
-                        f'Obs. prob: {obs_prob:0.4f}, Simulated min: '
+                        f'Obs. prob: {obs_prob:0.4f}, Simulated prob min: '
                         f'{min_prob:0.4f}, mean: {mean_prob:0.4f}, '
                         f'max: {max_prob:0.4f}\n'
                         f'Stations: {stns_str}',
@@ -1417,7 +1417,7 @@ class PlotSimultaneousExtremesMP:
                             f'No. of common steps: {n_steps}, '
                             f'No. of extended steps: {n_steps_ext}, '
                             f'No. of simulations: {self._n_sims}\n'
-                            f'Obs. prob: {obs_prob:0.4f}, Simulated min: '
+                            f'Obs. prob: {obs_prob:0.4f}, Simulated prob min: '
                             f'{min_prob:0.4f}, mean: {mean_prob:0.4f}, '
                             f'max: {max_prob:0.4f}\n'
                             f'Stations: {stns_str}',
