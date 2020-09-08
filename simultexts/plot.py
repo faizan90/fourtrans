@@ -908,7 +908,7 @@ class PlotSimultaneousExtremesMP:
         res is the raw output of self._plot_nD_clusters.
         '''
 
-        if len(ress) > 1:
+        if len(ress) == 1:
             comb_dep_type_stats = ress[0]
 
         else:

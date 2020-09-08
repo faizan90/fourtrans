@@ -577,7 +577,6 @@ class SimultaneousExtremesFrequencyComputerMP:
         all_stn_combs = []
 
         for n_stns in range(2, n_combs + 1):
-#         for n_stns in range(4, 5):
             ep_tw_stn_combs = combinations(stn_comb, n_stns)
 
             for ep_tw_stn_comb in ep_tw_stn_combs:
@@ -586,8 +585,6 @@ class SimultaneousExtremesFrequencyComputerMP:
         assert all_stn_combs
 
         all_stn_combs = np.array(all_stn_combs, dtype=np.unicode_)
-
-        print('all_stn_combs shape:', all_stn_combs.shape)
 
         arrs_dict = {
             **{f'neb_evts_{stn}':

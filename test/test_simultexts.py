@@ -23,7 +23,7 @@ def main():
     clusters_shp = r'watersheds.shp'
     clusters_shp_fld = 'DN'
 
-    out_dir = 'test_08_dep_type'
+    out_dir = 'test_09_dep_type'
 
 #     stns = ['420', '427', '454']  # , '3470', '3465', '3421'
 #     excd_probs = [0.001, 0.005]  # [0.001, 0.005, 0.0001, 0.0005, 0.00001]  #
@@ -43,7 +43,7 @@ def main():
 
     n_cpus = 'auto'
 
-    n_steps_extend = 0  # int(3e4)
+    n_steps_extend = 0  # int(3e54)
 
     verbose_flag = False
     overwrite_flag = False
@@ -60,7 +60,7 @@ def main():
 
     verbose_flag = True
 #     overwrite_flag = True
-    cmpt_simultexts_flag = True
+#     cmpt_simultexts_flag = True
 #     save_sim_cdfs_flag = True
 #     save_sim_corrs_flag = True
 #     save_sim_ft_cumm_corrs_flag = True
