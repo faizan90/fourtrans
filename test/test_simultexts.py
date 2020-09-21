@@ -18,12 +18,12 @@ def main():
     main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\simultexts')
     os.chdir(main_dir)
 
-    in_file = r'neckar_norm_cop_infill_discharge_1961_2015_20190118.csv'
+    in_file = r'discharge_infilled_neckar__1961_2015__20190118.csv'
 
     clusters_shp = r'watersheds.shp'
     clusters_shp_fld = 'DN'
 
-    out_dir = 'test_09_dep_type'
+    out_dir = 'test_mvn_indic_corr_13'
 
 #     stns = ['420', '427', '454']  # , '3470', '3465', '3421'
 #     excd_probs = [0.001, 0.005]  # [0.001, 0.005, 0.0001, 0.0005, 0.00001]  #
@@ -33,13 +33,13 @@ def main():
 #     excd_probs = [0.001, 0.005, 0.0001, 0.0005]  # , 0.00001]
 #     time_windows = [2, 10, 1, 3, 0]
 
-    stns = ['427', '454', '420', '3470', '3465', '3421']
+    stns = ['427', '454', '420', '3470', '3465', '3421']  #
     excd_probs = [0.0001, 0.0005, 0.01]  # , 0.00001]
     time_windows = [2, 1, 0, ]
-    tfm_type = 'prob'
+    tfm_type = 'obs'
     dep_type_threshs = (0.01, 0.99)
 
-    n_sims = 20
+    n_sims = 100
 
     n_cpus = 'auto'
 
@@ -59,8 +59,8 @@ def main():
     plot_sim_ft_pair_corrs_dist_flag = False
 
     verbose_flag = True
-#     overwrite_flag = True
-#     cmpt_simultexts_flag = True
+    overwrite_flag = True
+    cmpt_simultexts_flag = True
 #     save_sim_cdfs_flag = True
 #     save_sim_corrs_flag = True
 #     save_sim_ft_cumm_corrs_flag = True

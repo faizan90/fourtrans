@@ -11,11 +11,85 @@ from itertools import combinations
 import h5py
 import numpy as np
 import pandas as pd
-from scipy.stats import rankdata, norm
+from scipy.stats import rankdata, norm, mvn
 from pathos.multiprocessing import ProcessPool
 
 from .data import SimultaneousExtremesDataAndSettings as SEDS
 from .misc import print_sl, print_el, ret_mp_idxs, get_daily_annual_cycles_df
+
+mvn_flag = True
+
+
+def get_mvn_cdf_val(corr, ep):
+
+    mu_mat = np.array([0., 0.])
+
+    corr_mat = np.array(
+        [[1., corr],
+         [corr, 1.]])
+
+    p_max = 0.999999999
+    assert ep < p_max
+
+    low = np.full((2,), norm.ppf(ep))
+    upp = np.full(low.shape, norm.ppf(p_max))
+
+    gau_cdf_val, _ = mvn.mvnun(low, upp, mu_mat, corr_mat)
+    return gau_cdf_val
+
+
+def get_mvn_corr(pab, ep, n_tries, thresh):
+
+    cr1 = -0.9999999
+    cr2 = +0.9999999
+
+    for _ in range(n_tries):
+        cr3 = (cr1 + cr2) / 2.0
+
+        p = get_mvn_cdf_val(cr3, ep)
+
+        if p > pab:
+            cr2 = cr3
+
+        else:
+            cr1 = cr3
+
+        if abs(cr1 - cr2) <= thresh:
+            break
+
+    return cr3
+
+
+def get_mvn_corr_mat_for_indic_corr_mat(ind_corrs, ep):
+
+    n_tries = 200
+    thresh = 1e-8
+
+    corr_mat = np.ones_like(ind_corrs)
+
+    upp_idxs = []
+    low_idxs = []
+    for i in range(ind_corrs.shape[0]):
+        for j in range(ind_corrs.shape[1]):
+            if i > j:
+                low_idxs.append((i, j))
+
+            if j > i:
+                upp_idxs.append((i, j))
+
+    for i in range(len(upp_idxs)):
+
+        ind_corr = ind_corrs[upp_idxs[i][0], upp_idxs[i][1]]
+
+        # Prob of same value of bivariate binomial random variable.
+        pab = (ep * (1 - ep) * ind_corr) + ((1 - ep) ** 2)
+
+        mvn_corr = get_mvn_corr(pab, ep, n_tries, thresh)
+
+        corr_mat[upp_idxs[i][0], upp_idxs[i][1]] = mvn_corr
+        corr_mat[low_idxs[i][0], low_idxs[i][1]] = mvn_corr
+
+    return corr_mat
 
 
 class SimultaneousExtremesAlgorithm(SEDS):
@@ -650,12 +724,18 @@ class SimultaneousExtremesFrequencyComputerMP:
             arrs_dict['tfm_vals_ft_pair_cumm_corrs_dict'] = (
                 self._get_ft_pair_cumm_corrs_dict(ft_input_df))
 
+        obs_ranks_df = obs_vals_df.rank(ascending=True, method='max')
+        obs_vals_probs_df = (
+            n_steps - obs_ranks_df + 1) / (n_steps + 1.0)
+
+        obs_vals_probs_df.index = np.arange(obs_vals_probs_df.shape[0])
+
         for sim_no_idx, sim_no in enumerate(
             range(sim_chunk_idxs[0], sim_chunk_idxs[1])):
 
             for ext_step_idx in range(0, n_steps_ext, n_steps):
                 # first sim is the observed data
-                if not sim_no:
+                if (not sim_no) or mvn_flag:
                     sim_vals_df.iloc[:n_steps, :] = ft_input_df.values
                     sim_vals_df.iloc[n_steps:, :] = np.nan
 
@@ -697,7 +777,7 @@ class SimultaneousExtremesFrequencyComputerMP:
 
                 if self._save_sim_ft_cumm_corrs_flag:
                     for stn in stn_comb:
-                        if not sim_no:
+                        if (not sim_no) or mvn_flag:
                             _vals = self._get_ft_cumm_corrs(obs_vals_df[stn])
 
                         else:
@@ -718,12 +798,12 @@ class SimultaneousExtremesFrequencyComputerMP:
 
                     ft_sims_ctr += 1
 
-                if not sim_no:
+                if (not sim_no) or mvn_flag:
                     break
 
             sim_ranks_df = sim_vals_df.rank(ascending=True, method='max')
 
-            if not sim_no:
+            if (not sim_no) or mvn_flag:
                 sim_vals_probs_df = (
                     n_steps - sim_ranks_df + 1) / (n_steps + 1.0)
 
@@ -738,7 +818,7 @@ class SimultaneousExtremesFrequencyComputerMP:
                 for i in range(n_combs):
                     key = f'sim_sers_{stn_comb[i]}'
 
-                    if not sim_no:
+                    if (not sim_no) or mvn_flag:
                         stns_sims_dict[key][sim_no_idx, :n_steps] = (
                             obs_vals_df.iloc[:, i])
 
@@ -750,6 +830,31 @@ class SimultaneousExtremesFrequencyComputerMP:
 
                         stns_sims_dict[key][sim_no_idx, :] = _vals
 
+            if mvn_flag:
+                self._fill_simult_freqs_arr_mvn(
+                    obs_vals_probs_df,
+                    sim_vals_probs_df,
+                    arrs_dict,
+                    sim_no,
+                    sim_no_idx,
+                    all_stn_combs)
+
+            else:
+#                 self._fill_freqs_arr(
+#                     stn_comb,
+#                     sim_vals_probs_df,
+#                     max_ep,
+#                     arrs_dict,
+#                     stn_idxs_swth_dict,
+#                     sim_no_idx)
+
+                self._fill_simult_freqs_arr(
+                    sim_vals_probs_df,
+                    max_ep,
+                    arrs_dict,
+                    sim_no_idx,
+                    all_stn_combs)
+
             self._fill_freqs_arr(
                 stn_comb,
                 sim_vals_probs_df,
@@ -757,13 +862,6 @@ class SimultaneousExtremesFrequencyComputerMP:
                 arrs_dict,
                 stn_idxs_swth_dict,
                 sim_no_idx)
-
-            self._fill_simult_freqs_arr(
-                sim_vals_probs_df,
-                max_ep,
-                arrs_dict,
-                sim_no_idx,
-                all_stn_combs)
 
         with self._mp_lock:
             self._write_freqs_data_to_hdf5(
@@ -820,6 +918,133 @@ class SimultaneousExtremesFrequencyComputerMP:
                             neb_evt_ctrs[tw])
         return
 
+    def _fill_simult_freqs_arr_mvn(
+            self,
+            obs_vals_probs_df,
+            sim_vals_probs_df,
+            arrs_dict,
+            sim_no,
+            sim_no_idx,
+            all_stn_combs):
+
+        '''
+        Frequency of events when all had an event in a time window.
+        '''
+
+        simult_ext_evts_cts = arrs_dict['simult_ext_evts_cts']
+
+        for ep_i, ep in enumerate(self._eps):
+            if sim_no:
+                # Messy correlation values in case of binary series.
+                indic_obs_probs_df = obs_vals_probs_df <= ep
+                indic_corr_mat = indic_obs_probs_df.corr().values
+
+                # Doesn't matter much if ep or 1 - ep is used here.
+                mvn_corr_mat = np.round(get_mvn_corr_mat_for_indic_corr_mat(
+                    indic_corr_mat, 1 - ep), 5)
+
+                mvn_vals = np.random.multivariate_normal(
+                        np.zeros(mvn_corr_mat.shape[0]),
+                        mvn_corr_mat,
+                        indic_obs_probs_df.shape[0])
+
+                mvns_df = pd.DataFrame(
+                    index=obs_vals_probs_df.index,
+                    data=mvn_vals,
+                    columns=obs_vals_probs_df.columns)
+
+                mvns_probs_df = (
+                    (obs_vals_probs_df.shape[0] - mvns_df.rank() + 1) / (
+                        obs_vals_probs_df.shape[0] + 1))
+
+                sim_vals_probs_df = mvns_probs_df
+
+                assert np.all(sim_vals_probs_df.min() > 0)
+                assert np.all(sim_vals_probs_df.max() < 1)
+
+            ep_bools_df = sim_vals_probs_df <= ep
+
+            ep_idxs = ep_bools_df.any(axis=1).values
+            ep_df = ep_bools_df.loc[ep_idxs]
+
+            for ep_stn_comb_i, ep_stn_comb_str in enumerate(all_stn_combs):
+
+                ep_stn_comb = eval(ep_stn_comb_str)
+
+                comb_ep_df = ep_df.loc[:, ep_stn_comb]
+
+                simult_steps_idxs = comb_ep_df.any(axis=1).values
+
+                simult_ep_df = comb_ep_df.loc[simult_steps_idxs]
+
+                # n_tot_steps is what results in higher conditional probs for
+                # higher return period events. If events are simultaneous
+                # then n_tot_steps is smaller (chances are high that
+                # extreme events are more global), then the probability is
+                # also high.
+                # For cases with smaller return period, n_tot_steps is high.
+                # Chances that such events are more local are high and
+                # therefore result in smaller simultaneous probabilities.
+                n_tot_steps = simult_ep_df.shape[0]
+
+                for tw_i, tw in enumerate(self._tws):
+
+                    evt_ctr = 0
+                    for evt_idx in simult_ep_df.index:
+                        back_idx = max(0, evt_idx - tw)
+                        forw_idx = evt_idx + tw
+
+                        # At least once in the window per stn
+                        simult_ext_evt = simult_ep_df.loc[
+                            back_idx:forw_idx].any(axis=0).all()
+
+                        if simult_ext_evt:
+                            evt_ctr += 1
+
+                    simult_ext_prob = evt_ctr / n_tot_steps
+
+                    assert evt_ctr <= n_tot_steps
+
+                    simult_ext_evts_cts[
+                        sim_no_idx, ep_i, tw_i, ep_stn_comb_i] = (
+                            len(ep_stn_comb),
+                            simult_ext_prob,
+                            evt_ctr,
+                            n_tot_steps)
+
+                if (not ep_i):
+                    continue
+
+                # Just a check to see if for increasing window size, the
+                # simultaneous probability also increase or stays the same.
+                # Can be deactivated.
+                # NOTE: with mvn_flag, simulations for different return
+                # periods are independent and therefore uncomparable,
+                # generally speaking.
+                for tw_i, tw in enumerate(self._tws):
+                    prev_tup = simult_ext_evts_cts[
+                        sim_no_idx, ep_i - 1, tw_i, ep_stn_comb_i]
+
+                    curr_tup = simult_ext_evts_cts[
+                        sim_no_idx, ep_i, tw_i, ep_stn_comb_i]
+
+                    for i in [2, 3]:
+                        prev_val = prev_tup[i]
+                        curr_val = curr_tup[i]
+
+                        if (prev_val <= curr_val):
+                            continue
+
+                        else:
+                            if mvn_flag:
+                                print(sim_no_idx, i, len(ep_stn_comb), prev_tup, curr_tup)
+
+                            else:
+                                raise AssertionError(
+                                    (sim_no_idx, i, len(ep_stn_comb), prev_tup, curr_tup))
+
+        return
+
     def _fill_simult_freqs_arr(
             self,
             sim_vals_probs_df,
@@ -840,7 +1065,7 @@ class SimultaneousExtremesFrequencyComputerMP:
 
         for ep_i, ep in enumerate(self._eps):
             ep_bools_df = max_ep_df <= ep
-            ep_idxs = (ep_bools_df).any(axis=1).values
+            ep_idxs = ep_bools_df.any(axis=1).values
             ep_df = ep_bools_df.loc[ep_idxs]
 
             for ep_stn_comb_i, ep_stn_comb_str in enumerate(all_stn_combs):
@@ -853,6 +1078,14 @@ class SimultaneousExtremesFrequencyComputerMP:
 
                 simult_ep_df = comb_ep_df.loc[simult_steps_idxs]
 
+                # n_tot_steps is what results in higher conditional probs for
+                # higher return period events. If events are simultaneous
+                # then n_tot_steps is smaller (chances are high that
+                # extreme events are more global), then the probability is
+                # also high.
+                # For cases with smaller return period, n_tot_steps is high.
+                # Chances that such events are more local are high and
+                # therefore result in smaller simultaneous probabilities.
                 n_tot_steps = simult_ep_df.shape[0]
 
                 for tw_i, tw in enumerate(self._tws):
@@ -862,7 +1095,7 @@ class SimultaneousExtremesFrequencyComputerMP:
                         back_idx = max(0, evt_idx - tw)
                         forw_idx = evt_idx + tw
 
-                        # At least once in the window per stn
+                        # At least once in the window per stn.
                         simult_ext_evt = simult_ep_df.loc[
                             back_idx:forw_idx].any(axis=0).all()
 
