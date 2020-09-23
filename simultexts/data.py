@@ -270,7 +270,7 @@ class SimultaneousExtremesDataAndSettings:
         self._set_n_sims_flag = True
         return
 
-    def set_tfm_type(self, tfm_type):
+    def set_tfm_type(self, tfm_type, mvn_flag):
 
         '''Set the type of transformation applied to the input data before
         it is Fouriered.
@@ -285,6 +285,22 @@ class SimultaneousExtremesDataAndSettings:
             prob__no_ann_cyc : Remove annual cycle from each column and then
             use the CDF values. The annual cycle CDF is added to the Fouriered
             values before reshuffling the simulated series.
+        mvn_flag : bool
+            Conditional proabilities of simultaneous extremes can be
+            estimated in two ways.
+            One by Phase Randomization, and the other by estimating the
+            correlation matrix of the multivariate normal distribution,
+            by first converting the time series to a binomial by
+            setting values above a given ep to one and the rest to zero.
+            For each pair in a combination, the correlation of the standard
+            normal bivariate distribution is estimated based on the
+            probability that both the values are one at the same step i.e.
+            what is the correlation between two standard normals that gives
+            the same probability in the interval starting from both
+            binomials having a value of one and above. If True, then the
+            conditonal distribution of simultaneous extremes is estimated
+            using the bivariate binomial to bivariate normal conversion,
+            if False then using Phase randomization.
         '''
 
         assert isinstance(tfm_type, str), 'tfm_type not a string object!'
@@ -293,13 +309,19 @@ class SimultaneousExtremesDataAndSettings:
             f'Given tfm_type: {tfm_type} does not exist in defined tfm_type: '
             f'{self._tfm_types}')
 
+        assert isinstance(mvn_flag, bool), 'mvn_flag not a boolean!'
+
         self._tfm_type = tfm_type
+        self._mvn_flag = mvn_flag
 
         if self._vb:
             print_sl()
 
             print(
                 f'INFO: Set the data transformation type to {self._tfm_type}')
+
+            print(
+                f'INFO: Set the Multivariate Normal flag to {self._mvn_flag}')
 
             print_el()
 
