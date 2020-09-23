@@ -11,85 +11,16 @@ from itertools import combinations
 import h5py
 import numpy as np
 import pandas as pd
-from scipy.stats import rankdata, norm, mvn
+from scipy.stats import rankdata, norm
 from pathos.multiprocessing import ProcessPool
 
 from .data import SimultaneousExtremesDataAndSettings as SEDS
-from .misc import print_sl, print_el, ret_mp_idxs, get_daily_annual_cycles_df
-
-mvn_flag = True
-
-
-def get_mvn_cdf_val(corr, ep):
-
-    mu_mat = np.array([0., 0.])
-
-    corr_mat = np.array(
-        [[1., corr],
-         [corr, 1.]])
-
-    p_max = 0.999999999
-    assert ep < p_max
-
-    low = np.full((2,), norm.ppf(ep))
-    upp = np.full(low.shape, norm.ppf(p_max))
-
-    gau_cdf_val, _ = mvn.mvnun(low, upp, mu_mat, corr_mat)
-    return gau_cdf_val
-
-
-def get_mvn_corr(pab, ep, n_tries, thresh):
-
-    cr1 = -0.9999999
-    cr2 = +0.9999999
-
-    for _ in range(n_tries):
-        cr3 = (cr1 + cr2) / 2.0
-
-        p = get_mvn_cdf_val(cr3, ep)
-
-        if p > pab:
-            cr2 = cr3
-
-        else:
-            cr1 = cr3
-
-        if abs(cr1 - cr2) <= thresh:
-            break
-
-    return cr3
-
-
-def get_mvn_corr_mat_for_indic_corr_mat(ind_corrs, ep):
-
-    n_tries = 200
-    thresh = 1e-8
-
-    corr_mat = np.ones_like(ind_corrs)
-
-    upp_idxs = []
-    low_idxs = []
-    for i in range(ind_corrs.shape[0]):
-        for j in range(ind_corrs.shape[1]):
-            if i > j:
-                low_idxs.append((i, j))
-
-            if j > i:
-                upp_idxs.append((i, j))
-
-    for i in range(len(upp_idxs)):
-
-        ind_corr = ind_corrs[upp_idxs[i][0], upp_idxs[i][1]]
-
-        # Prob of same value of bivariate binomial random variable.
-        pab = (ep * (1 - ep) * ind_corr) + ((1 - ep) ** 2)
-
-        mvn_corr = get_mvn_corr(pab, ep, n_tries, thresh)
-
-        corr_mat[upp_idxs[i][0], upp_idxs[i][1]] = mvn_corr
-        corr_mat[low_idxs[i][0], low_idxs[i][1]] = mvn_corr
-
-    return corr_mat
+from .misc import (
+    print_sl,
+    print_el,
+    ret_mp_idxs,
+    get_daily_annual_cycles_df,
+    get_mvn_corr_mat_for_indic_corr_mat)
 
 
 class SimultaneousExtremesAlgorithm(SEDS):
@@ -153,8 +84,10 @@ class SimultaneousExtremesAlgorithm(SEDS):
             stations in the combination.
 
             4. The first simulation is the observed data. The rest are
-            phase-randomized (Fourier) series. Total simulations
-            are n_sims + 1.
+            phase-randomized (PR) series or multivariate normal series (MVN),
+            based on the state of mvn_flag. Total simulations are n_sims + 1.
+
+            4.1. If mvn_flag is False then 5, 6, 7, 8 are executed.
 
             5. For each simulation, random phases are generated for each
             wave except the first and the last wave (real fft). Sines
@@ -199,6 +132,21 @@ class SimultaneousExtremesAlgorithm(SEDS):
             this case is the frequency counter divided by the total
             number of events.
 
+            If mvn_flag is True, then instead of using the phase randomized
+            series, new series are generated for every excceedence
+            probability. To do so, first each series is converted to a
+            binomial one using ep as the threshold and then computing the
+            correlations between all variables. Given a pair, probability that
+            both have ep value above the threhold is computed
+            (correlated bivariate binomial distribution). The formula is
+            p11 = ep *  (1 - ep)  * rho + (1 - ep) ** 2. Using p11 and ep,
+            a new correlation is computed for the bivariate normal
+            distribution such that the cummulative probability till ep is same
+            as p11. The correlation matrix is filled this way for all pairs.
+            Now new multivariate standard normal are drawn based on this
+            and the computation is carried out as discuused in the beginning
+            of this bullet.
+
             10. All the data computed above is written to the HDF5 database.
 
             11. If sim_auto_corrs_flag is True then each wave contribution
@@ -215,6 +163,8 @@ class SimultaneousExtremesAlgorithm(SEDS):
                 time_windows: sorted time_windows array.
 
                 n_sims: the number of simulations.
+
+                mvn_flag: the mvn_flag.
 
                 n_stn_combs: the number of combinations used as independent
                     groups.
@@ -343,6 +293,7 @@ class SimultaneousExtremesAlgorithm(SEDS):
         h5_hdl['n_sims'] = self._n_sims
         h5_hdl['n_stn_combs'] = len(self._stn_combs)
         h5_hdl['tfm_type'] = self._tfm_type
+        h5_hdl['mvn_flag'] = self._mvn_flag
 
         h5_hdl['save_sim_cdfs_flag'] = int(self._save_sim_cdfs_flag)
         h5_hdl['save_sim_acorrs_flag'] = int(self._save_sim_acorrs_flag)
@@ -413,6 +364,7 @@ class SimultaneousExtremesFrequencyComputerMP:
             '_h5_path',
             '_mp_lock',
             '_tfm_type',
+            '_mvn_flag',
             ]
 
         for _var in take_sea_cls_var_labs:
@@ -623,30 +575,31 @@ class SimultaneousExtremesFrequencyComputerMP:
 
         assert np.all(np.isfinite(ft_input_df.values))
 
-        for i in range(n_combs):
-            obs_ft_df.iloc[:, i] = np.fft.rfft(ft_input_df.iloc[:, i])
+        if not self._mvn_flag:
+            for i in range(n_combs):
+                obs_ft_df.iloc[:, i] = np.fft.rfft(ft_input_df.iloc[:, i])
 
-        obs_ft_mags_df = pd.DataFrame(
-            data=np.abs(obs_ft_df.values), columns=stn_comb)
+            obs_ft_mags_df = pd.DataFrame(
+                data=np.abs(obs_ft_df.values), columns=stn_comb)
 
-        obs_ft_phas_df = pd.DataFrame(
-            data=np.angle(obs_ft_df.values), columns=stn_comb)
+            obs_ft_phas_df = pd.DataFrame(
+                data=np.angle(obs_ft_df.values), columns=stn_comb)
 
-        assert np.all(np.isfinite(obs_ft_df))
-        assert np.all(np.isfinite(obs_ft_mags_df))
-        assert np.all(np.isfinite(obs_ft_phas_df))
+            assert np.all(np.isfinite(obs_ft_df))
+            assert np.all(np.isfinite(obs_ft_mags_df))
+            assert np.all(np.isfinite(obs_ft_phas_df))
 
-        sim_phas_mult_vec = np.ones(ft_steps, dtype=int)
-        sim_phas_mult_vec[0] = 0
-        sim_phas_mult_vec[ft_steps - 1] = 0
+            sim_phas_mult_vec = np.ones(ft_steps, dtype=int)
+            sim_phas_mult_vec[0] = 0
+            sim_phas_mult_vec[ft_steps - 1] = 0
 
-        sim_ft_df = pd.DataFrame(
-            data=np.full((ft_steps, n_combs), np.nan, dtype=complex),
-            columns=stn_comb)
+            sim_ft_df = pd.DataFrame(
+                data=np.full((ft_steps, n_combs), np.nan, dtype=complex),
+                columns=stn_comb)
 
-        sim_vals_df = pd.DataFrame(
-            data=np.full((n_steps_ext, n_combs), np.nan, dtype=float),
-            columns=stn_comb)
+            sim_vals_df = pd.DataFrame(
+                data=np.full((n_steps_ext, n_combs), np.nan, dtype=float),
+                columns=stn_comb)
 
         all_stn_combs = []
 
@@ -660,8 +613,12 @@ class SimultaneousExtremesFrequencyComputerMP:
 
         all_stn_combs = np.array(all_stn_combs, dtype=np.unicode_)
 
-        arrs_dict = {
-            **{f'neb_evts_{stn}':
+        if self._mvn_flag:
+            arrs_dict = {}
+
+        else:
+            arrs_dict = {
+                f'neb_evts_{stn}':
                     np.full(
                         (n_sims_chunk,
                          n_combs - 1,
@@ -669,8 +626,9 @@ class SimultaneousExtremesFrequencyComputerMP:
                          len(self._tws)),
                         np.nan,
                         dtype=int)
-                for stn in stn_comb},
+                for stn in stn_comb}
 
+        arrs_dict.update({
             'simult_ext_evts_cts':
                 np.full(
                     (n_sims_chunk,
@@ -684,7 +642,7 @@ class SimultaneousExtremesFrequencyComputerMP:
             'ref_evts_ext': np.array(self._eps * n_steps_ext, dtype=int),
             'n_steps': n_steps,
             'n_steps_ext': n_steps_ext,
-            }
+            })
 
         if self._save_sim_cdfs_flag or self._save_sim_acorrs_flag:
             stns_sims_dict = {
@@ -724,129 +682,122 @@ class SimultaneousExtremesFrequencyComputerMP:
             arrs_dict['tfm_vals_ft_pair_cumm_corrs_dict'] = (
                 self._get_ft_pair_cumm_corrs_dict(ft_input_df))
 
-        obs_ranks_df = obs_vals_df.rank(ascending=True, method='max')
-        obs_vals_probs_df = (
-            n_steps - obs_ranks_df + 1) / (n_steps + 1.0)
+        if self._mvn_flag:
+            obs_ranks_df = ft_input_df.rank(ascending=True, method='max')
 
-        obs_vals_probs_df.index = np.arange(obs_vals_probs_df.shape[0])
+            obs_vals_probs_df = (
+                n_steps - obs_ranks_df + 1) / (n_steps + 1.0)
+
+            obs_vals_probs_df.index = np.arange(obs_vals_probs_df.shape[0])
 
         for sim_no_idx, sim_no in enumerate(
             range(sim_chunk_idxs[0], sim_chunk_idxs[1])):
 
-            for ext_step_idx in range(0, n_steps_ext, n_steps):
-                # first sim is the observed data
-                if (not sim_no) or mvn_flag:
-                    sim_vals_df.iloc[:n_steps, :] = ft_input_df.values
-                    sim_vals_df.iloc[n_steps:, :] = np.nan
-
-                else:
-                    sim_phases = -np.pi + (
-                        (2 * np.pi) * np.random.random(ft_steps))
-
-                    sim_phases = sim_phases * sim_phas_mult_vec
-
-                    sim_ft_phas_df = obs_ft_phas_df.apply(
-                        lambda x: x + sim_phases)
-
-                    sim_ft_phas_cos_df = np.cos(sim_ft_phas_df)
-                    sim_ft_phas_sin_df = np.sin(sim_ft_phas_df)
-
-                    for i in range(n_combs):
-                        reals = (
-                            obs_ft_mags_df.iloc[:, i] *
-                            sim_ft_phas_cos_df.iloc[:, i]).values
-
-                        imags = (
-                            obs_ft_mags_df.iloc[:, i] *
-                            sim_ft_phas_sin_df.iloc[:, i]).values
-
-                        sim_ft_df.iloc[:, i].values.real = reals
-                        sim_ft_df.iloc[:, i].values.imag = imags
-
-                    for i in range(n_combs):
-                        sim_vals_df.iloc[
-                            ext_step_idx:ext_step_idx + n_steps, i] = (
-                                np.fft.irfft(sim_ft_df.iloc[:, i]))
-
-                        if self._tfm_type == 'prob__no_ann_cyc':
-                            sim_vals_df.iloc[
-                                ext_step_idx:ext_step_idx + n_steps, i] += (
-                                    ann_cyc_probs_df.iloc[:, i].values)
-
-                assert np.all(np.isfinite(sim_vals_df.values))
-
-                if self._save_sim_ft_cumm_corrs_flag:
-                    for stn in stn_comb:
-                        if (not sim_no) or mvn_flag:
-                            _vals = self._get_ft_cumm_corrs(obs_vals_df[stn])
-
-                        else:
-                            _ranks = sim_vals_df[stn].iloc[
-                                ext_step_idx:ext_step_idx + n_steps].rank(
-                                    ).astype(int).values
-
-                            _sort_obs_ser = obs_vals_df[stn].sort_values()
-
-                            _vals = self._get_ft_cumm_corrs(
-                                _sort_obs_ser.iloc[_ranks - 1])
-
-                        stns_ft_ccorrs_dict[
-                            f'ft_ccorrs_{stn}'][ft_sims_ctr, :] = _vals
-
-                    assert np.all(np.isfinite(stns_ft_ccorrs_dict[
-                        f'ft_ccorrs_{stn}'][ft_sims_ctr, :]))
-
-                    ft_sims_ctr += 1
-
-                if (not sim_no) or mvn_flag:
-                    break
-
-            sim_ranks_df = sim_vals_df.rank(ascending=True, method='max')
-
-            if (not sim_no) or mvn_flag:
-                sim_vals_probs_df = (
-                    n_steps - sim_ranks_df + 1) / (n_steps + 1.0)
-
-            else:
-                sim_vals_probs_df = (
-                    n_steps_ext - sim_ranks_df + 1) / (n_steps_ext + 1.0)
-
-            assert np.all(sim_vals_probs_df.min() > 0)
-            assert np.all(sim_vals_probs_df.max() < 1)
-
-            if self._save_sim_cdfs_flag or self._save_sim_acorrs_flag:
-                for i in range(n_combs):
-                    key = f'sim_sers_{stn_comb[i]}'
-
-                    if (not sim_no) or mvn_flag:
-                        stns_sims_dict[key][sim_no_idx, :n_steps] = (
-                            obs_vals_df.iloc[:, i])
+            if not self._mvn_flag:
+                for ext_step_idx in range(0, n_steps_ext, n_steps):
+                    # first sim is the observed data
+                    if not sim_no:
+                        sim_vals_df.iloc[:n_steps, :] = ft_input_df.values
+                        sim_vals_df.iloc[n_steps:, :] = np.nan
 
                     else:
-                        _vals = obs_sort_df.iloc[:, i][
-                            sim_ranks_df.iloc[:, i].values - 1]
+                        sim_phases = -np.pi + (
+                            (2 * np.pi) * np.random.random(ft_steps))
 
-                        assert np.all(np.isfinite(_vals))
+                        sim_phases = sim_phases * sim_phas_mult_vec
 
-                        stns_sims_dict[key][sim_no_idx, :] = _vals
+                        sim_ft_phas_df = obs_ft_phas_df.apply(
+                            lambda x: x + sim_phases)
 
-            if mvn_flag:
-                self._fill_simult_freqs_arr_mvn(
-                    obs_vals_probs_df,
+                        sim_ft_phas_cos_df = np.cos(sim_ft_phas_df)
+                        sim_ft_phas_sin_df = np.sin(sim_ft_phas_df)
+
+                        for i in range(n_combs):
+                            reals = (
+                                obs_ft_mags_df.iloc[:, i] *
+                                sim_ft_phas_cos_df.iloc[:, i]).values
+
+                            imags = (
+                                obs_ft_mags_df.iloc[:, i] *
+                                sim_ft_phas_sin_df.iloc[:, i]).values
+
+                            sim_ft_df.iloc[:, i].values.real = reals
+                            sim_ft_df.iloc[:, i].values.imag = imags
+
+                        for i in range(n_combs):
+                            sim_vals_df.iloc[
+                                ext_step_idx:ext_step_idx + n_steps, i] = (
+                                    np.fft.irfft(sim_ft_df.iloc[:, i]))
+
+                            if self._tfm_type == 'prob__no_ann_cyc':
+                                sim_vals_df.iloc[
+                                    ext_step_idx:ext_step_idx + n_steps, i] += (
+                                        ann_cyc_probs_df.iloc[:, i].values)
+
+                    assert np.all(np.isfinite(sim_vals_df.values))
+
+                    if self._save_sim_ft_cumm_corrs_flag:
+                        for stn in stn_comb:
+                            if not sim_no:
+                                _vals = self._get_ft_cumm_corrs(obs_vals_df[stn])
+
+                            else:
+                                _ranks = sim_vals_df[stn].iloc[
+                                    ext_step_idx:ext_step_idx + n_steps].rank(
+                                        ).astype(int).values
+
+                                _sort_obs_ser = obs_vals_df[stn].sort_values()
+
+                                _vals = self._get_ft_cumm_corrs(
+                                    _sort_obs_ser.iloc[_ranks - 1])
+
+                            stns_ft_ccorrs_dict[
+                                f'ft_ccorrs_{stn}'][ft_sims_ctr, :] = _vals
+
+                        assert np.all(np.isfinite(stns_ft_ccorrs_dict[
+                            f'ft_ccorrs_{stn}'][ft_sims_ctr, :]))
+
+                        ft_sims_ctr += 1
+
+                    if not sim_no:
+                        break
+
+                sim_ranks_df = sim_vals_df.rank(ascending=True, method='max')
+
+                if not sim_no:
+                    sim_vals_probs_df = (
+                        n_steps - sim_ranks_df + 1) / (n_steps + 1.0)
+
+                else:
+                    sim_vals_probs_df = (
+                        n_steps_ext - sim_ranks_df + 1) / (n_steps_ext + 1.0)
+
+                assert np.all(sim_vals_probs_df.min() > 0)
+                assert np.all(sim_vals_probs_df.max() < 1)
+
+                if self._save_sim_cdfs_flag or self._save_sim_acorrs_flag:
+                    for i in range(n_combs):
+                        key = f'sim_sers_{stn_comb[i]}'
+
+                        if not sim_no:
+                            stns_sims_dict[key][sim_no_idx, :n_steps] = (
+                                obs_vals_df.iloc[:, i])
+
+                        else:
+                            _vals = obs_sort_df.iloc[:, i][
+                                sim_ranks_df.iloc[:, i].values - 1]
+
+                            assert np.all(np.isfinite(_vals))
+
+                            stns_sims_dict[key][sim_no_idx, :] = _vals
+
+                self._fill_freqs_arr(
+                    stn_comb,
                     sim_vals_probs_df,
+                    max_ep,
                     arrs_dict,
-                    sim_no,
-                    sim_no_idx,
-                    all_stn_combs)
-
-            else:
-#                 self._fill_freqs_arr(
-#                     stn_comb,
-#                     sim_vals_probs_df,
-#                     max_ep,
-#                     arrs_dict,
-#                     stn_idxs_swth_dict,
-#                     sim_no_idx)
+                    stn_idxs_swth_dict,
+                    sim_no_idx)
 
                 self._fill_simult_freqs_arr(
                     sim_vals_probs_df,
@@ -855,13 +806,13 @@ class SimultaneousExtremesFrequencyComputerMP:
                     sim_no_idx,
                     all_stn_combs)
 
-            self._fill_freqs_arr(
-                stn_comb,
-                sim_vals_probs_df,
-                max_ep,
-                arrs_dict,
-                stn_idxs_swth_dict,
-                sim_no_idx)
+            else:
+                self._fill_simult_freqs_arr_mvn(
+                    obs_vals_probs_df,
+                    arrs_dict,
+                    sim_no,
+                    sim_no_idx,
+                    all_stn_combs)
 
         with self._mp_lock:
             self._write_freqs_data_to_hdf5(
@@ -921,7 +872,6 @@ class SimultaneousExtremesFrequencyComputerMP:
     def _fill_simult_freqs_arr_mvn(
             self,
             obs_vals_probs_df,
-            sim_vals_probs_df,
             arrs_dict,
             sim_no,
             sim_no_idx,
@@ -943,6 +893,8 @@ class SimultaneousExtremesFrequencyComputerMP:
                 mvn_corr_mat = np.round(get_mvn_corr_mat_for_indic_corr_mat(
                     indic_corr_mat, 1 - ep), 5)
 
+                # Sometimes mvn_corr_mat is not positive definite.
+                # Find out what to do in that case.
                 mvn_vals = np.random.multivariate_normal(
                         np.zeros(mvn_corr_mat.shape[0]),
                         mvn_corr_mat,
@@ -957,12 +909,15 @@ class SimultaneousExtremesFrequencyComputerMP:
                     (obs_vals_probs_df.shape[0] - mvns_df.rank() + 1) / (
                         obs_vals_probs_df.shape[0] + 1))
 
-                sim_vals_probs_df = mvns_probs_df
+                probs_df = mvns_probs_df
 
-                assert np.all(sim_vals_probs_df.min() > 0)
-                assert np.all(sim_vals_probs_df.max() < 1)
+                assert np.all(probs_df.min() > 0)
+                assert np.all(probs_df.max() < 1)
 
-            ep_bools_df = sim_vals_probs_df <= ep
+            else:
+                probs_df = obs_vals_probs_df
+
+            ep_bools_df = probs_df <= ep
 
             ep_idxs = ep_bools_df.any(axis=1).values
             ep_df = ep_bools_df.loc[ep_idxs]
@@ -1036,12 +991,18 @@ class SimultaneousExtremesFrequencyComputerMP:
                             continue
 
                         else:
-                            if mvn_flag:
-                                print(sim_no_idx, i, len(ep_stn_comb), prev_tup, curr_tup)
+                            prnt_tup = (
+                                sim_no_idx,
+                                i,
+                                len(ep_stn_comb),
+                                prev_tup,
+                                curr_tup)
+
+                            if self._mvn_flag:
+                                print(prnt_tup)
 
                             else:
-                                raise AssertionError(
-                                    (sim_no_idx, i, len(ep_stn_comb), prev_tup, curr_tup))
+                                raise AssertionError(prnt_tup)
 
         return
 
@@ -1191,24 +1152,28 @@ class SimultaneousExtremesFrequencyComputerMP:
         n_steps_ext = stn_grp['n_steps_ext'][...]
 
         for stn in stn_comb:
-            freq_key = f'neb_evts_{stn}'
+            if not self._mvn_flag:
+                freq_key = f'neb_evts_{stn}'
 
-            if freq_key not in stn_grp:
-                sim_freq_ds = stn_grp.create_dataset(
-                    freq_key,
-                    (self._n_sims + 1,
-                     len(stn_comb) - 1,
-                     len(self._eps),
-                     len(self._tws)),
-                    dtype=int)
+                if freq_key not in stn_grp:
+                    sim_freq_ds = stn_grp.create_dataset(
+                        freq_key,
+                        (self._n_sims + 1,
+                         len(stn_comb) - 1,
+                         len(self._eps),
+                         len(self._tws)),
+                        dtype=int)
 
-            else:
-                sim_freq_ds = stn_grp[freq_key]
+                else:
+                    sim_freq_ds = stn_grp[freq_key]
 
-            sim_freq_ds[
-                sim_chunk_idxs[0]:sim_chunk_idxs[1]] = arrs_dict[freq_key]
+                sim_freq_ds[
+                    sim_chunk_idxs[0]:sim_chunk_idxs[1]] = arrs_dict[freq_key]
 
-            del arrs_dict[freq_key]
+                del arrs_dict[freq_key]
+
+            # If mvn_flag is False, the rest don't need to be checked either.
+            # But leaving it for now, may be it is needed in the future.
 
             if self._save_sim_ft_cumm_corrs_flag:
                 corrs_key = f'ft_ccorrs_{stn}'

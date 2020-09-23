@@ -6,6 +6,7 @@ Created on Feb 4, 2019
 
 import numpy as np
 import pandas as pd
+from scipy.stats import norm, mvn
 
 print_line_str = 40 * '#'
 
@@ -82,4 +83,76 @@ def get_daily_annual_cycle(col_ser):
             curr_day_avg_val = curr_day_vals.mean()
             col_ser.loc[idxs_intersect] = curr_day_avg_val
     return col_ser
+
+
+def get_mvn_cdf_val(corr, ep):
+
+    mu_mat = np.array([0., 0.])
+
+    corr_mat = np.array(
+        [[1., corr],
+         [corr, 1.]])
+
+    p_max = 0.999999999
+    assert ep < p_max
+
+    low = np.full((2,), norm.ppf(ep))
+    upp = np.full(low.shape, norm.ppf(p_max))
+
+    gau_cdf_val, _ = mvn.mvnun(low, upp, mu_mat, corr_mat)
+    return gau_cdf_val
+
+
+def get_mvn_corr(pab, ep, n_tries, thresh):
+
+    cr1 = -0.9999999
+    cr2 = +0.9999999
+
+    for _ in range(n_tries):
+        cr3 = (cr1 + cr2) / 2.0
+
+        p = get_mvn_cdf_val(cr3, ep)
+
+        if p > pab:
+            cr2 = cr3
+
+        else:
+            cr1 = cr3
+
+        if abs(cr1 - cr2) <= thresh:
+            break
+
+    return cr3
+
+
+def get_mvn_corr_mat_for_indic_corr_mat(ind_corrs, ep):
+
+    n_tries = 200
+    thresh = 1e-8
+
+    corr_mat = np.ones_like(ind_corrs)
+
+    upp_idxs = []
+    low_idxs = []
+    for i in range(ind_corrs.shape[0]):
+        for j in range(ind_corrs.shape[1]):
+            if i > j:
+                low_idxs.append((i, j))
+
+            if j > i:
+                upp_idxs.append((i, j))
+
+    for i in range(len(upp_idxs)):
+
+        ind_corr = ind_corrs[upp_idxs[i][0], upp_idxs[i][1]]
+
+        # Prob of same value of bivariate binomial random variable.
+        pab = (ep * (1 - ep) * ind_corr) + ((1 - ep) ** 2)
+
+        mvn_corr = get_mvn_corr(pab, ep, n_tries, thresh)
+
+        corr_mat[upp_idxs[i][0], upp_idxs[i][1]] = mvn_corr
+        corr_mat[low_idxs[i][0], low_idxs[i][1]] = mvn_corr
+
+    return corr_mat
 

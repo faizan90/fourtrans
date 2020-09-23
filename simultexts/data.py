@@ -27,7 +27,7 @@ class SimultaneousExtremesDataAndSettings:
         self._n_cpus = 1
         self._ext_steps = 0
 
-        self._tfm_types = ('obs', 'prob', 'norm', 'prob__no_ann_cyc')
+        self._tfm_types = ('obs', 'prob', 'norm')
 
         self._save_sim_cdfs_flag = False
         self._save_sim_acorrs_flag = False
@@ -420,7 +420,9 @@ class SimultaneousExtremesDataAndSettings:
             raise AssertionError('n_cpus can be an integer or \'auto\' only!')
 
         assert isinstance(extend_steps, int)
-        assert extend_steps >= 0, 'extend_steps can not be less than zero!'
+        assert extend_steps >= 0, 'extend_steps cannot be less than zero!'
+
+        assert extend_steps == 0, 'extend_steps disabled temporarily!'
 
         self._n_cpus = n_cpus
         self._ext_steps = extend_steps
@@ -451,6 +453,16 @@ class SimultaneousExtremesDataAndSettings:
         assert self._set_tws_flag, 'Time windows not set!'
         assert self._set_n_sims_flag, 'Number of simulations not set!'
         assert self._set_tfm_type_flag, 'Transformation type not set!'
+
+        if self._mvn_flag:
+            assert not self._save_sim_ft_cumm_corrs_flag, (
+                'sim_ft_cumm_corrs_flag cannot be on if mvn_flag is on!')
+
+            assert not self._save_sim_cdfs_flag, (
+                'sim_cdfs_flag cannot be on if mvn_flag is on!')
+
+            assert not self._save_sim_acorrs_flag, (
+                'sim_auto_corrs_flag cannot be on if mvn_flag is on!')
 
         if self._vb:
             print_sl()

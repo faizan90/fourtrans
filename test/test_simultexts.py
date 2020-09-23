@@ -38,12 +38,12 @@ def main():
     time_windows = [2, 1, 0, ]
     tfm_type = 'obs'
     dep_type_threshs = (0.01, 0.99)
-#     mvn_flag = True
+    mvn_flag = True
     mvn_flag = False
 
-    n_sims = 100
+    n_sims = 2
 
-    n_cpus = 'auto'
+    n_cpus = 1  # 'auto'
 
     n_steps_extend = 0  # int(3e54)
 
