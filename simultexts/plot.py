@@ -318,7 +318,8 @@ class SimultaneousExtremesPlot:
             'excd_probs',
             'time_windows',
             'n_sims',
-            'simultexts_sims']
+            'simultexts_sims',
+            'mvn_flag']
 
         exst_list = [x in self._h5_hdl for x in main_vars]
 
@@ -351,6 +352,7 @@ class SimultaneousExtremesPlot:
         self._eps = self._h5_hdl['excd_probs'][...]
         self._tws = self._h5_hdl['time_windows'][...]
         self._n_sims = self._h5_hdl['n_sims'][...]
+        self._mvn_flag = self._h5_hdl['mvn_flag'][...]
 
         saved_sim_cdfs_flag = bool(self._h5_hdl['save_sim_cdfs_flag'][...])
 
@@ -360,7 +362,12 @@ class SimultaneousExtremesPlot:
         saved_sim_ft_cumm_corrs_flag = bool(
             self._h5_hdl['save_ft_cumm_corrs_flag'][...])
 
+        saved_freqs_flag = not self._mvn_flag
+
         if self._plot_freqs_flag:
+            assert saved_freqs_flag, (
+                'Frequency data not saved inside the HDF5!')
+
             self._out_dirs_dict['freq_figs'] = (
                 self._out_dir / 'freqs_figs')
 
@@ -368,8 +375,9 @@ class SimultaneousExtremesPlot:
                 self._out_dir / 'freqs_tables')
 
         if self._plot_clusters_flag:
-            self._out_dirs_dict['binary_cluster_figs'] = (
-                self._out_dir / 'binary_cluster_figs')
+            if not self._mvn_flag:
+                self._out_dirs_dict['binary_cluster_figs'] = (
+                    self._out_dir / 'binary_cluster_figs')
 
             self._out_dirs_dict['nD_cluster_figs'] = (
                 self._out_dir / 'nD_cluster_figs')
@@ -430,6 +438,7 @@ class PrepareSimultaneousExtremesPlottingData:
             '_clusters_shp_loc',
             '_clusters_shp_fld',
             '_out_dirs_dict',
+            '_mvn_flag',
             ]
 
         for _var in take_sep_cls_var_labs:
@@ -549,82 +558,83 @@ class PrepareSimultaneousExtremesPlottingData:
 
         freqs_tups = {}
 
-        for ref_stn in stn_labs:
-            assert f'neb_evts_{ref_stn}' in stn_comb_grp, (
-                f'Required variable neb_evts_{ref_stn} not in the '
-                f'input HDF5!')
+        if not self._mvn_flag:
+            for ref_stn in stn_labs:
+                assert f'neb_evts_{ref_stn}' in stn_comb_grp, (
+                    f'Required variable neb_evts_{ref_stn} not in the '
+                    f'input HDF5!')
 
-            neb_evts_arr = stn_comb_grp[f'neb_evts_{ref_stn}'][...]
+                neb_evts_arr = stn_comb_grp[f'neb_evts_{ref_stn}'][...]
 
-            for neb_stn_i, neb_stn in enumerate(
-                stn_idxs_swth_dict[ref_stn]):
+                for neb_stn_i, neb_stn in enumerate(
+                    stn_idxs_swth_dict[ref_stn]):
 
-                obs_vals = neb_evts_arr[0, neb_stn_i]
+                    obs_vals = neb_evts_arr[0, neb_stn_i]
 
-                if self._n_sims:
-                    sim_avgs = np.round(
-                        neb_evts_arr[1:, neb_stn_i].mean(axis=0) /
-                        ref_evts_ext_scl_rshp).astype(int)
+                    if self._n_sims:
+                        sim_avgs = np.round(
+                            neb_evts_arr[1:, neb_stn_i].mean(axis=0) /
+                            ref_evts_ext_scl_rshp).astype(int)
 
-                    sim_maxs = np.round(
-                        neb_evts_arr[1:, neb_stn_i].max(axis=0) /
-                        ref_evts_ext_scl_rshp).astype(int)
+                        sim_maxs = np.round(
+                            neb_evts_arr[1:, neb_stn_i].max(axis=0) /
+                            ref_evts_ext_scl_rshp).astype(int)
 
-                    sim_mins = np.round(
-                        neb_evts_arr[1:, neb_stn_i].min(axis=0) /
-                        ref_evts_ext_scl_rshp).astype(int)
+                        sim_mins = np.round(
+                            neb_evts_arr[1:, neb_stn_i].min(axis=0) /
+                            ref_evts_ext_scl_rshp).astype(int)
 
-                    sim_stds = np.round(
-                        neb_evts_arr[1:, neb_stn_i].std(axis=0) /
-                         ref_evts_ext_scl_rshp, 2)
+                        sim_stds = np.round(
+                            neb_evts_arr[1:, neb_stn_i].std(axis=0) /
+                             ref_evts_ext_scl_rshp, 2)
 
-                else:
-                    sim_avgs = sim_maxs = sim_mins = sim_stds = np.full(
-                        (self._eps.shape[0], self._tws.shape[0]), np.nan)
+                    else:
+                        sim_avgs = sim_maxs = sim_mins = sim_stds = np.full(
+                            (self._eps.shape[0], self._tws.shape[0]), np.nan)
 
-                avg_probs = np.round(sim_avgs / ref_evts_rshp , 3)
-                min_probs = np.round(sim_mins / ref_evts_rshp , 3)
-                max_probs = np.round(sim_maxs / ref_evts_rshp , 3)
+                    avg_probs = np.round(sim_avgs / ref_evts_rshp , 3)
+                    min_probs = np.round(sim_mins / ref_evts_rshp , 3)
+                    max_probs = np.round(sim_maxs / ref_evts_rshp , 3)
 
-                freqs_tups[(ref_stn, neb_stn)] = self._FreqTup(
-                    obs_vals,
-                    sim_avgs,
-                    sim_maxs,
-                    sim_mins,
-                    sim_stds,
-                    avg_probs,
-                    min_probs,
-                    max_probs,
-                    )
+                    freqs_tups[(ref_stn, neb_stn)] = self._FreqTup(
+                        obs_vals,
+                        sim_avgs,
+                        sim_maxs,
+                        sim_mins,
+                        sim_stds,
+                        avg_probs,
+                        min_probs,
+                        max_probs,
+                        )
 
-                if not self._plot_freqs_flag:
-                    continue
+                    if not self._plot_freqs_flag:
+                        continue
 
-                table_concat = np.concatenate((
-                    self._eps.reshape(-1, 1),
-                    ref_evts_arr.reshape(-1, 1),
-                    ref_evts_ext_arr.reshape(-1, 1),
-                    obs_vals,
-                    sim_avgs,
-                    sim_mins,
-                    sim_maxs,
-                    sim_stds,
-                    avg_probs,
-                    min_probs,
-                    max_probs,
-                    ), axis=1)
+                    table_concat = np.concatenate((
+                        self._eps.reshape(-1, 1),
+                        ref_evts_arr.reshape(-1, 1),
+                        ref_evts_ext_arr.reshape(-1, 1),
+                        obs_vals,
+                        sim_avgs,
+                        sim_mins,
+                        sim_maxs,
+                        sim_stds,
+                        avg_probs,
+                        min_probs,
+                        max_probs,
+                        ), axis=1)
 
-                out_stats_df = pd.DataFrame(
-                    data=table_concat,
-                    columns=tab_header)
+                    out_stats_df = pd.DataFrame(
+                        data=table_concat,
+                        columns=tab_header)
 
-                tab_name = (
-                    f'simult_ext_stats_{comb_lab}_{ref_stn}_{neb_stn}.csv')
+                    tab_name = (
+                        f'simult_ext_stats_{comb_lab}_{ref_stn}_{neb_stn}.csv')
 
-                out_stats_df.to_csv(
-                    self._out_dirs_dict['freq_tabs'] / tab_name,
-                    sep=';',
-                    float_format='%0.8f')
+                    out_stats_df.to_csv(
+                        self._out_dirs_dict['freq_tabs'] / tab_name,
+                        sep=';',
+                        float_format='%0.8f')
 
         return self._StnCombData(
             freqs_tups,
@@ -700,6 +710,7 @@ class PlotSimultaneousExtremesMP:
             '_plot_ft_pair_corrs_dist_flag',
             '_cluster_feats_dict',
             '_dep_type_threshs',
+            '_mvn_flag',
             ]
 
         for _var in take_sep_cls_var_labs:
@@ -815,11 +826,11 @@ class PlotSimultaneousExtremesMP:
         stn_comb_grp = h5_hdl['simultexts_sims'][stn_comb]
 
         for ref_stn in ref_stns:
-            if self._plot_freqs_flag:
+            if self._plot_freqs_flag and (not self._mvn_flag):
                 self._plot_frequencies(
                     ref_stn, stn_comb_data, stn_idxs_swth_dict)
 
-            if self._plot_clusters_flag:
+            if self._plot_clusters_flag and (not self._mvn_flag):
                 self._plot_binary_clusters(
                     ref_stn,
                     stn_idxs_swth_dict,

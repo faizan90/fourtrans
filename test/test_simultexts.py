@@ -23,7 +23,7 @@ def main():
     clusters_shp = r'watersheds.shp'
     clusters_shp_fld = 'DN'
 
-    out_dir = 'test_mvn_indic_corr_14'
+    out_dir = 'test_mvn_indic_corr_15'
 
 #     stns = ['420', '427', '454']  # , '3470', '3465', '3421'
 #     excd_probs = [0.001, 0.005]  # [0.001, 0.005, 0.0001, 0.0005, 0.00001]  #
@@ -33,17 +33,17 @@ def main():
 #     excd_probs = [0.001, 0.005, 0.0001, 0.0005]  # , 0.00001]
 #     time_windows = [2, 10, 1, 3, 0]
 
-    stns = ['427', '454', '420', '3470', '3465', '3421']  #
+    stns = ['427', '454']  # , '420', '3470', '3465', '3421']  #
     excd_probs = [0.0001, 0.0005, 0.01]  # , 0.00001]
     time_windows = [2, 1, 0, ]
-    tfm_type = 'obs'
+    tfm_type = 'prob'
     dep_type_threshs = (0.01, 0.99)
     mvn_flag = True
-    mvn_flag = False
+#     mvn_flag = False
 
-    n_sims = 2
+    n_sims = 5
 
-    n_cpus = 1  # 'auto'
+    n_cpus = 'auto'
 
     n_steps_extend = 0  # int(3e54)
 
@@ -67,11 +67,11 @@ def main():
 #     save_sim_corrs_flag = True
 #     save_sim_ft_cumm_corrs_flag = True
 #     plot_freqs_flag = True
-#     plot_clusters_flag = True
+    plot_clusters_flag = True
 #     plot_sim_cdfs_flag = True
 #     plot_sim_auto_corrs_flag = True
 #     plot_sim_ft_corrs_flag = True
-#     plot_sim_ft_pair_corrs_dist_flag = True
+    plot_sim_ft_pair_corrs_dist_flag = True
 
     in_df = pd.read_csv(in_file, sep=';', index_col=0)
 

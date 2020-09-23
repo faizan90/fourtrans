@@ -27,7 +27,7 @@ class SimultaneousExtremesDataAndSettings:
         self._n_cpus = 1
         self._ext_steps = 0
 
-        self._tfm_types = ('obs', 'prob', 'norm')
+        self._tfm_types = ('obs', 'prob', 'norm', 'prob__no_ann_cyc')
 
         self._save_sim_cdfs_flag = False
         self._save_sim_acorrs_flag = False
