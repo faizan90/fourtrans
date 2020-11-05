@@ -26,18 +26,22 @@ def main():
 
     os.chdir(main_dir)
 
-    in_data_file = Path(r'temperature_avg.csv')
-    in_crds_file = Path(r'temperature_avg_coords.csv')
+    in_data_file = Path(r'precipitation.csv')
+    in_crds_file = Path(r'precipitation_coords.csv')
 
     sep = ';'
     time_fmt = '%Y-%m-%d'
 
     beg_year = 1989
-    end_year = 1992  # NOTE: skips last step.
+    end_year = 1992  # NOTE: skips last odd step.
 
-    out_dir = Path(r'temperature_interpolation')
+    out_dir = Path(r'precipitation_interpolation_validation')
 
     min_valid_stns = 10
+
+    # Selected post subsetting.
+#     validation_cols = []  # ['T3705', 'T1875', 'T5664', 'T1197']
+    validation_cols = ['P3733', 'P3315', 'P3713', 'P3454']
 
     mdr = 0.7
     perm_r_list = [1, 2]
@@ -61,7 +65,20 @@ def main():
 
     crds_df = pd.read_csv(in_crds_file, sep=sep, index_col=0)[['X', 'Y', 'Z']]
 
-    crdf_df = crds_df.loc[data_df.columns]
+    crds_df = crds_df.loc[data_df.columns]
+
+    crds_df.to_csv(Path(in_crds_file.stem + '_subset.csv'), sep=sep)
+#     raise Exception
+
+    if validation_cols:
+        assert all([
+            validation_col in crds_df.index
+            for validation_col in validation_cols])
+
+        crds_df = crds_df.loc[
+            crds_df.index.difference(pd.Index(validation_cols))]
+
+        data_df = data_df[crds_df.index]
 
     ft_df = pd.DataFrame(
         data=np.fft.rfft(data_df, axis=0), columns=data_df.columns)
@@ -74,7 +91,7 @@ def main():
 
         part_df.to_csv(out_dir / f'{part}.csv', sep=sep)
 
-        fit_vg_cls.set_data(part_df, crdf_df, index_type='obj')
+        fit_vg_cls.set_data(part_df, crds_df, index_type='obj')
 
         fit_vg_cls.set_vg_fitting_parameters(
             mdr,

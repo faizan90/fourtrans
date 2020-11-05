@@ -24,24 +24,33 @@ DEBUG_FLAG = False
 def main():
 
     main_dir = Path(
-        r'P:\Synchronize\IWS\Testings\fourtrans_practice\ft_spatio_temporal_interps\temperature_interpolation')
+        r'P:\Synchronize\IWS\Testings\fourtrans_practice\ft_spatio_temporal_interps\precipitation_interpolation_validation')
 
     os.chdir(main_dir)
 
     # order matters, first real then imag.
     parts = [
-        'real/temperature_kriging_0_to_730_1km_real.nc',
-        'imag/temperature_kriging_0_to_730_1km_imag.nc']
+        'real/precipitation_kriging_0_to_730_1km_real.nc',
+        'imag/precipitation_kriging_0_to_730_1km_imag.nc']
 
-    var = 'EDK'
+    var = 'OK'
 
-    var_type = 'Temperature (C)'
+    time_var = 'time'
 
-    out_dir = Path('ft_interp_figs')
+    var_type = 'precipitation (mm)'
+
+    out_dir = Path('combined_real_imag')
+
+    # NOTE: It is a copy of a reference file. Only the data values are updated.
+    out_nc = out_dir / r'precipitation_kriging_1989-01-01_to_1992-12-30_1km_ft.nc'
 
     assert len(parts) == 2
 
     out_dir.mkdir(exist_ok=True)
+
+    out_figs_dir = out_dir / 'interp_figs'
+
+    out_figs_dir.mkdir(exist_ok=True)
 
     ft_arr = x_crds = y_crds = None
     for i, part in enumerate(parts):
@@ -66,13 +75,28 @@ def main():
 
     val_arr = np.fft.irfft(ft_arr, axis=0)
 
+    nc_hdl = nc.Dataset(str(out_nc), mode='r+')
+
+    time_steps = nc.num2date(
+        nc_hdl[time_var][:].data,
+        nc_hdl[time_var].units,
+        nc_hdl[time_var].calendar)
+
+    nc_hdl[var][:, :, :] = val_arr
+
+    nc_hdl.sync()
+
+    nc_hdl.close()
+
     x_crds_plt_msh, y_crds_plt_msh = np.meshgrid(x_crds, y_crds)
 
     for i in range(val_arr.shape[0]):
 
         interp_fld = val_arr[i]
 
-        out_fig_name = f'ts_{i:04d}.png'
+        time_str = time_steps[i].strftime('%Y_%m_%d_T_%H_%M')
+
+        out_fig_name = f'{var.lower()}_{time_str}.png'
 
         fig, ax = plt.subplots()
 
@@ -95,14 +119,18 @@ def main():
         ax.set_xlabel('Easting')
         ax.set_ylabel('Northing')
 
-        title = f'Time: {i:04d}'
+#         title = f'Time: {i:04d}'
+
+        title = (
+            f'Time: {time_str}\n'
+            f'Min.: {grd_min:0.4f}, Max.: {grd_max:0.4f}')
 
         ax.set_title(title)
 
         plt.setp(ax.get_xmajorticklabels(), rotation=70)
         ax.set_aspect('equal', 'datalim')
 
-        plt.savefig(str(out_dir / out_fig_name), bbox_inches='tight')
+        plt.savefig(str(out_figs_dir / out_fig_name), bbox_inches='tight')
         plt.close()
     return
 

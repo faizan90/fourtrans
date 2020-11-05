@@ -19,13 +19,13 @@ from spinterps import SpInterpMain
 def main():
 
     main_dir = Path(
-        r'P:\Synchronize\IWS\Testings\fourtrans_practice\ft_spatio_temporal_interps\temperature_interpolation')
+        r'P:\Synchronize\IWS\Testings\fourtrans_practice\ft_spatio_temporal_interps\precipitation_interpolation_validation')
 
     os.chdir(main_dir)
 
     parts = ['real', 'imag']
 
-    in_stns_coords_file = os.path.join(r'../temperature_avg_coords.csv')
+    in_stns_coords_file = os.path.join(r'../precipitation_coords_subset.csv')
 
     index_type = 'obj'
 
@@ -80,9 +80,9 @@ def main():
     verbose = True
     interp_around_polys_flag = True
 
-    ord_krige_flag = False
+#     ord_krige_flag = False
     sim_krige_flag = False
-#     edk_krige_flag = False
+    edk_krige_flag = False
     idw_flag = False
 #     plot_figs_flag = False
 #     verbose = False
@@ -95,7 +95,7 @@ def main():
 
         out_dir = part
 
-        out_krig_net_cdf_file = f'temperature_kriging_%s_to_%s_1km_{part}.nc'
+        out_krig_net_cdf_file = f'precipitation_kriging_%s_to_%s_1km_{part}.nc'
 
         out_krig_net_cdf_file = out_krig_net_cdf_file % (strt_date, end_date)
 
