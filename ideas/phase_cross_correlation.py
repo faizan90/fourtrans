@@ -167,9 +167,9 @@ def main():
 
     beg_time = '1961-01-01'
     end_time = '1961-12-30'
-    stns = ['454', '3470']
+    stns = ['3470', '3470']
 
-    out_corr_fig_name = 'randomized_phase_cross_corrs.png'
+    out_corr_fig_name = 'randomized_phase_cross_corrs_4.png'
     corr_fig_titles = ['Reference', 'Randomized']
 
     df = pd.read_csv(in_file, index_col=0, sep=';')
