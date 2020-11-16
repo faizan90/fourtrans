@@ -25,7 +25,7 @@ def main():
 
     os.chdir(main_dir)
 
-    parts = ['orig', 'mag', 'phs', 'data', ]  #  'sin', 'cos',
+    parts = ['cos', 'sin', 'orig', 'mag', 'data', ]  #  'phs',
 
     in_stns_coords_file = os.path.join(r'../precipitation_coords.csv')
 
@@ -68,7 +68,7 @@ def main():
     sec_buffer_dist = 2e3
 
     neighbor_selection_method = 'nrst'
-    n_neighbors = 10
+    n_neighbors = 50
     n_pies = 8
 
     in_sep = ';'

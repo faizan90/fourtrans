@@ -31,13 +31,15 @@ def main():
 
     os.chdir(main_dir)
 
-    # order matters: data, mag, phs, orig.
+    # order matters: data, mag, cos, sin, orig.
     # orig is copied as the new ouputs with overwritten values.
     # orig itself gets its time and units updated.
+    # sin nc is copied and overwritten with phss values.
     parts = [
         'data/precipitation_kriging_1km_data.nc',
         'mag/precipitation_kriging_1km_mag.nc',
-        'phs/precipitation_kriging_1km_phs.nc',
+        'cos/precipitation_kriging_1km_cos.nc',
+        'sin/precipitation_kriging_1km_sin.nc',
         'orig/precipitation_kriging_1km_orig.nc',
         ]
 
@@ -59,18 +61,23 @@ def main():
 
     # NOTE: It is a copy of a reference file. Only the data values are updated.
     out_nc = out_dir / r'Precipitation_kriging_1km_ifted.nc'
+    out_phss = Path('phs/precipitation_kriging_1km_phs.nc')
 
-    assert len(parts) == 4
+    assert len(parts) == 5
 
     out_dir.mkdir(exist_ok=True)
 
-    copy2(parts[3], out_nc)
+    copy2(parts[-1], out_nc)
 
     out_figs_dir.mkdir(exist_ok=True)
 
+    out_phss.parents[0].mkdir(exist_ok=True)
+
+    copy2(parts[-2], out_phss)
+
     x_crds = y_crds = None
 
-    mags = phss = sorted_datas = None
+    mags = coss = sins = sorted_datas = None
     for i, part in enumerate(parts):
         nc_hdl = nc.Dataset(part, 'r')
 
@@ -85,17 +92,28 @@ def main():
             mags = nc_hdl[var][...].data
 
         elif i == 2:
-            phss = nc_hdl[var][...].data
+            coss = nc_hdl[var][...].data
 
         elif i == 3:
-#             origs = nc_hdl[var][...].data
+            sins = nc_hdl[var][...].data
 
+        elif i == 4:
+#             origs = nc_hdl[var][...].data
             pass
 
         else:
             raise ValueError
 
         nc_hdl.close()
+
+    coss[0, :, :] = 1.0
+    sins[0, :, :] = 0.0
+
+#     phs_norm_mags = ((sins ** 2) + (coss ** 2)) ** 0.5
+#     coss /= phs_norm_mags
+#     sins /= phs_norm_mags
+
+    phss = np.arctan2(sins, coss)
 
     phss[0, :, :] = 0.0
 
@@ -148,11 +166,20 @@ def main():
     nc_hdl.close()
 
     # origs
-    nc_hdl = nc.Dataset(str(parts[3]), mode='r+')
+    nc_hdl = nc.Dataset(str(parts[-1]), mode='r+')
 
     nc_hdl[time_var][:] = time_steps
     nc_hdl[time_var].units = nc_time_units
     nc_hdl[time_var].calendar = nc_calendar
+
+    nc_hdl.sync()
+
+    nc_hdl.close()
+
+    # phss
+    nc_hdl = nc.Dataset(str(out_phss), mode='r+')
+
+    nc_hdl[var][:] = phss
 
     nc_hdl.sync()
 

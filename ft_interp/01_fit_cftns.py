@@ -48,7 +48,7 @@ def main():
     ngp = 20
     figs_flag = True
 
-    vg_vars = ['orig', 'mag', 'phs', 'data', ]  # 'cos', 'sin',
+    vg_vars = ['phs', 'cos', 'sin', 'orig', 'mag', 'data', ]  #
 
     n_cpus = 8
 
