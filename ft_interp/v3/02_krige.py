@@ -21,22 +21,22 @@ DEBUG_FLAG = False
 def main():
 
     main_dir = Path(
-        r'P:\Synchronize\IWS\Testings\fourtrans_practice\multisite_phs_spec_corr\precipitation_kriging')
+        r'P:\Synchronize\IWS\Testings\fourtrans_practice\multisite_phs_spec_corr\temperature_kriging')
 
     os.chdir(main_dir)
 
-    parts = ['orig', 'mag', 'phs', 'data', ]  #  'sin', 'cos',
+    parts = ['data', 'mag', 'sin', 'cos']
 
-    in_stns_coords_file = os.path.join(r'../precipitation_coords.csv')
+    in_stns_coords_file = os.path.join(r'../temperature_avg_coords.csv')
 
     index_type = 'obj'
 
     var_units = '-'  # u'\u2103'  # 'centigrade'
-    var_name = '-'
+    var_name = 'freq'
 
-    freq = None  # 'D'
-    strt_date = None  # '0'
-    end_date = None  # '182'
+    freq = 'D'
+    strt_date = '0'
+    end_date = '182'
 
     in_drift_rasters_list = (
         [r'P:\Synchronize\IWS\QGIS_Neckar\raster\lower_de_gauss_z3_1km.tif'])
@@ -68,7 +68,7 @@ def main():
     sec_buffer_dist = 2e3
 
     neighbor_selection_method = 'nrst'
-    n_neighbors = 10
+    n_neighbors = 50
     n_pies = 8
 
     in_sep = ';'
@@ -97,7 +97,9 @@ def main():
 
         out_dir = part
 
-        out_krig_net_cdf_file = f'precipitation_kriging_1km_{part}.nc'
+        out_krig_net_cdf_file = f'temperature_kriging_%s_to_%s_1km_{part}.nc'
+
+        out_krig_net_cdf_file = out_krig_net_cdf_file % (strt_date, end_date)
 
         in_data_df = pd.read_csv(
             in_data_file,

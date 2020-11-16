@@ -106,8 +106,8 @@ def main():
     sep = ';'
     time_fmt = '%Y-%m-%d'
 
-    beg_time = '1990-01-01'
-    end_time = '1990-12-31'
+    beg_time = '1991-01-01'
+    end_time = '1991-12-31'
 
     fig_size = (15, 7)
 

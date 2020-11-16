@@ -46,9 +46,9 @@ def main():
 
     os.chdir(main_dir)
 
-    interp_var = 'ppt'
+    interp_var = 'temp'
 
-    ft_type = 'phs'
+    ft_type = 'mag'
 
     #==========================================================================
     if interp_var == 'temp':

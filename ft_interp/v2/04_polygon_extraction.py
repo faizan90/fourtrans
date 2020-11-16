@@ -18,14 +18,14 @@ DEBUG_FLAG = True
 
 def main():
 
-    main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\multisite_phs_spec_corr\precipitation_kriging\orig')
+    main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\multisite_phs_spec_corr\precipitation_kriging\ifted')
     os.chdir(main_dir)
 
-    path_to_shp = r'P:\Synchronize\IWS\QGIS_Neckar\raster\taudem_out_spate_rockenau\watersheds_all.shp'
+    path_to_shp = r'P:\Synchronize\IWS\QGIS_Neckar\raster\taudem_out_spate_rockenau\watersheds.shp'
 
     label_field = r'DN'
 
-    path_to_ras = r'precipitation_kriging_1km_orig.nc'
+    path_to_ras = r'precipitation_kriging_0_to_182_1km.nc'
     input_ras_type = 'nc'
 
 #     path_to_ras = r'P:\Synchronize\IWS\Colleagues_Students\Mischa\lulc_geohyd_ratio_rasters\lower_de_gauss_z3_1km_hydrogeol_einheit_nr_hydmod_lulc_ratios.tif'
@@ -57,7 +57,7 @@ def main():
 #     nc_variable_labels = ['pr']
 #     nc_time_label = 'time'
 
-    path_to_output = Path(r'neckar_ppt_1991_1991.h5')
+    path_to_output = Path(r'neckar_6cats_ppt_1991_1991.h5')
 #     path_to_output = 'lower_de_gauss_z3_1km_hydrogeol_einheit_nr_hydmod_lulc_ratios.h5'
 
     Ext = Extract(True)

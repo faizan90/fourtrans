@@ -27,28 +27,26 @@ def main():
 
     os.chdir(main_dir)
 
-    in_data_file = Path(r'precipitation.csv')
-    in_crds_file = Path(r'precipitation_coords.csv')
+    in_data_file = Path(r'temperature_avg.csv')
+    in_crds_file = Path(r'temperature_avg_coords.csv')
 
     sep = ';'
     time_fmt = '%Y-%m-%d'
 
-    beg_year = 1991
-    end_year = 1991  # NOTE: skips last odd step.
+    beg_year = 1990
+    end_year = 1990  # NOTE: skips last odd step.
 
-    out_dir = Path(r'precipitation_kriging')
+    out_dir = Path(r'temperature_kriging')
 
     min_valid_stns = 10
 
-    mdr = 0.5
+    mdr = 0.7
     perm_r_list = [1, 2]
-    fit_vgs = ['Exp']
+    fit_vgs = ['Sph', 'Exp']
     fil_nug_vg = 'Sph'
     n_best = 1
-    ngp = 20
+    ngp = 10
     figs_flag = True
-
-    vg_vars = ['orig', 'mag', 'phs', 'data', ]  # 'cos', 'sin',
 
     n_cpus = 8
 
@@ -74,26 +72,18 @@ def main():
         data=norm.ppf(probs_df.values), columns=data_df.columns)
 
     ft_df = pd.DataFrame(
-        data=np.fft.rfft(norms_df, axis=0),
-        columns=data_df.columns)
+        data=np.fft.rfft(norms_df, axis=0), columns=data_df.columns)
 
     mag_df = pd.DataFrame(data=np.abs(ft_df), columns=data_df.columns)
 
     phs_df = pd.DataFrame(data=np.angle(ft_df), columns=data_df.columns)
 
-    phs_le_idxs = phs_df < 0
-
-    phs_df[phs_le_idxs] = (2 * np.pi) + phs_df[phs_le_idxs]
-
-    for part in vg_vars:
+    for part in ['data', 'mag', 'cos', 'sin', ]:  # 'probs', 'norm',
 
         (out_dir / part).mkdir(exist_ok=True)
 
         if part == 'mag':
             part_df = mag_df
-
-        elif part == 'phs':
-            part_df = phs_df
 
         elif part == 'cos':
             part_df = pd.DataFrame(
@@ -108,10 +98,15 @@ def main():
 
             part_df.values[:] = np.sort(part_df.values, axis=0)
 
-#             part_df = part_df.iloc[-2:]
+        elif part == 'probs':
+            part_df = probs_df.copy()
 
-        elif part == 'orig':
-            part_df = data_df.copy()
+            part_df.values[:] = np.sort(part_df.values, axis=0)
+
+        elif part == 'norms':
+            part_df = norms_df.copy()
+
+            part_df.values[:] = np.sort(part_df.values, axis=0)
 
         else:
             raise ValueError(f'Undefined: {part}!')

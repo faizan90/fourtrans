@@ -10,7 +10,6 @@ import os
 import time
 import timeit
 from pathlib import Path
-from shutil import copy2
 
 import h5py
 import numpy as np
@@ -22,41 +21,36 @@ DEBUG_FLAG = True
 def main():
 
     main_dir = Path(
-        r'P:\Synchronize\IWS\Testings\fourtrans_practice\multisite_phs_spec_corr\precipitation_kriging')
+        r'P:\Synchronize\IWS\Testings\fourtrans_practice\multisite_phs_spec_corr\temperature_kriging')
 
     os.chdir(main_dir)
 
-    in_mag_file = Path(r'neckar_6cats_ppt_1991_1991_mag.h5')
-    in_phs_file = Path(r'neckar_6cats_ppt_1991_1991_phs.h5')
+    in_file = Path(r'neckar_6cats_temp_1991_1991.h5')
 
     beg_time = '1991-01-01'
     end_time = '1991-12-30'
     freq = 'D'
 
-    out_file = Path(r'neckar_6cats_ppt_1991_1991.h5')
-
-    le_zero_flag = True
+    le_zero_flag = False
 
     mag_ds_label = 'kriging_1km_mag'
-    phs_ds_label = 'kriging_1km_phs'
+    cos_ds_label = 'kriging_1km_cos'
+    sin_ds_label = 'kriging_1km_sin'
     ift_ds_label = 'kriging_1km'
-
-    copy2(in_mag_file, out_file)
 
     dates_times = pd.date_range(beg_time, end_time, freq=freq)
 
-    with h5py.File(in_mag_file, 'r') as mag_hdl, \
-         h5py.File(in_phs_file, 'r') as phs_hdl, \
-         h5py.File(out_file, 'a') as ift_hdl:
+    with h5py.File(in_file, 'a') as h5_hdl:
 
-        for interp_type in mag_hdl[mag_ds_label]:
-            for cat in mag_hdl[f'{mag_ds_label}/{interp_type}']:
-                mags = mag_hdl[f'{mag_ds_label}/{interp_type}/{cat}'][...]
-                phss = phs_hdl[f'{phs_ds_label}/{interp_type}/{cat}'][...]
-
-                assert np.all(mags.shape == phss.shape)
+        for interp_type in h5_hdl[mag_ds_label]:
+            for cat in h5_hdl[f'{mag_ds_label}/{interp_type}']:
+                mags = h5_hdl[f'{mag_ds_label}/{interp_type}/{cat}'][...]
+                coss = h5_hdl[f'{cos_ds_label}/{interp_type}/{cat}'][...]
+                sins = h5_hdl[f'{sin_ds_label}/{interp_type}/{cat}'][...]
 
                 ft_coeffs = np.full(mags.shape, np.nan, dtype=np.complex128)
+
+                phss = np.arctan2(sins, coss)
 
                 phss[+0, :] = 0
 #                 phss[-1, :] = 0
@@ -71,11 +65,11 @@ def main():
 
 #                 print((ift < 0).sum(), ift.size)
 
-                ift_hdl[f'{ift_ds_label}/{interp_type}/{cat}'] = ift
+                h5_hdl[f'{ift_ds_label}/{interp_type}/{cat}'] = ift
 
         time_strs = dates_times.strftime('%Y%m%dT%H%M%S')
 
-        time_grp = ift_hdl.create_group('time')
+        time_grp = h5_hdl.create_group('time')
 
         h5_str_dt = h5py.special_dtype(vlen=str)
 

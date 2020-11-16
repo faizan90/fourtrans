@@ -18,30 +18,30 @@ import matplotlib.pyplot as plt
 
 plt.ioff()
 
-DEBUG_FLAG = True
+DEBUG_FLAG = False
 
 
 def main():
 
     main_dir = Path(
-        r'P:\Synchronize\IWS\Testings\fourtrans_practice\multisite_phs_spec_corr\precipitation_kriging')
+        r'P:\Synchronize\IWS\Testings\fourtrans_practice\multisite_phs_spec_corr\temperature_kriging')
 
     os.chdir(main_dir)
 
-    in_data_file = Path(r'../precipitation.csv')
+    in_data_file = Path(r'../temperature_avg.csv')
 
     sep = ';'
 
     test_files = [
-        Path(r'obs/neckar_6cats_ppt_1991_1991_obs.h5'),
-        Path(r'neckar_6cats_ppt_1991_1991.h5')]
+        Path(r'neckar_6cats_temp_1991_1991_obs.h5'),
+        Path(r'neckar_6cats_temp_1991_1991.h5')]
 
     # Corresponds to test_files.
     test_file_labels = ['obs', 'ft']
 
     # Corresponds to test_files.
     h5_vars = [
-        'precipitation_kriging_1991-01-01_to_1991-12-30_1km_obs/OK',
+        'temperature_kriging_1991-01-01_to_1991-12-30_1km_obs/OK',
         'kriging_1km/OK']
 
     beg_time = '1991-01-01'
@@ -55,10 +55,10 @@ def main():
     dpi = 600
 
     fig_xlabel = 'Time (days)'
-    fig_ylabel_vrc = 'Precipitation variance'
-    fig_ylabel_mean = 'Precipitation mean'
+    fig_ylabel_vrc = 'Temperature variance'
+    fig_ylabel_mean = 'Temperature mean'
 
-    fig_name_pref = 'ppt'
+    fig_name_pref = 'temp'
 
     assert 'ref' not in test_file_labels, 'label ref not allowed!'
 

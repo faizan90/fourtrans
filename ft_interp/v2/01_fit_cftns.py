@@ -40,15 +40,23 @@ def main():
 
     min_valid_stns = 10
 
-    mdr = 0.5
+    # Selected post subsetting.
+    validation_cols = []  # ['T3705', 'T1875', 'T5664', 'T1197']
+#     validation_cols = ['P3733', 'P3315', 'P3713', 'P3454']
+
+    mdr = 0.7
     perm_r_list = [1, 2]
-    fit_vgs = ['Exp']
+    fit_vgs = ['Sph', 'Exp']
     fil_nug_vg = 'Sph'
     n_best = 1
-    ngp = 20
+    ngp = 10
     figs_flag = True
 
-    vg_vars = ['orig', 'mag', 'phs', 'data', ]  # 'cos', 'sin',
+#     mag_cftn = None
+#     cos_sin_cftn = None
+
+    mag_cftn = '0.02154 Sph(8998.9) + 0.91539 Exp(100566492.6) + 0.05894 Sph(73391.2)'
+    cos_sin_cftn = '0.89903 Sph(848353919.8) + 0.38155 Exp(112531.1) + 0.11241 Sph(6980.2)'
 
     n_cpus = 8
 
@@ -68,55 +76,96 @@ def main():
 
     crds_df.to_csv(Path(in_crds_file.stem + '_subset.csv'), sep=sep)
 
+    if validation_cols:
+        assert all([
+            validation_col in crds_df.index
+            for validation_col in validation_cols])
+
+        crds_df = crds_df.loc[
+            crds_df.index.difference(pd.Index(validation_cols))]
+
+        data_df = data_df[crds_df.index]
+
     probs_df = data_df.rank(axis=0) / (data_df.shape[0] + 1)
 
     norms_df = pd.DataFrame(
         data=norm.ppf(probs_df.values), columns=data_df.columns)
 
     ft_df = pd.DataFrame(
-        data=np.fft.rfft(norms_df, axis=0),
-        columns=data_df.columns)
+        data=np.fft.rfft(norms_df, axis=0), columns=data_df.columns)
 
-    mag_df = pd.DataFrame(data=np.abs(ft_df), columns=data_df.columns)
+    mag_df = pd.DataFrame(
+        data=np.abs(ft_df), columns=data_df.columns)
 
-    phs_df = pd.DataFrame(data=np.angle(ft_df), columns=data_df.columns)
+    phs_df = pd.DataFrame(
+        data=np.angle(ft_df), columns=data_df.columns)
 
-    phs_le_idxs = phs_df < 0
+    for part in ['data', 'mag', 'cos', 'sin', ]:  # 'probs', 'norm',
 
-    phs_df[phs_le_idxs] = (2 * np.pi) + phs_df[phs_le_idxs]
-
-    for part in vg_vars:
+        ft_vg_flag = False
 
         (out_dir / part).mkdir(exist_ok=True)
 
         if part == 'mag':
             part_df = mag_df
 
-        elif part == 'phs':
-            part_df = phs_df
+            out_ser = pd.Series(index=part_df.index, dtype=object)
+            out_ser[:] = mag_cftn
+
+            out_ser.to_csv(out_dir / f'{part}/vg_strs.csv', sep=sep)
+
+            ft_vg_flag = False
 
         elif part == 'cos':
             part_df = pd.DataFrame(
                 data=np.cos(phs_df), columns=data_df.columns)
 
+            out_ser = pd.Series(index=part_df.index, dtype=object)
+            out_ser[:] = cos_sin_cftn
+
+            out_ser.to_csv(out_dir / f'{part}/vg_strs.csv', sep=sep)
+
+            ft_vg_flag = False
+
         elif part == 'sin':
             part_df = pd.DataFrame(
                 data=np.sin(phs_df), columns=data_df.columns)
+
+            out_ser = pd.Series(index=part_df.index, dtype=object)
+            out_ser[:] = cos_sin_cftn
+
+            out_ser.to_csv(out_dir / f'{part}/vg_strs.csv', sep=sep)
+
+            ft_vg_flag = False
 
         elif part == 'data':
             part_df = data_df.copy()
 
             part_df.values[:] = np.sort(part_df.values, axis=0)
 
-#             part_df = part_df.iloc[-2:]
+            ft_vg_flag = True
 
-        elif part == 'orig':
-            part_df = data_df.copy()
+        elif part == 'probs':
+            part_df = probs_df.copy()
+
+            part_df.values[:] = np.sort(part_df.values, axis=0)
+
+            ft_vg_flag = True
+
+        elif part == 'norms':
+            part_df = norms_df.copy()
+
+            part_df.values[:] = np.sort(part_df.values, axis=0)
+
+            ft_vg_flag = True
 
         else:
             raise ValueError(f'Undefined: {part}!')
 
         part_df.to_csv(out_dir / f'{part}.csv', sep=sep)
+
+        if not ft_vg_flag:
+            continue
 
         fit_vg_cls = FitVariograms()
 
