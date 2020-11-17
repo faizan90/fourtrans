@@ -13,6 +13,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from scipy.stats import norm
 import matplotlib.pyplot as plt
 from scipy.optimize import differential_evolution
 
@@ -95,13 +96,13 @@ def main():
 
     os.chdir(main_dir)
 
-    in_data_file = Path(r'temperature_avg.csv')
-    in_crds_file = Path(r'temperature_avg_coords.csv')  # has X, Y, Z cols
-    out_fig_pref = 'temperature'
+#     in_data_file = Path(r'temperature_avg.csv')
+#     in_crds_file = Path(r'temperature_avg_coords.csv')  # has X, Y, Z cols
+#     out_fig_pref = 'temperature'
 
-#     in_data_file = Path(r'precipitation.csv')
-#     in_crds_file = Path(r'precipitation_coords.csv')  # has X, Y, Z cols
-#     out_fig_pref = 'precipitation'
+    in_data_file = Path(r'precipitation.csv')
+    in_crds_file = Path(r'precipitation_coords.csv')  # has X, Y, Z cols
+    out_fig_pref = 'precipitation'
 
     sep = ';'
     time_fmt = '%Y-%m-%d'
@@ -116,8 +117,6 @@ def main():
     sill_bds = [0.0, 1.0]
 
     out_dir = main_dir
-
-    rank_flag = False
 
     data_df = pd.read_csv(in_data_file, sep=sep, index_col=0)
     data_df.index = pd.to_datetime(data_df.index, format=time_fmt)
@@ -146,11 +145,13 @@ def main():
 
     n_stns = data_df.shape[1]
 
-    if rank_flag:
-        data_df = data_df.rank(axis=0)
+    probs_df = data_df.rank(axis=0) / (data_df.shape[0] + 1)
+
+    norms_df = pd.DataFrame(
+        data=norm.ppf(probs_df.values), columns=data_df.columns)
 
     ft_df = pd.DataFrame(
-        data=np.fft.rfft(data_df.values, axis=0), columns=data_df.columns)
+        data=np.fft.rfft(norms_df.values, axis=0), columns=data_df.columns)
 
     phs_spec_df = pd.DataFrame(
         data=np.angle(ft_df), columns=data_df.columns)
@@ -221,8 +222,8 @@ def main():
     assert np.all(np.isfinite(dist_and_corrs_mat))
     print('Done filling!')
 
-    max_corr = dist_and_corrs_mat[:, [1, 2]].max()
-    min_corr = dist_and_corrs_mat[:, [1, 2]].min()
+#     max_corr = dist_and_corrs_mat[:, [1, 2]].max()
+#     min_corr = dist_and_corrs_mat[:, [1, 2]].min()
 
     print('Optimizing...')
     dist_sort_idxs = np.argsort(dist_and_corrs_mat[:, 0])
@@ -303,7 +304,7 @@ def main():
     plt.gca().set_axisbelow(True)
 
     plt.xlim(0, plt.xlim()[1])
-    plt.ylim(min_corr, max_corr)
+#     plt.ylim(min_corr, max_corr)
 
     plt.savefig(
         str(out_dir / f'{out_fig_pref}_mag_corr_cftn.png'), bbox_inches='tight')
@@ -371,7 +372,7 @@ def main():
     plt.gca().set_axisbelow(True)
 
     plt.xlim(0, plt.xlim()[1])
-    plt.ylim(min_corr, max_corr)
+#     plt.ylim(min_corr, max_corr)
 
     plt.savefig(
         str(out_dir / f'{out_fig_pref}_phs_corr_cftn.png'), bbox_inches='tight')

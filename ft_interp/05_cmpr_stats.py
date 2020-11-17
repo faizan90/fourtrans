@@ -24,7 +24,7 @@ DEBUG_FLAG = False
 def main():
 
     main_dir = Path(
-        r'P:\Synchronize\IWS\Testings\fourtrans_practice\multisite_phs_spec_corr\precipitation_kriging')
+        r'P:\Synchronize\IWS\Testings\fourtrans_practice\multisite_phs_spec_corr\mag_and_phss_interp\precipitation_kriging__better_vgs')
 
     os.chdir(main_dir)
 
@@ -37,7 +37,7 @@ def main():
         Path(r'ifted/neckar_ppt_1991_1991.h5')]
 
     # Corresponds to test_files.
-    test_file_labels = ['orig', 'ifted']
+    test_file_labels = ['OK', 'FT']
 
     # Corresponds to test_files.
     h5_vars = [
