@@ -25,7 +25,7 @@ def main():
 
     os.chdir(main_dir)
 
-    parts = ['cos', 'sin', 'orig', 'mag', 'data', ]  #  'phs',
+    parts = ['cos', 'sin', 'orig', 'mag', 'data', 'phs', ]  #
 
     in_stns_coords_file = os.path.join(r'../precipitation_coords.csv')
 
