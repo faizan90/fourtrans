@@ -103,22 +103,28 @@ def main():
 #     out_fig_pref = f'temperature_{mw_ftn}'
 
     in_data_file = Path(r'neckar_1min_ppt_data_20km_buff_Y2009__RR5min_RTsum.pkl')
-    in_crds_file = Path(r'metadata_ppt_gkz3_crds.csv')  # has X, Y, Z cols
+    in_crds_file = Path(r'metadata_ppt_gkz3_crds.csv')  # has X, Y cols
     out_fig_pref = f'ppt_{mw_ftn}'
 
     sep = ';'
     time_fmt = '%Y-%m-%d %H:%M:%S'
 
     beg_time = '2009-01-01 00:00:00'
-    end_time = '2009-12-31 23:59:00'
+    end_time = '2009-03-31 23:59:00'
 
     fig_size = (15, 7)
 
-    cut_off_dist = 1e5
+    cut_off_dist = 5e5
     rng_bds = [1e0, 1e9]
     sill_bds = [0.0, 1.0]
 
     out_dir = main_dir
+
+    phss_out_dir = out_dir / 'phss'
+    phss_out_dir.mkdir(exist_ok=True, parents=True)
+
+    mags_out_dir = out_dir / 'mags'
+    mags_out_dir.mkdir(exist_ok=True, parents=True)
 
     if in_data_file.suffix == '.csv':
         data_df = pd.read_csv(in_data_file, sep=sep, index_col=0)
@@ -175,11 +181,18 @@ def main():
 
     n_freqs = phs_spec_df.shape[0]
 
-    phs_spec_df.to_csv(
-        str(out_dir / f'{out_fig_pref}_phs_spec_df.csv'), sep=sep)
+    # Test to verify that forward and backward transforms are
+    # working as expected.
+#     fft_vals = np.empty_like(mag_spec_df.values, dtype=complex)
+#
+#     fft_vals[:].real = mag_spec_df.values * np.cos(phs_spec_df.values)
+#     fft_vals[:].imag = mag_spec_df.values * np.sin(phs_spec_df.values)
+#
+#     ift_vals = np.fft.irfft(fft_vals, axis=0)
 
-    mag_spec_df.to_csv(
-        str(out_dir / f'{out_fig_pref}_mag_spec_df.csv'), sep=sep)
+    phs_spec_df.to_csv(str(phss_out_dir / f'phss.csv'), sep=sep)
+
+    mag_spec_df.to_csv(str(mags_out_dir / f'mags.csv'), sep=sep)
 
     dist_and_corrs_mat = np.full(
         (int(n_stns * (n_stns - 1) * 0.5), 3), np.nan)
@@ -275,9 +288,15 @@ def main():
         f'{opt_prms[3]:0.5f} Exp({opt_prms[2]:0.1f}) + '
         f'{opt_prms[5]:0.5f} Sph({opt_prms[4]:0.1f})')
 
-    with open(str(out_dir / f'{out_fig_pref}_cftns.csv'), 'w') as txt_hdl:
+    with open(str(mags_out_dir / f'{out_fig_pref}_cftns.csv'), 'w') as txt_hdl:
         txt_hdl.write(f'ft_type;cftn\n')
         txt_hdl.write(f'mag;{mag_cftn_str}\n')
+
+    with open(str(mags_out_dir / f'vg_strs.csv'), 'w') as txt_hdl:
+        txt_hdl.write(f'freq;vg\n')
+
+        for i in range(n_freqs):
+            txt_hdl.write(f'{i};{mag_cftn_str}\n')
 
     exp_vg_vals = get_nug_sph_cftn(opt_prms, dist_and_corrs_mat[:, 0])
 
@@ -319,7 +338,7 @@ def main():
 #     plt.ylim(min_corr, max_corr)
 
     plt.savefig(
-        str(out_dir / f'{out_fig_pref}_mag_corr_cftn.png'),
+        str(mags_out_dir / f'{out_fig_pref}_mag_corr_cftn.png'),
         bbox_inches='tight')
 
 #     plt.show()
@@ -346,8 +365,15 @@ def main():
         f'{opt_prms[3]:0.5f} Exp({opt_prms[2]:0.1f}) + '
         f'{opt_prms[5]:0.5f} Sph({opt_prms[4]:0.1f})')
 
-    with open(str(out_dir / f'{out_fig_pref}_cftns.csv'), 'a') as txt_hdl:
+    with open(str(phss_out_dir / f'{out_fig_pref}_cftns.csv'), 'w') as txt_hdl:
+        txt_hdl.write(f'ft_type;cftn\n')
         txt_hdl.write(f'phs;{phs_cftn_str}\n')
+
+    with open(str(phss_out_dir / f'vg_strs.csv'), 'w') as txt_hdl:
+        txt_hdl.write(f'freq;vg\n')
+
+        for i in range(n_freqs):
+            txt_hdl.write(f'{i};{phs_cftn_str}\n')
 
     exp_vg_vals = get_nug_sph_cftn(opt_prms, dist_and_corrs_mat[:, 0])
 
@@ -389,7 +415,7 @@ def main():
 #     plt.ylim(min_corr, max_corr)
 
     plt.savefig(
-        str(out_dir / f'{out_fig_pref}_phs_corr_cftn.png'),
+        str(phss_out_dir / f'{out_fig_pref}_phs_corr_cftn.png'),
         bbox_inches='tight')
 
 #     plt.show()

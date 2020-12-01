@@ -15,5 +15,6 @@ from .interpmthds import (
 #     fill_vg_var_arr,
     OrdinaryKrigingFT,
 #     SimpleKriging,
-#     ExternalDriftKriging_MD
+#     ExternalDriftKriging_MD,
+    fill_norm_probs_arr,
     )

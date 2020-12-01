@@ -26,6 +26,88 @@ cdef extern from "math.h" nogil:
         DT_D atan(DT_D x)
         DT_D M_PI
         DT_D pow(DT_D x, DT_D y)
+        DT_D log(DT_D x)
+        DT_D INFINITY
+
+
+# cdef DT_D usph_norm_ppf(DT_D p) nogil:
+#     cdef:
+#         DT_D t, z
+# 
+#     if p <= 0.0:
+#         return -INFINITY
+# 
+#     elif p >= 1.0:
+#         return INFINITY
+# 
+#     if p > 0.5:
+#         t = (-2.0 * log(1 - p))**0.5
+#     else:
+#         t = (-2.0 * log(p))**0.5
+# 
+#     z = -0.322232431088 + t * (-1.0 + t * (-0.342242088547 + t * (
+#         (-0.020423120245 + t * -0.453642210148e-4))))
+# 
+#     z = z / (0.0993484626060 + t * (0.588581570495 + t * (
+#         (0.531103462366 + t * (0.103537752850 + t * 0.3856070063e-2)))))
+# 
+#     z = z + t
+# 
+#     if p < 0.5:
+#         z = -z
+# 
+#     return z
+
+
+cdef DT_D norm_cdf_py(DT_D z, DT_D mu=0.0, DT_D sig=1.0):
+
+    cdef:
+        DT_D t, q, p
+
+    z = (z - mu) / sig
+    z = z / (2**0.5)
+
+    if z < 0:
+        t = 1. / (1. + 0.5 * (-1. * z))
+
+    else:
+        t = 1. / (1. + 0.5 * z)
+
+    q = -z**2
+    q -= 1.26551223
+    q += 1.00002368 * t
+    q += 0.37409196 * t**2
+    q += 0.09678418 * t**3
+    q -= 0.18628806 * t**4
+    q += 0.27886807 * t**5
+    q -= 1.13520398 * t**6
+    q += 1.48851587 * t**7
+    q -= 0.82215223 * t**8
+    q += 0.17087277 * t**9
+    q = exp(q)
+    q = q * t
+
+    if z >= 0:
+        p = 1 - q
+    else:
+        p = q - 1
+
+    return 0.5 * (1 + p)
+
+
+cpdef void fill_norm_probs_arr(
+        const DT_D[::1, :] norms_arr, 
+        const DT_D[:, ::1] means_stds, 
+              DT_D[::1, :] probs_arr):
+
+    cdef:
+        Py_ssize_t i, j, ni = norms_arr.shape[0], nj = norms_arr.shape[1]
+    
+    for j in range(nj):
+        for i in range(ni):
+            probs_arr[i, j] = norm_cdf_py(
+                norms_arr[i, j], means_stds[j, 0], means_stds[j, 1])
+    return
 
 
 cdef inline DT_D get_dist(DT_D x1, DT_D y1, DT_D x2, DT_D y2) nogil:

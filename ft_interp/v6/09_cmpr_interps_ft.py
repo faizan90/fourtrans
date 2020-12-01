@@ -12,7 +12,7 @@ import timeit
 from pathlib import Path
 
 import matplotlib as mpl
-# mpl.rc('font', size=14)
+mpl.rc('font', size=6)
 
 mpl.rcParams['font.family'] = 'monospace'
 
@@ -29,20 +29,23 @@ DEBUG_FLAG = False
 def main():
 
     main_dir = Path(
-        r'P:\Synchronize\IWS\Testings\fourtrans_practice\multisite_phs_spec_corr\5min\ppt_kg')
+        r'P:\Synchronize\IWS\Testings\fourtrans_practice\multisite_phs_spec_corr\5min')
 
     os.chdir(main_dir)
 
     # Two files allowed only.
     data_files = [
-        Path(r'kg_1km_mag.nc'),
-        Path(r'kg_1km_phs.nc'), ]
+        Path(r'mags/mags.nc'),
+        Path(r'phss/phss.nc'), ]
 
     data_dss = ['OK', 'OK']
     data_labs = ['mag', 'phs']
 
-    stn_data_files = [Path(r'../ppt_median_mag_spec_df.csv'), Path(r'../ppt_median_phs_spec_df.csv')]
-    stn_crds_file = Path(r'../metadata_ppt_gkz3_crds_subset.csv')
+    stn_data_files = [Path(r'mags/mags.csv'), Path(r'phss/phss.csv')]
+    stn_crds_file = Path(r'metadata_ppt_gkz3_crds.csv')
+
+    vg_str_files = [
+        Path(r'mags/vg_strs.csv'), Path(r'phss/vg_strs.csv')]
 
     sep = ';'
     x_crds_lab_csv, y_crds_lab_csv = 'X', 'Y'
@@ -52,7 +55,7 @@ def main():
     dpi = 150
     cbar_labs = ['Magnitude', 'Phase']
 
-    freq_var = 'freq'
+    freq_var = 'time'
     x_crds_lab = 'X'
     y_crds_lab = 'Y'
 
@@ -123,6 +126,12 @@ def main():
     stn_crds_df = pd.read_csv(
         stn_crds_file, sep=sep, index_col=0)[[x_crds_lab_csv, y_crds_lab_csv]]
 
+    vg_str_sers = [
+        pd.read_csv(vg_str_file, sep=sep, index_col=0, squeeze=True)
+        for vg_str_file in vg_str_files]
+
+#     vg_labs = ['VG', 'VG']
+
     freq_strs = [str(freq) for freq in freqs]
     for i, freq_str in enumerate(freq_strs):
 
@@ -163,7 +172,8 @@ def main():
             f'Avg: {stn_step_ser.values.mean():0.2f}, '
             f'Var: {stn_step_ser.values.var():0.2f}, '
             f'Min: {stn_step_ser.values.min():0.2f}, '
-            f'Max: {stn_step_ser.values.max():0.2f}\n\n',
+            f'Max: {stn_step_ser.values.max():0.2f}\n'
+            f'VG: {vg_str_sers[col].loc[i]}\n\n',
             loc='left')
 
         axes[row, col].grid()
@@ -216,7 +226,8 @@ def main():
             f'Avg: {stn_step_ser.values.mean():0.2f}, '
             f'Var: {stn_step_ser.values.var():0.2f}, '
             f'Min: {stn_step_ser.values.min():0.2f}, '
-            f'Max: {stn_step_ser.values.max():0.2f}\n\n',
+            f'Max: {stn_step_ser.values.max():0.2f}\n'
+            f'VG: {vg_str_sers[col].loc[i]}\n\n',
             loc='left')
 
         axes[row, col].grid()

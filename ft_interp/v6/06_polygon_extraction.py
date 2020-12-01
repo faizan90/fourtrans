@@ -18,78 +18,41 @@ DEBUG_FLAG = True
 
 def main():
 
-    main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\multisite_phs_spec_corr\5min\ppt_kg')
+    main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\multisite_phs_spec_corr\5min')
     os.chdir(main_dir)
 
     path_to_shp = r'P:\Synchronize\IWS\QGIS_Neckar\raster\taudem_out_spate_rockenau\watersheds_all.shp'
 
     label_field = r'DN'
 
-    path_to_ras = r'kg_1km_mag.nc'
-    input_ras_type = 'nc'
+    var = 'ifted'
 
-#     path_to_ras = r'P:\Synchronize\IWS\Colleagues_Students\Mischa\lulc_geohyd_ratio_rasters\lower_de_gauss_z3_1km_hydrogeol_einheit_nr_hydmod_lulc_ratios.tif'
-#     input_ras_type = 'gtiff'
+    path_to_ras = f'{var}/{var}.nc'
 
     nc_x_crds_label = 'X'
     nc_y_crds_label = 'Y'
     nc_variable_labels = ['OK']
-    nc_time_label = 'freq'
+    nc_time_label = 'time'
 
-    src_epsg = None
-    dst_epsg = None
+    overwrite_flag = True
 
-#     src_epsg = 4326
-#     dst_epsg = 31467
+    path_to_output = Path(f'{var}/{var}.h5')
 
-#     main_dir = Path(r'P:\Downloads\spinterp_2d_nc_crds_test')
-#     os.chdir(main_dir)
-#
-#     path_to_shp = r'01Small.shp'
-#
-#     label_field = r'Id'
-#
-#     path_to_ras = r'pr_SAM-44_ICHEC-EC-EARTH_historical_r12i1p1_SMHI-RCA4_v3_day_19810101-19851231.nc'
-#     input_ras_type = 'nc'
-#
-#     nc_x_crds_label = 'lon'
-#     nc_y_crds_label = 'lat'
-#     nc_variable_labels = ['pr']
-#     nc_time_label = 'time'
-
-    path_to_output = Path(r'mag.h5')
-#     path_to_output = 'lower_de_gauss_z3_1km_hydrogeol_einheit_nr_hydmod_lulc_ratios.h5'
+    if overwrite_flag and path_to_output.exists():
+        os.remove(path_to_output)
 
     Ext = Extract(True)
 
-    res = None
+    res = Ext.extract_from_netCDF(
+        path_to_shp,
+        label_field,
+        path_to_ras,
+        path_to_output,
+        nc_x_crds_label,
+        nc_y_crds_label,
+        nc_variable_labels,
+        nc_time_label)
 
-    if input_ras_type == 'gtiff':
-        res = Ext.extract_from_geotiff(
-            path_to_shp,
-            label_field,
-            path_to_ras,
-            path_to_output,
-            src_epsg,
-            dst_epsg)
-
-    elif input_ras_type == 'nc':
-        res = Ext.extract_from_netCDF(
-            path_to_shp,
-            label_field,
-            path_to_ras,
-            path_to_output,
-            nc_x_crds_label,
-            nc_y_crds_label,
-            nc_variable_labels,
-            nc_time_label,
-            src_epsg,
-            dst_epsg)
-
-    else:
-        raise NotImplementedError
-
-    print('\n')
     print('res:', res)
 
     return
