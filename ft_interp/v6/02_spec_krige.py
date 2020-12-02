@@ -56,8 +56,8 @@ def main():
 
     max_steps_per_chunk = 10000
 
-    # can be None or a string vg
-    # replace all nan vgs with this
+    # Can be None or a string vg,
+    # replaces all nan vgs with this
     nan_vg = '0.0 Nug(0.0)'
 
     min_nebor_dist_thresh = 1

@@ -169,8 +169,7 @@ def main():
     ft_df = pd.DataFrame(
         data=np.fft.rfft(norms_df.values, axis=0), columns=data_df.columns)
 
-    phs_spec_df = pd.DataFrame(
-        data=np.angle(ft_df), columns=data_df.columns)
+    phs_spec_df = pd.DataFrame(data=np.angle(ft_df), columns=data_df.columns)
 
 #     phs_le_idxs = phs_spec_df < 0
 #
