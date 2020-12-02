@@ -65,17 +65,18 @@ def display_sorted_var_sizes(vars_dict):
 def main():
 
     main_dir = Path(
-        r'P:\Synchronize\IWS\Testings\fourtrans_practice\multisite_phs_spec_corr\5min')
+        r'P:\Synchronize\IWS\Testings\fourtrans_practice\multisite_phs_spec_corr\5min\v7')
 
     os.chdir(main_dir)
 
-    # order matters: data, mag, phs, data.
+    # order matters: data, mag, cos, sin, data.
     # orig is copied as the new ouputs with overwritten values.
     # orig itself gets its time and units updated.
     parts = [
         'data/data.nc',
         'mags/mags.nc',
-        'phss/phss.nc',
+        'cos/cos.nc',
+        'sin/sin.nc',
         'data/data.nc',
         ]
 
@@ -99,7 +100,7 @@ def main():
     # NOTE: It is a copy of a reference file. Only the data values are updated.
     out_nc = out_dir / r'ifted.nc'
 
-    assert len(parts) == 4
+    assert len(parts) == 5
 
     out_dir.mkdir(exist_ok=True)
 
@@ -107,7 +108,7 @@ def main():
 
     x_crds = y_crds = None
 
-    mags = phss = None  # sorted_datas =
+    mags = coss = sins = None  # sorted_datas =
     nnan_idxs = None
     for i, part in enumerate(parts):
 
@@ -143,13 +144,26 @@ def main():
 
             nnan_idxs = ~np.isnan(nc_data[:, :, :])
 
-            phss = nc_data[nnan_idxs]
+            coss = nc_data[nnan_idxs]
 
-            phss = phss.reshape(-1, nnan_idxs[0, :, :].sum())
+            coss = coss.reshape(-1, nnan_idxs[0, :, :].sum())
 
             del nc_data, nnan_idxs;
 
         elif i == 3:
+            nc_data = nc_hdl[var][...].data
+
+            assert nc_data.flags.c_contiguous
+
+            nnan_idxs = ~np.isnan(nc_data[:, :, :])
+
+            sins = nc_data[nnan_idxs]
+
+            sins = sins.reshape(-1, nnan_idxs[0, :, :].sum())
+
+            del nc_data, nnan_idxs;
+
+        elif i == 4:
 #             origs = nc_hdl[var][...].data
 
             pass
@@ -165,7 +179,13 @@ def main():
 
         print('\n\n')
 
-    phss[0, :] = 0.0
+    coss[0, :] = 1.0
+    sins[0, :] = 0.0
+
+    phss = np.arctan2(sins, coss)
+
+    del coss, sins
+    gc.collect()
 
     print('FT filling...')
     ft_arr = np.full_like(phss, np.nan, dtype=complex)
