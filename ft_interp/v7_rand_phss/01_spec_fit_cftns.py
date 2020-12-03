@@ -94,7 +94,7 @@ def obj_ftn(args, h_arr, c_arr):
 def main():
 
     main_dir = Path(
-        r'P:\Synchronize\IWS\Testings\fourtrans_practice\multisite_phs_spec_corr\5min\v7')
+        r'P:\Synchronize\IWS\Testings\fourtrans_practice\multisite_phs_spec_corr\5min\v7_rand_phss')
 
     os.chdir(main_dir)
 
