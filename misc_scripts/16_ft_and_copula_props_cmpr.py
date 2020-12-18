@@ -3,7 +3,7 @@
 
 Dec 15, 2020
 
-9:55:01 AM
+12:31:09 PM
 
 '''
 import os
@@ -13,12 +13,15 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy.stats import rankdata, norm
 import matplotlib.pyplot as plt
+from scipy.stats import rankdata, norm
+
+from phsann.misc import roll_real_2arrs
+from phsann.cyth import get_asymms_sample
 
 plt.ioff()
 
-DEBUG_FLAG = True
+DEBUG_FLAG = False
 
 
 def get_mag_and_phs_spec(data):
@@ -30,8 +33,25 @@ def get_mag_and_phs_spec(data):
 
     return mag_spec, phs_spec
 
+# def get_cos_sin_dists(data):
+#
+#     mag_spec, phs_spec = get_mag_and_phs_spec(data)
+#
+#     cosine_ft = np.zeros(mag_spec.size, dtype=complex)
+#     cosine_ft.real = mag_spec * np.cos(phs_spec)
+#     cosine_ift = np.fft.irfft(cosine_ft)
+#
+#     sine_ft = np.zeros(mag_spec.size, dtype=complex)
+#     sine_ft.imag = mag_spec * np.sin(phs_spec)
+#     sine_ift = np.fft.irfft(sine_ft)
+#
+#     cosine_ift.sort()
+#     sine_ift.sort()
+#
+#     return cosine_ift, sine_ift
 
-def show_data_phs_spec_props(phs_spec, vb=False):
+
+def get_data_phs_spec_props(phs_spec, vb=False):
 
     tan_spec = np.tan(phs_spec)
     cos_spec = np.cos(phs_spec)
@@ -40,7 +60,8 @@ def show_data_phs_spec_props(phs_spec, vb=False):
     tan_spec_mean = tan_spec.mean()
     cos_spec_mean = cos_spec.mean()
     sin_spec_mean = sin_spec.mean()
-    sin_cos_spec_mean = sin_spec_mean / cos_spec_mean
+#     sin_cos_spec_mean = sin_spec_mean / cos_spec_mean
+    sin_cos_spec_mean = (sin_spec / cos_spec).mean()
 
     if vb:
         print('Mean Tangent:', round(tan_spec_mean, 4))
@@ -51,44 +72,61 @@ def show_data_phs_spec_props(phs_spec, vb=False):
     return tan_spec_mean, cos_spec_mean, sin_spec_mean, sin_cos_spec_mean
 
 
+def get_data_copula_props(data, data_lagged):
+
+    asymm_1, asymm_2 = get_asymms_sample(data, data_lagged)
+
+    return asymm_1, asymm_2
+
+
 def main():
 
     main_dir = Path(os.getcwd())
     os.chdir(main_dir)
 
-    data_file = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\phsann\hourly_bw_discharge__2008__2019.csv')
+    data_file = Path(
+        r'P:\Synchronize\IWS\Testings\fourtrans_practice\phsann\neckar_norm_cop_infill_discharge_1961_2015_20190118.csv')
 
-    beg_time = '2009-01-01'
-    end_time = '2018-12-30'
+    beg_time = '2005-01-01'
+    end_time = '2015-12-31'
 
-    data_ser = pd.read_csv(
-        data_file, sep=';', index_col=0).loc[beg_time:end_time, '3465']
+    lag_step = 3
 
-    n_sims = 1000
+    n_sims = 100
 
-    data = data_ser.values
+    data_df = pd.read_csv(
+        data_file, sep=';', index_col=0).loc[beg_time:end_time]
 
-    if (data.size % 2):
-        data = data[:-1]
+    data_props = np.full((data_df.shape[1], 6), np.nan)
+    for i, col in enumerate(data_df):
+        data_ser = data_df[col]
 
-    data_norms = norm.ppf(rankdata(data) / (data.size + 1.0))
+        data = data_ser.values
 
-    _, data_phs_spec = get_mag_and_phs_spec(data_norms)
+        if (data.size % 2):
+            data = data[:-1]
 
-    print('Data Props:')
+        data_norms = norm.ppf(rankdata(data) / (data.size + 1.0))
 
-    data_props = show_data_phs_spec_props(data_phs_spec[1:-1], True)
+        data_norms = norm.ppf(rankdata(data) / (data.size + 1.0))
 
-    print('\n')
+        data_norms, data_rolled_norms = roll_real_2arrs(
+            data_norms, data_norms, lag_step)
 
-    print('Sim Props:')
+        _, data_phs_spec = get_mag_and_phs_spec(data_norms)
+
+        data_spec_props = get_data_phs_spec_props(data_phs_spec[1:-1], False)
+
+        data_cop_props = get_data_copula_props(data_norms, data_rolled_norms)
+
+        data_props[i, :] = [*data_spec_props, *data_cop_props]
 
     sim_props = np.full((n_sims, 4), np.nan)
     for i in range(n_sims):
         rand_phs_spec = (
             -np.pi + (2 * np.pi * np.random.random(data_phs_spec.size - 2)))
 
-        sim_props[i, :] = show_data_phs_spec_props(rand_phs_spec)
+        sim_props[i, :] = get_data_phs_spec_props(rand_phs_spec)
 
     assert np.all(np.isfinite(sim_props))
 
@@ -96,16 +134,26 @@ def main():
 
     probs = np.arange(1.0, n_sims + 1.0) / (n_sims + 1.0)
 
+#     ttls = ['Tan', 'Cos', 'Sin', 'Sin/Cos']
+#     for i in range(sim_props.shape[1]):
+#         plt.figure()
+#
+#         plt.plot(sim_props[:, i], probs, alpha=0.75)
+#
+#         data_probs = np.interp(
+#             data_props[:, i], sim_props[:, i], probs, left=0.0, right=1.0)
+#
+#         plt.scatter(data_props[:, i], data_probs)
+#
+#         plt.title(ttls[i])
+#
+#         plt.show(block=False)
+
     ttls = ['Tan', 'Cos', 'Sin', 'Sin/Cos']
     for i in range(sim_props.shape[1]):
         plt.figure()
 
-        plt.plot(sim_props[:, i], probs, alpha=0.75)
-
-        data_prob = np.interp(
-            data_props[i], sim_props[:, i], probs, left=0.0, right=1.0)
-
-        plt.scatter([data_props[i]], [data_prob])
+        plt.scatter(data_props[:, i], data_props[:, 5])
 
         plt.title(ttls[i])
 

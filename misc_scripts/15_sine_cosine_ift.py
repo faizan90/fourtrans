@@ -60,9 +60,7 @@ def main():
     end_time = '2019-12-31'
 
     data_ser = pd.read_csv(
-        data_file, sep=';', index_col=0).loc[beg_time:end_time, '3465']
-
-    n_sims = 100
+        data_file, sep=';', index_col=0).loc[beg_time:end_time, '420']
 
     data = data_ser.values
 
