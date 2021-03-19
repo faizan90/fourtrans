@@ -112,14 +112,13 @@ def get_binned_ts(probs, n_bins):
     return bin_idxs_ts
 
 
-def get_binned_dens_ftn_1d(bin_idxs_ts):
+def get_binned_dens_ftn_1d(bin_idxs_ts, n_bins):
 
 #     bin_freqs = np.unique(bin_idxs_ts, return_counts=True)[1]
-
 #     bin_dens = bin_freqs / bin_idxs_ts.size
 
-    bin_idxs, bin_freqs = np.unique(bin_idxs_ts, return_counts=True)
-    bin_dens = bin_freqs * (1 / bin_idxs.size)
+    bin_freqs = np.unique(bin_idxs_ts, return_counts=True)[1]
+    bin_dens = bin_freqs * (1 / n_bins)
 
     return bin_dens
 
@@ -137,13 +136,13 @@ def get_binned_dens_ftn_2d(probs_1, probs_2, n_bins):
     return bin_dens_12
 
 
-def get_local_entropy(probs_1, probs_2, n_bins):
+def get_local_entropy_ts(probs_1, probs_2, n_bins):
 
     bin_idxs_ts_1 = get_binned_ts(probs_1, n_bins)
     bin_idxs_ts_2 = get_binned_ts(probs_2, n_bins)
 
-    bin_dens_1 = get_binned_dens_ftn_1d(bin_idxs_ts_1)
-    bin_dens_2 = get_binned_dens_ftn_1d(bin_idxs_ts_2)
+    bin_dens_1 = get_binned_dens_ftn_1d(bin_idxs_ts_1, n_bins)
+    bin_dens_2 = get_binned_dens_ftn_1d(bin_idxs_ts_2, n_bins)
 
     bin_dens_12 = get_binned_dens_ftn_2d(probs_1, probs_2, n_bins)
 
@@ -159,6 +158,7 @@ def get_local_entropy(probs_1, probs_2, n_bins):
 #             prod = bin_dens_1[bin_idxs_ts_1[i]] * bin_dens_2[bin_idxs_ts_2[i]]
 #             etpy_local[i] = -(dens * np.log(dens / prod))
 
+    # Mutual information.
     dens = bin_dens_12[bin_idxs_ts_1, bin_idxs_ts_2]
     prods = bin_dens_1[bin_idxs_ts_1] * bin_dens_2[bin_idxs_ts_2]
 
@@ -168,6 +168,21 @@ def get_local_entropy(probs_1, probs_2, n_bins):
 
     etpy_local[dens_idxs] = -dens[dens_idxs] * np.log(
         dens[dens_idxs] / prods[dens_idxs])
+
+#     # Relative entropy.
+#     etpy_local = bin_dens_1[bin_idxs_ts_1] * np.log(
+#         bin_dens_1[bin_idxs_ts_1] / bin_dens_2[bin_idxs_ts_2])
+
+    # Conditional entropy.
+#     dens = bin_dens_12[bin_idxs_ts_1, bin_idxs_ts_2]
+#     prods = bin_dens_1[bin_idxs_ts_1]  # * bin_dens_2[bin_idxs_ts_2]
+#
+#     dens_idxs = dens.astype(bool)
+#
+#     etpy_local = np.zeros_like(bin_idxs_ts_1, dtype=float)
+#
+#     etpy_local[dens_idxs] = -dens[dens_idxs] * np.log(
+#         dens[dens_idxs] / prods[dens_idxs])
 
     return etpy_local
 
@@ -205,7 +220,7 @@ def main():
 #
 #         probs_2, probs_1 = roll_real_2arrs(data, data, lag, True)
 #
-#         etpy_lcl = get_local_entropy(probs_1, probs_2, n_bins)
+#         etpy_lcl = get_local_entropy_ts(probs_1, probs_2, n_bins)
 #
 #         lags.append(lag)
 #         etpys.append(etpy_lcl.sum())
@@ -216,7 +231,7 @@ def main():
 
     probs_2, probs_1 = roll_real_2arrs(data, data, max_lags, True)
 
-    etpy_lcl = get_local_entropy(probs_1, probs_2, n_bins)
+    etpy_lcl = get_local_entropy_ts(probs_1, probs_2, n_bins)
 
     ax1 = plt.subplots(1, 1, figsize=(10, 10))[1]
 
