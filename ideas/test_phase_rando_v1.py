@@ -48,16 +48,16 @@ def get_corld_phas_ser(in_data_phas, n_data_steps, rfft_flag):
 
     if rfft_flag:
         rand_phas = np.concatenate((
-             np.atleast_2d(in_data_phas[0, :]),
+             np.atleast_2d(in_data_phas[0,:]),
              rand_phas,
-             np.atleast_2d(in_data_phas[(n_data_steps // 2), :])))
+             np.atleast_2d(in_data_phas[(n_data_steps // 2),:])))
 
     else:
         rand_phas = np.concatenate((
-            np.atleast_2d(in_data_phas[0, :]),
+            np.atleast_2d(in_data_phas[0,:]),
             rand_phas,
-            np.atleast_2d(in_data_phas[(n_data_steps // 2), :]),
-            -rand_phas[::-1, :]))
+            np.atleast_2d(in_data_phas[(n_data_steps // 2),:]),
+            -rand_phas[::-1,:]))
 
     return rand_phas
 
@@ -113,7 +113,7 @@ def obj_ftn(prms, in_data, data_corr):
 
 def get_sim_phas_series(in_data_phas, n_data_steps):
 
-    in_data = in_data_phas[1:(n_data_steps // 2), :]
+    in_data = in_data_phas[1:(n_data_steps // 2),:]
 
 #     mus = in_data.mean(axis=0)
 
@@ -124,7 +124,8 @@ def get_sim_phas_series(in_data_phas, n_data_steps):
     opt = differential_evolution(
         obj_ftn,
         bounds=bounds,
-        args=(in_data, data_corr))
+        args=(in_data, data_corr),
+    polish=False)
 
     print(opt.x)
     print(opt.fun)
@@ -381,15 +382,15 @@ def main():
 
     if rfft_flag:
         sim_phas = np.concatenate((
-             np.atleast_2d(data_phas[0, :]),
+             np.atleast_2d(data_phas[0,:]),
              data_phas[1:(n_data_steps // 2)] + rand_phas_incs.reshape(-1, 1),
-             np.atleast_2d(data_phas[(n_data_steps // 2), :])))
+             np.atleast_2d(data_phas[(n_data_steps // 2),:])))
 
     else:
         sim_phas = np.concatenate((
-            np.atleast_2d(data_phas[0, :]),
+            np.atleast_2d(data_phas[0,:]),
             data_phas[1:(n_data_steps // 2)] + rand_phas_incs.reshape(-1, 1),
-            np.atleast_2d(data_phas[(n_data_steps // 2), :]),
+            np.atleast_2d(data_phas[(n_data_steps // 2),:]),
             -(data_phas[1:(n_data_steps // 2)] + rand_phas_incs.reshape(-1, 1),)[::-1]))
 
 #     if rfft_flag:

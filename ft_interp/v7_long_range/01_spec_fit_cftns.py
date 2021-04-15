@@ -176,7 +176,7 @@ def main():
     all_stns = data_df.columns
 
     if data_df.shape[0] % 2:
-        data_df = data_df.iloc[:-1, :]
+        data_df = data_df.iloc[:-1,:]
         print('Dropped last record in data_df!')
 
     n_stns = data_df.shape[1]
@@ -249,11 +249,9 @@ def main():
                 phs_spec_df.loc[:, all_stns[i]].values -
                 phs_spec_df.loc[:, all_stns[j]].values).sum() / n_freqs
 
-            mag_num = mag_spec_df.loc[
-                :, [all_stns[i], all_stns[j]]].product(axis=1).values.sum()
+            mag_num = mag_spec_df.loc[:, [all_stns[i], all_stns[j]]].product(axis=1).values.sum()
 
-            mag_denom = mag_spec_df.loc[
-                :, [all_stns[i], all_stns[j]]].values ** 2
+            mag_denom = mag_spec_df.loc[:, [all_stns[i], all_stns[j]]].values ** 2
 
             mag_denom = mag_denom.sum(axis=0)
 
@@ -297,7 +295,8 @@ def main():
         bds,
         popsize=50,
         args=(exp_vg_vals_x_mw[opt_dist_idxs],
-              exp_vg_vals_mag_mw[opt_dist_idxs]))
+              exp_vg_vals_mag_mw[opt_dist_idxs]),
+        polish=False)
 
     opt_prms = opt_res.x
     sq_diff = opt_res.fun
@@ -372,7 +371,8 @@ def main():
         bds,
         popsize=50,
         args=(exp_vg_vals_x_mw[opt_dist_idxs],
-              exp_vg_vals_phs_mw[opt_dist_idxs]))
+              exp_vg_vals_phs_mw[opt_dist_idxs]),
+        polish=False)
 
     opt_prms = opt_res.x
     sq_diff = opt_res.fun

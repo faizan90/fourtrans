@@ -132,7 +132,8 @@ def main():
             bds,
             args=(data_mag_spec, ift_data_means, obj_wts),
             maxiter=max_iters,
-            popsize=pop_size)
+            popsize=pop_size,
+            polish=False)
 
         sim_phs_spec = opt_ress.x
         sim_phs_spec[+0] = data_phs_spec[+0]
