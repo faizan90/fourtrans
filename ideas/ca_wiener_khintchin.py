@@ -72,10 +72,10 @@ def main():
 
     stn = '420'
 
-    beg_time = '1991-01-01'
-    end_time = '2000-12-31'
+    beg_time = '1990-01-01'
+    end_time = '1990-12-31'
 
-    lags = np.arange(0, 21, dtype=np.int64)
+    lags = np.arange(0, 10, dtype=np.int64)
     #==========================================================================
 
     in_data = pd.read_csv(
@@ -86,55 +86,57 @@ def main():
         pcorr = np.corrcoef(
             *roll_real_2arrs(in_data, in_data, lag, False))[0, 1]
 
-        # pcorr = np.cov(
-        #     *roll_real_2arrs(in_data, in_data, lag, False))[0, 1]
-
         ref_pcorrs.append(round(pcorr, 6))
 
     ref_pcorrs = np.array(ref_pcorrs)
 
-    print(ref_pcorrs)
-
-    # in_data = np.concatenate((in_data, np.zeros(in_data.size)))
-    # in_data = np.concatenate((in_data, in_data[::-1]))
-
     ft = np.fft.fft(in_data)
     # ft = np.fft.rfft(in_data)
 
-    mag = np.abs(ft)
+    mag = np.abs(ft)[1:]
 
     pwr = mag ** 2
 
-    pwr = pwr[::-1]
+    # pwr = pwr[::-1]
 
-    # pwr /= pwr.sum()
+    pwr /= pwr.sum()
 
     cnst = 2 * np.pi * 1j
-    # cnst = 2 * np.pi
     wk_pcorrs = []
     for lag in lags:
         pcorr = 0.0j
         for i in range(pwr.size):
             pcorr += np.exp((cnst * lag * i) / pwr.size) * pwr[i]
-            # pcorr += np.cos((cnst * lag * i) / pwr.size) * pwr[i]
 
-        wk_pcorrs.append(round(abs(pcorr) / pwr.sum(), 6))
-        # wk_pcorrs.append(round(abs(pcorr), 6))
+        # The sign is important to get the direction of correlation.
+        if pcorr.real >= 0:
+            sign = +1
+
+        else:
+            sign = -1
+
+        wk_pcorrs.append(sign * round(abs(pcorr), 6))
 
     wk_pcorrs = np.array(wk_pcorrs)
-    print(wk_pcorrs)
+
+    pwr_ft = np.fft.ifft(pwr)
+    pwr_ft_pcorr = np.sign(pwr_ft.real) * np.abs(np.fft.ifft(pwr))
+
+    pwr_ft_pcorr /= pwr_ft_pcorr[0]
+
+    pwr_ft_pcorr = np.concatenate([pwr_ft_pcorr, [pwr_ft_pcorr[0]]])
 
     print(
         'ref and wk scorr:',
         np.corrcoef(rankdata(ref_pcorrs), rankdata(wk_pcorrs))[0, 1])
 
-    # print(rankdata(ref_pcorrs), rankdata(wk_pcorrs))
-
-    r_xx = np.abs(np.fft.ifft(np.abs(np.fft.fft(in_data)) ** 2))
+    # print(
+    #     'wk and pwr_ft scorr:',
+    #     np.corrcoef(rankdata(wk_pcorrs), rankdata(pwr_ft_pcorr))[0, 1])
 
     plt.plot(lags, ref_pcorrs, label='pc')
     plt.plot(lags, wk_pcorrs, label='wk')
-    plt.plot(lags, r_xx[1:lags.size + 1] / r_xx[1], label='r_xx')
+    plt.plot(pwr_ft_pcorr, label='pwr')
 
     plt.grid()
     plt.legend()
