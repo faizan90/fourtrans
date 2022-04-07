@@ -42,10 +42,13 @@ def get_sim_dict(args):
      n_repeat,
      max_opt_iters,
      sim_idx,
-     n_sims) = args
+     n_sims,
+     sim_lab) = args
+    #==========================================================================
 
     assert any([ratio_a, ratio_b])
     assert any([auto_spec_flag, cross_spec_flag])
+    #==========================================================================
 
     ref_ft = np.fft.rfft(data, axis=0)
 
@@ -53,6 +56,7 @@ def get_sim_dict(args):
 
     ref_phs = np.angle(ref_ft)
     ref_mag = np.abs(ref_ft)
+    #==========================================================================
 
     ref_ft_ranks = np.fft.rfft(rankdata(data, axis=0), axis=0)
 
@@ -60,25 +64,26 @@ def get_sim_dict(args):
 
     ref_phs_ranks = np.angle(ref_ft_ranks)
     ref_mag_ranks = np.abs(ref_ft_ranks)
-
-    data_sort = np.sort(data, axis=0)
-
-    sims = {cols[k]:{} for k in range(len(cols))}
-
-    sim_zeros_str = len(str(n_sims))
+    #==========================================================================
 
     ref_phs_diffs = ref_phs - ref_phs[:, [0]]
     ref_phs_ranks_diffs = ref_phs_ranks - ref_phs_ranks[:, [0]]
+    #==========================================================================
 
+    data_sort = np.sort(data, axis=0)
     order_old = np.empty(data_sort.shape, dtype=int)
+    #==========================================================================
+
+    sim_zeros_str = len(str(n_sims))
+    #==========================================================================
 
     data_rand = np.empty_like(data)
-
     for k in range(len(cols)):
         order_old[:, k] = np.argsort(np.argsort(
             np.random.random(data_sort.shape[0])))
 
         data_rand[:, k] = data_sort[order_old[:, k], k]
+    #==========================================================================
 
     for _ in range(n_repeat):
         if auto_spec_flag:
@@ -214,9 +219,11 @@ def get_sim_dict(args):
                 if order_sdiff == 0:
                     break
             #==================================================================
+    #==========================================================================
 
+    sims = {cols[k]:{} for k in range(len(cols))}
     for k, col in enumerate(cols):
-        sims[col][f'sims_{sim_idx:0{sim_zeros_str}d}'] = data_rand[:, k]
+        sims[col][f'{sim_lab}{sim_idx:0{sim_zeros_str}d}'] = data_rand[:, k]
 
     print('Done with sim_idx:', sim_idx)
     return sims
@@ -237,14 +244,14 @@ def main():
     end_time = '2015-12-31'
     # end_time = '1970-12-31'
 
-    cols = ['420', '427', '3470', '3465', '3421', 'cp']
+    cols = ['420', '427', '3470' , '3465', '3421', 'cp']
 
-    n_cpus = 8
+    n_cpus = 4
 
-    n_sims = 8 * 4
+    n_sims = 8 * 13
 
-    ratio_a = 1.0
-    ratio_b = 3.0
+    ratio_a = 0.0  # For marginals.
+    ratio_b = 1.0  # For ranks.
 
     auto_spec_flag = True
     cross_spec_flag = True
@@ -252,13 +259,22 @@ def main():
     # auto_spec_flag = False
     # cross_spec_flag = False
 
-    n_repeat = 3
+    # Column with this name should not be in cols.1
+    ref_lab = 'ref'
+    sim_lab = 'S'  # Put infront of each simulation number.
+
+    n_repeat = 2
     max_opt_iters = int(1e5)
 
-    out_dir = Path(r'iaaft_test_ncpus_02_cps')
+    show_corrs_flag = False
+    max_corr_to_show = 6
+
+    out_dir = Path(r'iaaft_discharge_04_cps_ranks_only_daily')
     #==========================================================================
 
     assert n_cpus > 0, n_cpus
+
+    assert ref_lab not in cols, cols
 
     out_dir.mkdir(exist_ok=True)
 
@@ -269,7 +285,13 @@ def main():
     if df_data.shape[0] % 2:
         df_data = df_data.iloc[:-1,:]
 
+    df_data.to_csv(
+        out_dir / f'cross_sims_{ref_lab}.csv', sep=';', float_format='%0.6f')
+
     data = df_data.values.copy()
+
+    time_index = df_data.index.copy()
+    #==========================================================================
 
     args_gen = (
         (data,
@@ -281,10 +303,12 @@ def main():
          n_repeat,
          max_opt_iters,
          sim_idx,
-         n_sims)
+         n_sims,
+         sim_lab)
         for sim_idx in range(n_sims))
 
-    all_sims = {cols[k]:{'ref': data[:, k].copy()} for k in range(len(cols))}
+    all_sims = {cols[k]:{ref_lab: data[:, k].copy()} for k in range(len(cols))}
+    #==========================================================================
 
     if n_cpus == 1:
         ress = []
@@ -299,27 +323,83 @@ def main():
 
         mp_pool.close()
         mp_pool.join()
+    #==========================================================================
 
+    sim_labs = []
     for sims in ress:
         for col in cols:
             all_sims[col].update(sims[col])
 
+            sim_labs.extend(list(sims[col].keys()))
+
     ress = sims = None
+    sim_labs = tuple(sim_labs)
+    #==========================================================================
+
+    print('')
 
     for col in cols:
-        col_df = pd.DataFrame(all_sims[col])
-
-        # print(f'{col} ref_sim_pcorrs:')
-        # print(col_df.corr(method='pearson').round(3).values)
-        # print('')
-        #
-        # print(f'{col} ref_sim_scorrs:')
-        # print(col_df.corr(method='spearman').round(3).values)
-        # print('')
+        col_df = pd.DataFrame(all_sims[col], index=time_index)
 
         col_df.to_csv(
-            out_dir / f'sims_{col}.csv', sep=';', float_format='%0.6f')
+            out_dir / f'auto_sims_{col}.csv', sep=';', float_format='%0.6f')
 
+        if show_corrs_flag:
+            print(f'ref_sim_pcorrs ({col}):')
+
+            print(col_df.corr(method='pearson').round(3
+                  ).values[:max_corr_to_show,:max_corr_to_show])
+
+            print('')
+
+            print(f'ref_sim_scorrs ({col}):')
+
+            print(col_df.corr(method='spearman').round(3
+                  ).values[:max_corr_to_show,:max_corr_to_show])
+
+            print('')
+    #==========================================================================
+
+    if show_corrs_flag:
+        print(f'{ref_lab}_{ref_lab}_pcorrs:')
+
+        print(df_data.corr(method='pearson').round(3
+              ).values[:max_corr_to_show,:max_corr_to_show])
+
+        print('')
+
+        print(f'{ref_lab}_{ref_lab}_scorrs:')
+
+        print(df_data.corr(method='spearman').round(3
+              ).values[:max_corr_to_show,:max_corr_to_show])
+
+        print('')
+
+    for sim_lab in sim_labs:
+        sim_df = pd.DataFrame(index=time_index, columns=cols, dtype=float)
+
+        for col in cols:
+            sim_df.loc[:, col] = all_sims[col][sim_lab]
+
+        sim_df.to_csv(
+            out_dir / f'cross_sims_{sim_lab}.csv',
+            sep=';',
+            float_format='%0.6f')
+
+        if show_corrs_flag:
+            print(f'sim_sim_pcorrs ({sim_lab}):')
+
+            print(sim_df.corr(method='pearson').round(3
+                  ).values[:max_corr_to_show,:max_corr_to_show])
+
+            print('')
+
+            print(f'sim_sim_scorrs ({sim_lab}):')
+
+            print(sim_df.corr(method='spearman').round(3
+                  ).values[:max_corr_to_show,:max_corr_to_show])
+            print('')
+    #==========================================================================
     return
 
 
