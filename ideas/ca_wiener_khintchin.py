@@ -21,6 +21,16 @@ import matplotlib.pyplot as plt; plt.ioff()
 DEBUG_FLAG = False
 
 
+def get_wk_corr(pwr):
+
+    pwr_ft = np.fft.ifft(pwr)
+    pwr_ft_pcorr = np.sign(pwr_ft.real) * np.abs(pwr_ft)
+
+    pwr_ft_pcorr /= pwr_ft_pcorr[0]
+
+    return pwr_ft_pcorr
+
+
 def roll_real_2arrs(arr1, arr2, lag, rerank_flag=False):
 
     assert isinstance(arr1, np.ndarray)

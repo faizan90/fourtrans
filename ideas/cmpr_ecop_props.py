@@ -16,12 +16,49 @@ import pandas as pd
 from scipy.stats import rankdata
 import matplotlib.pyplot as plt
 
-from phsann.cyth import get_asymms_sample, fill_bi_var_cop_dens
-from phsann.misc import roll_real_2arrs
+from fcopulas import get_asymms_sample, fill_bi_var_cop_dens
 
 plt.ioff()
 
-DEBUG_FLAG = True
+DEBUG_FLAG = False
+
+
+def roll_real_2arrs(arr1, arr2, lag, rerank_flag=False):
+
+    assert isinstance(arr1, np.ndarray)
+    assert isinstance(arr2, np.ndarray)
+
+    assert arr1.ndim == 1
+    assert arr2.ndim == 1
+
+    assert arr1.size == arr2.size
+
+    assert isinstance(lag, (int, np.int64))
+    assert abs(lag) < arr1.size
+
+    if lag > 0:
+        # arr2 is shifted ahead
+        arr1 = arr1[:-lag].copy()
+        arr2 = arr2[+lag:].copy()
+
+    elif lag < 0:
+        # arr1 is shifted ahead
+        arr1 = arr1[-lag:].copy()
+        arr2 = arr2[:+lag].copy()
+
+    else:
+        pass
+
+    assert arr1.size == arr2.size
+
+    if rerank_flag:
+#         assert np.all(arr1 > 0) and np.all(arr2 > 0)
+#         assert np.all(arr1 < 1) and np.all(arr2 < 1)
+
+        arr1 = rankdata(arr1) / (arr1.size + 1.0)
+        arr2 = rankdata(arr2) / (arr2.size + 1.0)
+
+    return arr1, arr2
 
 
 def _get_asymm_1_max(scorr):
@@ -60,44 +97,56 @@ def _get_etpy_max(n_bins):
 
 def main():
 
-    main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\phsann')
+    # main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\phsann')
+    # os.chdir(main_dir)
+    #
+    # in_file = Path(r'neckar_norm_cop_infill_discharge_1961_2015_20190118.csv')
+
+    main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\fftmasa_disagg\test_sim_01')
     os.chdir(main_dir)
 
-    in_file = Path(r'neckar_norm_cop_infill_discharge_1961_2015_20190118.csv')
+    in_file = Path(r'simulated_koch600C.dat')
 
-    lag_steps = np.arange(1, 31, dtype=np.int64)
+    lag_steps = np.arange(0, 24 * 4, dtype=np.int64)
 
-    ecop_bins = 20
+    ecop_bins = 30
 
     fig_size = (15, 10)
     plt_alpha = 0.5
 
-    in_ser = pd.read_csv(in_file, sep=';', index_col=0)['420']
+    # in_ser = pd.read_csv(in_file, sep=';', index_col=0)['420']
+    #
+    # in_ser.index = pd.to_datetime(in_ser.index, format='%Y-%m-%d')
 
-    in_ser.index = pd.to_datetime(in_ser.index, format='%Y-%m-%d')
+    in_ser = pd.Series(data=np.loadtxt(in_file, delimiter=',')[:, 0])
+
+    in_ser.index = pd.date_range(
+        '1995-01-01 00:00:00', periods=in_ser.shape[0])
 
     idx_labs = np.unique(in_ser.index.year)
+    idx_labs = np.array([idx_labs[0], idx_labs[-1]])
 
     etpy_min = _get_etpy_min(ecop_bins)
     etpy_max = _get_etpy_max(ecop_bins)
 
     ecop_dens_arrs = np.full((ecop_bins, ecop_bins), np.nan, dtype=np.float64)
 
-    fig, axes = plt.subplots(2, 3, squeeze=False, figsize=fig_size)
+    axes = plt.subplots(2, 3, squeeze=False, figsize=fig_size)[1]
 
     cmap = 'jet'
     sim_clrs = plt.get_cmap(cmap)(
         (idx_labs - idx_labs.min()) / (idx_labs.max() - idx_labs.min()))
 
-    sim_clrs = {idx_lab:sim_clr for (idx_lab, sim_clr) in zip(idx_labs, sim_clrs)}
+    sim_clrs = {
+        idx_lab:sim_clr for (idx_lab, sim_clr) in zip(idx_labs, sim_clrs)}
 
     cmap_mappable_beta = plt.cm.ScalarMappable(cmap=cmap)
 
     cmap_mappable_beta.set_array([])
 
-    for idx_lab in idx_labs[::5]:
+    for idx_lab in idx_labs[:1]:
         data = in_ser.loc[
-            f'{idx_lab}-01-01':f'{idx_lab+5}-12-31'].values
+            f'{idx_lab}-01-01':f'{idx_lab+30}-12-31'].values
 
         probs = rankdata(data) / (data.size + 1.0)
 
