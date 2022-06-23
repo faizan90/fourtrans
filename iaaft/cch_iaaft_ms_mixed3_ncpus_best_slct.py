@@ -49,9 +49,9 @@ def main():
     # end_time = '2015-12-31'
     end_time = '1965-12-31'
 
-    cols = ['3470', '3465', '420', '427', '3421', 'cp']
+    cols = ['3470', '3465', '420', '427', '3421']
 
-    out_dir = Path(r'test_pcorr_04')
+    out_dir = Path(r'test_spcorr_12')
 
     noise_add_flag = True
     noise_add_flag = False
@@ -135,20 +135,20 @@ def main():
     n_sims = 8
 
     ratio_a = 1.0  # For marginals.
-    ratio_b = 0.0  # For ranks.
+    ratio_b = 1.0  # For ranks.
 
     auto_spec_flag = True
     cross_spec_flag = True
 
     # auto_spec_flag = False
-    cross_spec_flag = False
+    # cross_spec_flag = False
 
     # Column with the name "ref_lab" should not be in cols.
     ref_lab = 'ref'
     sim_lab = 'S'  # Put infront of each simulation number.
 
-    n_repeat = 10
-    max_opt_iters = int(1e2)
+    n_repeat = len(cols) * 30
+    max_opt_iters = int(2e0)
 
     float_fmt = '%0.1f'
 
@@ -409,8 +409,8 @@ def get_sim_dict(args):
     ref_phs_ranks = ref_data_cls.phss_ranks
     ref_mag_ranks = ref_data_cls.mags_ranks
 
-    ref_phs_diffs = ref_data_cls.phss_diffs
-    ref_phs_ranks_diffs = ref_data_cls.phss_ranks_diffs
+    # ref_phs_diffs = ref_data_cls.phss_diffs
+    # ref_phs_ranks_diffs = ref_data_cls.phss_ranks_diffs
 
     data_sort = ref_data_cls.data_sort
     #==========================================================================
@@ -427,6 +427,7 @@ def get_sim_dict(args):
         data_rand[:, k] = data_sort[order_old[:, k], k]
     #==========================================================================
 
+    stn_ctr = 0
     for _ in range(n_repeat):
         if auto_spec_flag:
             for _ in range(max_opt_iters):
@@ -499,7 +500,11 @@ def get_sim_dict(args):
 
                     sim_mag = np.abs(sim_ft)
 
-                    sim_phs = np.angle(sim_ft[:, [0]]) + ref_phs_diffs
+                    # sim_phs = np.angle(sim_ft[:, [0]]) + ref_phs_diffs
+                    sim_phs = (
+                        np.angle(sim_ft[:, [stn_ctr]]) +
+                        ref_phs -
+                        ref_phs[:, [stn_ctr]])
 
                     sim_phs[0,:] = ref_phs[0,:]
 
@@ -534,7 +539,12 @@ def get_sim_dict(args):
 
                         sim_mag = sim_pwr ** 0.5
 
-                    sim_phs = np.angle(sim_ft[:, [0]]) + ref_phs_ranks_diffs
+                    # sim_phs = np.angle(sim_ft[:, [0]]) + ref_phs_ranks_diffs
+
+                    sim_phs = (
+                        np.angle(sim_ft[:, [stn_ctr]]) +
+                        ref_phs_ranks -
+                        ref_phs_ranks[:, [stn_ctr]])
 
                     sim_phs[0,:] = ref_phs_ranks[0,:]
 
@@ -572,6 +582,11 @@ def get_sim_dict(args):
                 if order_sdiff == 0:
                     break
             #==================================================================
+
+        stn_ctr += 1
+
+        if stn_ctr == data_rand.shape[1]:
+            stn_ctr = 0
     #==========================================================================
 
     sims = {cols[k]:{} for k in range(len(cols))}
