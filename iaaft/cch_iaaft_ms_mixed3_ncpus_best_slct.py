@@ -33,8 +33,7 @@ DEBUG_FLAG = False
 
 def main():
 
-    main_dir = Path(
-        r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
+    main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
     os.chdir(main_dir)
 
@@ -47,12 +46,12 @@ def main():
     sep = ';'
 
     beg_time = '1961-01-01'
-    end_time = '2015-12-31'
-    # end_time = '1970-12-31'
+    # end_time = '2015-12-31'
+    end_time = '1965-12-31'
 
-    cols = ['420', '427', '3470' , '3465', '3421', 'cp']
+    cols = ['3470', '3465', '420', '427', '3421', 'cp']
 
-    out_dir = Path(r'discharge_with_cps_5_1_daily_01_more_max_iters')
+    out_dir = Path(r'test_pcorr_04')
 
     noise_add_flag = True
     noise_add_flag = False
@@ -133,23 +132,23 @@ def main():
 
     n_cpus = 8
 
-    n_sims = 8 * 4
+    n_sims = 8
 
-    ratio_a = 5.0  # For marginals.
-    ratio_b = 1.0  # For ranks.
+    ratio_a = 1.0  # For marginals.
+    ratio_b = 0.0  # For ranks.
 
     auto_spec_flag = True
     cross_spec_flag = True
 
     # auto_spec_flag = False
-    # cross_spec_flag = False
+    cross_spec_flag = False
 
     # Column with the name "ref_lab" should not be in cols.
     ref_lab = 'ref'
     sim_lab = 'S'  # Put infront of each simulation number.
 
-    n_repeat = 3
-    max_opt_iters = int(1e3)
+    n_repeat = 10
+    max_opt_iters = int(1e2)
 
     float_fmt = '%0.1f'
 
@@ -190,8 +189,10 @@ def main():
     time_index = df_data.index.copy()
     #==========================================================================
 
+    ref_data_cls = get_ts_data_cls(data, noise_add_flag, noise_magnitude)
+
     args_gen = (
-        (data,
+        (ref_data_cls,
          cols,
          ratio_a,
          ratio_b,
@@ -202,11 +203,8 @@ def main():
          sim_idx,
          n_sims,
          sim_lab,
-         noise_add_flag,
-         noise_magnitude)
+        )
         for sim_idx in range(n_sims))
-
-    all_sims = {cols[k]:{ref_lab: data[:, k].copy()} for k in range(len(cols))}
     #==========================================================================
 
     n_cpus = min(n_sims, n_cpus)
@@ -225,6 +223,8 @@ def main():
         mp_pool.close()
         mp_pool.join()
     #==========================================================================
+
+    all_sims = {cols[k]:{ref_lab: data[:, k].copy()} for k in range(len(cols))}
 
     sim_labs = []
     for sims in ress:
@@ -304,9 +304,84 @@ def main():
     return
 
 
+class Data:
+
+    def __init__(self):
+
+        return
+
+
+def get_ts_data_cls(data, noise_add_flag, noise_magnitude):
+
+    data_cls = Data()
+    #==========================================================================
+
+    if noise_add_flag:
+        data_noise = np.random.random(size=(data.shape[0], 1))
+
+        data += data_noise * noise_magnitude
+
+    data_cls.data = data
+    #==========================================================================
+
+    ft = np.fft.rfft(data, axis=0)
+
+    ft[0,:] = 0
+
+    phss = np.angle(ft)
+    mags = np.abs(ft)
+
+    data_cls.ft = ft
+    data_cls.phss = phss
+    data_cls.mags = mags
+    #==========================================================================
+
+    ft_ranks = np.fft.rfft(rankdata(data, axis=0), axis=0)
+
+    ft_ranks[0,:] = 0
+
+    phss_ranks = np.angle(ft_ranks)
+    mags_ranks = np.abs(ft_ranks)
+
+    if False:
+        # Adjust the spectrum sums to reference.
+        # This didnt help much. Most probably because scaling method is
+        # incorrect.
+        mags_sum = (mags ** 2).sum(axis=0)
+        mags_ranks_sum = (mags_ranks ** 2).sum(axis=0)
+
+        mags_ratios_ranks = mags_sum / mags_ranks_sum
+
+        ft_ranks *= mags_ratios_ranks  # FIXME: This tfm is incorrect.
+        mags_ranks = ((mags_ranks ** 2) * mags_ratios_ranks) ** 0.5
+
+    else:
+        mags_ratios_ranks = None
+
+    data_cls.ft_ranks = ft_ranks
+    data_cls.phss_ranks = phss_ranks
+    data_cls.mags_ranks = mags_ranks
+    data_cls.mags_ratios_ranks = mags_ratios_ranks
+    #==========================================================================
+
+    phss_diffs = phss - phss[:, [0]]
+    phss_ranks_diffs = phss_ranks - phss_ranks[:, [0]]
+
+    data_cls.phss_diffs = phss_diffs
+    data_cls.phss_ranks_diffs = phss_ranks_diffs
+    #==========================================================================
+
+    data_sort = np.sort(data, axis=0)
+
+    data_cls.data_sort = data_sort
+    #==========================================================================
+
+    return data_cls
+
+
 def get_sim_dict(args):
 
-    (data,
+    (ref_data_cls,
      cols,
      ratio_a,
      ratio_b,
@@ -317,49 +392,34 @@ def get_sim_dict(args):
      sim_idx,
      n_sims,
      sim_lab,
-     noise_add_flag,
-     noise_magnitude) = args
+    ) = args
     #==========================================================================
 
     assert any([ratio_a, ratio_b])
     assert any([auto_spec_flag, cross_spec_flag])
     #==========================================================================
 
-    if noise_add_flag:
-        data_noise = np.random.random(size=(data.shape[0], 1))
-        # data_noise = np.random.random(size=data.shape) * noise_magnitude
+    data = ref_data_cls.data
 
-        data += data_noise * noise_magnitude
-    #==========================================================================
+    # ref_ft = ref_data_cls.ft
+    ref_phs = ref_data_cls.phss
+    ref_mag = ref_data_cls.mags
 
-    ref_ft = np.fft.rfft(data, axis=0)
+    # ref_ft_ranks = ref_data_cls.ft_ranks
+    ref_phs_ranks = ref_data_cls.phss_ranks
+    ref_mag_ranks = ref_data_cls.mags_ranks
 
-    ref_ft[0,:] = 0
+    ref_phs_diffs = ref_data_cls.phss_diffs
+    ref_phs_ranks_diffs = ref_data_cls.phss_ranks_diffs
 
-    ref_phs = np.angle(ref_ft)
-    ref_mag = np.abs(ref_ft)
-    #==========================================================================
-
-    ref_ft_ranks = np.fft.rfft(rankdata(data, axis=0), axis=0)
-
-    ref_ft_ranks[0,:] = 0
-
-    ref_phs_ranks = np.angle(ref_ft_ranks)
-    ref_mag_ranks = np.abs(ref_ft_ranks)
-    #==========================================================================
-
-    ref_phs_diffs = ref_phs - ref_phs[:, [0]]
-    ref_phs_ranks_diffs = ref_phs_ranks - ref_phs_ranks[:, [0]]
-    #==========================================================================
-
-    data_sort = np.sort(data, axis=0)
-    order_old = np.empty(data_sort.shape, dtype=int)
+    data_sort = ref_data_cls.data_sort
     #==========================================================================
 
     sim_zeros_str = len(str(n_sims))
     #==========================================================================
 
     data_rand = np.empty_like(data)
+    order_old = np.empty(data_sort.shape, dtype=int)
     for k in range(len(cols)):
         order_old[:, k] = np.argsort(np.argsort(
             np.random.random(data_sort.shape[0])))
@@ -370,6 +430,24 @@ def get_sim_dict(args):
     for _ in range(n_repeat):
         if auto_spec_flag:
             for _ in range(max_opt_iters):
+                # Marginals.
+                if ratio_a:
+                    sim_ft = np.fft.rfft(data_rand, axis=0)
+
+                    sim_phs = np.angle(sim_ft)
+
+                    sim_ft_new = np.empty_like(sim_ft)
+
+                    sim_ft_new.real[:] = np.cos(sim_phs) * ref_mag
+                    sim_ft_new.imag[:] = np.sin(sim_phs) * ref_mag
+
+                    sim_ft_new[0,:] = 0
+
+                    sim_ift_a = np.fft.irfft(sim_ft_new, axis=0)
+
+                else:
+                    sim_ift_a = 0.0
+
                 # Ranks.
                 if ratio_b:
                     sim_ft = np.fft.rfft(
@@ -389,24 +467,6 @@ def get_sim_dict(args):
 
                 else:
                     sim_ift_b = 0.0
-
-                # Marginals.
-                if ratio_a:
-                    sim_ft = np.fft.rfft(data_rand, axis=0)
-
-                    sim_phs = np.angle(sim_ft)
-
-                    sim_ft_new = np.empty_like(sim_ft)
-
-                    sim_ft_new.real[:] = np.cos(sim_phs) * ref_mag
-                    sim_ft_new.imag[:] = np.sin(sim_phs) * ref_mag
-
-                    sim_ft_new[0,:] = 0
-
-                    sim_ift_a = np.fft.irfft(sim_ft_new, axis=0)
-
-                else:
-                    sim_ift_a = 0.0
 
                 # Their sum.
                 sim_ift = (
@@ -433,6 +493,32 @@ def get_sim_dict(args):
 
         if cross_spec_flag:
             for _ in range(max_opt_iters):
+                # Marginals.
+                if ratio_a:
+                    sim_ft = np.fft.rfft(data_rand, axis=0)
+
+                    sim_mag = np.abs(sim_ft)
+
+                    sim_phs = np.angle(sim_ft[:, [0]]) + ref_phs_diffs
+
+                    sim_phs[0,:] = ref_phs[0,:]
+
+                    sim_ft_new = np.empty_like(sim_ft)
+
+                    # Why is ref_mag here?
+                    # sim_ft_new.real[:] = np.cos(sim_phs) * ref_mag
+                    # sim_ft_new.imag[:] = np.sin(sim_phs) * ref_mag
+
+                    sim_ft_new.real[:] = np.cos(sim_phs) * sim_mag
+                    sim_ft_new.imag[:] = np.sin(sim_phs) * sim_mag
+
+                    sim_ft_new[0,:] = 0
+
+                    sim_ift_a = np.fft.irfft(sim_ft_new, axis=0)
+
+                else:
+                    sim_ift_a = 0.0
+
                 # Ranks.
                 if ratio_b:
                     sim_ft = np.fft.rfft(
@@ -440,6 +526,13 @@ def get_sim_dict(args):
                         axis=0)
 
                     sim_mag = np.abs(sim_ft)
+
+                    if ref_data_cls.mags_ratios_ranks is not None:
+                        sim_pwr = sim_mag ** 2
+
+                        sim_pwr *= ref_data_cls.mags_ratios_ranks
+
+                        sim_mag = sim_pwr ** 0.5
 
                     sim_phs = np.angle(sim_ft[:, [0]]) + ref_phs_ranks_diffs
 
@@ -456,28 +549,6 @@ def get_sim_dict(args):
 
                 else:
                     sim_ift_b = 0.0
-
-                # Marginals.
-                if ratio_a:
-                    sim_ft = np.fft.rfft(data_rand, axis=0)
-
-                    sim_mag = np.abs(sim_ft)
-
-                    sim_phs = np.angle(sim_ft[:, [0]]) + ref_phs_diffs
-
-                    sim_phs[0,:] = ref_phs_ranks[0,:]
-
-                    sim_ft_new = np.empty_like(sim_ft)
-
-                    sim_ft_new.real[:] = np.cos(sim_phs) * sim_mag
-                    sim_ft_new.imag[:] = np.sin(sim_phs) * sim_mag
-
-                    sim_ft_new[0,:] = 0
-
-                    sim_ift_a = np.fft.irfft(sim_ft_new, axis=0)
-
-                else:
-                    sim_ift_a = 0.0
 
                 # Their sum.
                 sim_ift = (

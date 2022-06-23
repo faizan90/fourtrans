@@ -379,21 +379,44 @@ def obj_ftn(prms, df_data, cols):
 def main():
 
     main_dir = Path(
-        r'P:\Synchronize\IWS\Testings\fourtrans_practice\phsann\iaaft')
+        r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
     os.chdir(main_dir)
 
-    in_data_file = Path(r'neckar_q_data_combined_20180713.csv')
+    # in_data_file = Path(r'neckar_q_data_combined_20180713.csv')
+    #
+    # sep = ';'
+    #
+    # beg_time = '1961-01-01'
+    # # end_time = '2015-12-31'
+    # end_time = '1970-12-31'
+    #
+    # cols = ['3465', '420']
+
+    # From Prof.
+    in_data_file = Path(r'BW_dwd_stns_60min_1995_2020_data.csv')
+
+    # All these have no missing values in BW fro 2010 to 2014.
+    # cols = [
+    #     'P00071', 'P00257', 'P00279', 'P00498', 'P00684', 'P00757', 'P00931',
+    #     'P01089', 'P01216', 'P01224', 'P01255', 'P01290', 'P01584', 'P01602', ]
+    #     'P01711', 'P01937', 'P02388', 'P02575', 'P02638', 'P02787', 'P02814',
+    #     'P02880', 'P03278', 'P03362', 'P03519', 'P03761', 'P03925', 'P03927',
+    #     'P04160', 'P04175', 'P04294', 'P04300', 'P04315', 'P04349', 'P04623',
+    #     'P04710', 'P04881', 'P04928', 'P05229', 'P05664', 'P05711', 'P05724',
+    #     'P05731', 'P06258', 'P06263', 'P06275', 'P07138', 'P07187', 'P07331',
+    #     'P13672', 'P13698', 'P13965']
+
+    # cols = 'P13698;P07331;P13672;P02575;P02814;P00279;P06275;P02787;P05711;P03278;P03761'.split(';')
+    cols = 'P13698;P07331'.split(';')
+
+    beg_time = '2010-01-01 00:00:00'
+    end_time = '2010-12-31 23:00:00'
 
     sep = ';'
 
-    beg_time = '1961-01-01'
-    # end_time = '2015-12-31'
-    end_time = '1970-12-31'
-
-    cols = ['3465', '420']
-
-    out_dir = Path(r'iaaft_test_ms_mixed3_42')
+    # out_dir = Path(r'iaaft_test_ms_mixed3_42')
+    out_dir = Path(r'iaaft_ppt_hourly_test_02_opt')
     #==========================================================================
 
     out_dir.mkdir(exist_ok=True)
@@ -412,7 +435,7 @@ def main():
         ])
 
     if True:
-        opt_ress = differential_evolution(obj_ftn, bds, args=(df_data, cols), workers=4, maxiter=10, updating='deferred')
+        opt_ress = differential_evolution(obj_ftn, bds, args=(df_data, cols), workers=8, maxiter=10, updating='deferred')
 
     else:
         opt_ress = minimize(obj_ftn, 0.5, args=(df_data, cols), method='BFGS')

@@ -16,6 +16,8 @@ from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt; plt.ioff()
 
+from zb_cmn_ftns_plot import set_mpl_prms
+
 DEBUG_FLAG = False
 
 
@@ -24,7 +26,7 @@ def main():
     main_dir = Path(
         r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'iaaft_discharge_04_no_cps_ranks_only_daily'
+    main_dir /= r'test_pcorr_04'
 
     os.chdir(main_dir)
 
@@ -39,11 +41,18 @@ def main():
     fig_x_label = f'{resamp_res} sum [-]'
     fig_y_label = '1 - F(x) [-]'
 
+    prms_dict = {
+        'figure.figsize': (7, 7),
+        'figure.dpi': 150,
+        'font.size': 16,
+        }
+
     out_dir = data_dir
     #==========================================================================
 
     out_dir.mkdir(exist_ok=True)
 
+    set_mpl_prms(prms_dict)
     for data_file in data_dir.glob(data_patt):
         print('Going through:', data_file)
 
@@ -51,25 +60,27 @@ def main():
 
         assert isinstance(data_df, pd.DataFrame)
 
-        plt.figure(figsize=(7, 7))
         for i, col in enumerate(data_df.columns):
             if i == 0:
                 label = 'ref'
                 clr = 'r'
                 alpha = 0.75
                 lw = 2.0
+                zorder = 1
 
             elif i == 1:
                 label = 'sim'
                 clr = 'k'
                 alpha = 0.5
                 lw = 1.5
+                zorder = 2
 
             else:
                 label = None
                 clr = 'k'
                 alpha = 0.5
                 lw = 1.5
+                zorder = 2
 
             data = data_df[col].sort_values()
             data.dropna(inplace=True)
@@ -82,7 +93,8 @@ def main():
                 c=clr,
                 alpha=alpha,
                 lw=lw,
-                label=label)
+                label=label,
+                zorder=zorder)
 
         plt.grid(which='both')
         plt.gca().set_axisbelow(True)

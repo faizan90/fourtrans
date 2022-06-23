@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt; plt.ioff()
 
 DEBUG_FLAG = False
 
-if True:
+if False:
     inv_dist = norm
 
 else:
@@ -43,7 +43,43 @@ def main():
 
     os.chdir(main_dir)
 
-    in_data_file = Path(r'neckar_q_data_combined_20180713_10cps.csv')
+    # in_data_file = Path(r'neckar_q_data_combined_20180713_10cps.csv')
+    #
+    # sep = ';'
+    #
+    # beg_time = '1961-01-01'
+    # # end_time = '2015-12-31'
+    # end_time = '1970-12-31'
+    #
+    # cols = ['420', '427', '3470', '3465', '3421', 'cp']
+
+    # From Prof.
+    # in_data_file = Path(r'BW_dwd_stns_60min_1995_2020_data.csv')
+    #
+    # # All these have no missing values in BW fro 2010 to 2014.
+    # # cols = [
+    # #     'P00071', 'P00257', 'P00279', 'P00498', 'P00684', 'P00757', 'P00931',
+    # #     'P01089', 'P01216', 'P01224', 'P01255', 'P01290', 'P01584', 'P01602', ]
+    # #     'P01711', 'P01937', 'P02388', 'P02575', 'P02638', 'P02787', 'P02814',
+    # #     'P02880', 'P03278', 'P03362', 'P03519', 'P03761', 'P03925', 'P03927',
+    # #     'P04160', 'P04175', 'P04294', 'P04300', 'P04315', 'P04349', 'P04623',
+    # #     'P04710', 'P04881', 'P04928', 'P05229', 'P05664', 'P05711', 'P05724',
+    # #     'P05731', 'P06258', 'P06263', 'P06275', 'P07138', 'P07187', 'P07331',
+    # #     'P13672', 'P13698', 'P13965']
+    #
+    # # cols = 'P13698;P07331;P13672;P02575;P02814;P00279;P06275;P02787;P05711;P03278;P03761'.split(';')
+    # cols = 'P13698;P07331'.split(';')
+    #
+    # beg_time = '2010-01-01 00:00:00'
+    # end_time = '2010-12-31 23:00:00'
+    #
+    # sep = ';'
+
+    #==========================================================================
+    # Daily ppt.
+    #==========================================================================
+
+    in_data_file = Path(r'precipitation_bw_1961_2015_10cps.csv')
 
     sep = ';'
 
@@ -51,17 +87,27 @@ def main():
     end_time = '2015-12-31'
     # end_time = '1970-12-31'
 
-    cols = ['420', '427', '3470', '3465', '3421', 'cp']
+    cols = ['P1162', 'P1197']  # , 'cp']
+    #==========================================================================
 
     n_sims = int(1)
-    n_repeat = 1
-    max_opt_iters = int(1e5)
+    n_repeat = 3
+    max_opt_iters = int(1e1)
 
-    ratio_a = 1.0
-    ratio_b = 2.0
+    ratio_a = 5.0
+    ratio_b = 1.0
     ratio_c = 0.0
 
-    out_dir = Path(r'iaaft_ms_mixed3_dis_test_03_cps')
+    inv_dist_loc = 20
+    inv_dist_scl = 1000
+
+    noise_add_flag = True
+    # noise_add_flag = False
+    noise_magnitude = 1e-3
+
+    # out_dir = Path(r'iaaft_ms_mixed3_dis_test_03_cps')
+    # out_dir = Path(r'iaaft_ppt_hourly_test_01')
+    out_dir = Path(r'iaaft_ppt_test_daily_01')
     #==========================================================================
 
     out_dir.mkdir(exist_ok=True)
@@ -74,6 +120,12 @@ def main():
         df_data = df_data.iloc[:-1,:]
 
     data = df_data.values.copy()
+
+    if noise_add_flag:
+        data_noise = np.random.random(size=(data.shape[0], 1))
+        # data_noise = np.random.random(size=data.shape)
+
+        data += data_noise * noise_magnitude
 
     n_steps = data.shape[0]
 
@@ -96,7 +148,9 @@ def main():
     ref_mag_ranks = np.abs(ref_ft_ranks)
 
     ref_ft_norms = np.fft.rfft(
-        inv_dist.ppf(rankdata(data, axis=0) / (n_steps + 1.0)), axis=0)
+        inv_dist.ppf(rankdata(data, axis=0) / (n_steps + 1.0),
+                     loc=inv_dist_loc, scale=inv_dist_scl),
+        axis=0)
 
     ref_ft_norms[0,:] = 0
 
@@ -139,7 +193,7 @@ def main():
 
                     # ##
                     sim_ft = np.fft.rfft(
-                        inv_dist.ppf(rankdata(data_rand, axis=0) / (n_steps + 1.0)),
+                        inv_dist.ppf(rankdata(data_rand, axis=0) / (n_steps + 1.0), loc=inv_dist_loc, scale=inv_dist_scl),
                         axis=0)
 
                     sim_phs = np.angle(sim_ft)
@@ -205,10 +259,15 @@ def main():
 
                     order_old = order_new
 
+                    order_new = None
+
                     data_rand = np.empty_like(data)
 
                     for k in range(len(cols)):
                         data_rand[:, k] = data_sort[order_old[:, k], k]
+
+                        # if k == 0:
+                        #     data_noise = np.sort(data_noise)[order_old[:, k]]
 
                     if order_sdiff == 0:
                         break
@@ -217,6 +276,9 @@ def main():
                     print('max_opt_iters!')
 
                 print(f'l{m}', *get_corrs(data_rand))
+
+                if (m == 0) or (m == 3):
+                    plt.plot(np.sort(sim_ift[:, 1]), label=str((m, 0)), alpha=0.75)
                 #==============================================================
 
             if True:
@@ -225,7 +287,7 @@ def main():
 
                     # ##
                     sim_ft = np.fft.rfft(
-                        inv_dist.ppf(rankdata(data_rand, axis=0) / (n_steps + 1.0)),
+                        inv_dist.ppf(rankdata(data_rand, axis=0) / (n_steps + 1.0), loc=inv_dist_loc, scale=inv_dist_scl),
                         axis=0)
 
                     sim_mag = np.abs(sim_ft)
@@ -303,10 +365,15 @@ def main():
 
                     order_old = order_new
 
+                    order_new = None
+
                     data_rand = np.empty_like(data)
 
                     for k in range(len(cols)):
                         data_rand[:, k] = data_sort[order_old[:, k], k]
+
+                        # if k == 0:
+                        #     data_noise = np.sort(data_noise)[order_old[:, k]]
 
                     if order_sdiff == 0:
                         break
@@ -315,6 +382,9 @@ def main():
                     print('max_opt_iters!')
 
                 print(f'l{m}', *get_corrs(data_rand))
+
+                if (m == 0) or (m == 3):
+                    plt.plot(np.sort(sim_ift[:, 1]), label=str((m, 1)), alpha=0.75)
                 #==============================================================
 
         for k, col in enumerate(cols):
@@ -333,19 +403,23 @@ def main():
     print('r', *get_corrs(data))
     print('')
 
+    plt.legend()
+    plt.show()
+
     for col in cols:
         col_df = pd.DataFrame(sims[col])
 
-        print(f'{col} ref_sim_pcorrs:')
-        print(col_df.corr(method='pearson').round(3).values)
-        print('')
-
-        print(f'{col} ref_sim_scorrs:')
-        print(col_df.corr(method='spearman').round(3).values)
-        print('')
-
         col_df.to_csv(
             out_dir / f'sims_{col}.csv', sep=';', float_format='%0.6f')
+
+        if False:
+            print(f'{col} ref_sim_pcorrs:')
+            print(col_df.corr(method='pearson').round(3).values)
+            print('')
+
+            print(f'{col} ref_sim_scorrs:')
+            print(col_df.corr(method='spearman').round(3).values)
+            print('')
 
     return
 

@@ -20,55 +20,17 @@ import pandas as pd
 from scipy.stats import rankdata
 import matplotlib.pyplot as plt; plt.ioff()
 
-DEBUG_FLAG = True
+from zb_cmn_ftns_plot import set_mpl_prms
 
-
-def set_mpl_prms(prms_dict):
-
-    plt.rcParams.update(prms_dict)
-
-    return
-
-
-def get_mag_phs_spec(arr):
-
-    assert isinstance(arr, np.ndarray)
-    assert arr.ndim == 1
-    assert np.all(np.isfinite(arr))
-    assert arr.size >= 3
-
-    ft = np.fft.rfft(arr)
-
-    mag_spec = np.abs(ft)
-    phs_spec = np.angle(ft)
-
-    return mag_spec[1:], phs_spec[1:]
-
-
-def get_ft_cum_corr(arr_1, arr_2):
-
-    mag_spec_1, phs_spec_1 = get_mag_phs_spec(arr_1)
-    mag_spec_2, phs_spec_2 = get_mag_phs_spec(arr_2)
-
-    assert mag_spec_1.size == mag_spec_2.size
-    assert phs_spec_1.size == phs_spec_2.size
-
-    mag_specs_prod = mag_spec_1 * mag_spec_2
-
-    denom_corrs = (
-        ((mag_spec_1 ** 2).sum() ** 0.5) *
-        ((mag_spec_2 ** 2).sum() ** 0.5))
-
-    corr = (mag_specs_prod * np.cos(phs_spec_1 - phs_spec_2)).cumsum()
-
-    return corr, denom_corrs
+DEBUG_FLAG = False
 
 
 def main():
 
     main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'iaaft_discharge_04_no_cps_ranks_only_daily'
+    main_dir /= r'test_pcorr_04'
+
     os.chdir(main_dir)
 
     data_dir = main_dir
@@ -147,7 +109,7 @@ def main():
 
                 zorder = 1
 
-            ft_corr, pwr_denom = get_ft_cum_corr(data_a, data_b)
+            ft_corr, pwr_denom = get_ft_cumm_corr(data_a, data_b)
 
             if fnmatch(col, patt_ref):
                 ref_pwr = pwr_denom
@@ -221,7 +183,7 @@ def main():
 
                 zorder = 1
 
-            ft_corr, pwr_denom = get_ft_cum_corr(data_a, data_b)
+            ft_corr, pwr_denom = get_ft_cumm_corr(data_a, data_b)
 
             if fnmatch(col, patt_ref):
                 ref_pwr = pwr_denom
@@ -259,6 +221,40 @@ def main():
         plt.close()
     #==========================================================================
     return
+
+
+def get_mag_phs_spec(arr):
+
+    assert isinstance(arr, np.ndarray)
+    assert arr.ndim == 1
+    assert np.all(np.isfinite(arr))
+    assert arr.size >= 3
+
+    ft = np.fft.rfft(arr)
+
+    mag_spec = np.abs(ft)
+    phs_spec = np.angle(ft)
+
+    return mag_spec[1:], phs_spec[1:]
+
+
+def get_ft_cumm_corr(arr_1, arr_2):
+
+    mag_spec_1, phs_spec_1 = get_mag_phs_spec(arr_1)
+    mag_spec_2, phs_spec_2 = get_mag_phs_spec(arr_2)
+
+    assert mag_spec_1.size == mag_spec_2.size
+    assert phs_spec_1.size == phs_spec_2.size
+
+    mag_specs_prod = mag_spec_1 * mag_spec_2
+
+    denom_corrs = (
+        ((mag_spec_1 ** 2).sum() ** 0.5) *
+        ((mag_spec_2 ** 2).sum() ** 0.5))
+
+    corr = (mag_specs_prod * np.cos(phs_spec_1 - phs_spec_2)).cumsum()
+
+    return corr, denom_corrs
 
 
 if __name__ == '__main__':

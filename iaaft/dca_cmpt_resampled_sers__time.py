@@ -23,7 +23,7 @@ def main():
     main_dir = Path(
         r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'iaaft_discharge_04_no_cps_ranks_only_daily'
+    main_dir /= r'test_pcorr_04'
 
     os.chdir(main_dir)
 
@@ -45,7 +45,7 @@ def main():
     # being resampled should have a min_count to get a non Na value.
     # This is because resample sum does not have a skipna flag.
     resample_ress = ['W']
-    min_counts = [1]
+    min_counts = [7]
 
     # In case of months, the resampling is slightly different than hours etc.
     # resample_ress = ['m']

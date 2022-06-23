@@ -17,6 +17,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt; plt.ioff()
 
+from zb_cmn_ftns_plot import set_mpl_prms
+
 DEBUG_FLAG = False
 
 
@@ -25,7 +27,7 @@ def main():
     main_dir = Path(
         r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'iaaft_discharge_04_no_cps_ranks_only_daily'
+    main_dir /= r'test_pcorr_04'
 
     os.chdir(main_dir)
 
@@ -41,6 +43,12 @@ def main():
 
     fig_x_label = 'Stations\' sum [-]'
     fig_y_label = '1 - F(x) [-]'
+
+    prms_dict = {
+        'figure.figsize': (7, 7),
+        'figure.dpi': 150,
+        'font.size': 16,
+        }
 
     out_dir = data_dir
     #==========================================================================
@@ -70,7 +78,8 @@ def main():
 
     assert sim_data_sers, 'Didn\'t find the simulation file(s)!'
 
-    plt.figure(figsize=(7, 7))
+    set_mpl_prms(prms_dict)
+
     leg_flag = True
     for sim_data_ser in sim_data_sers:
         if leg_flag:
@@ -96,7 +105,8 @@ def main():
             c='k',
             alpha=0.4,
             lw=1.5,
-            label=label)
+            label=label,
+            zorder=2)
 
     ref_data_ser.dropna(inplace=True)
 
@@ -114,7 +124,8 @@ def main():
         c='r',
         alpha=0.8,
         lw=2,
-        label='ref')
+        label='ref',
+        zorder=1)
 
     plt.grid(which='both')
     plt.gca().set_axisbelow(True)

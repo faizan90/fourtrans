@@ -27,92 +27,72 @@ from fcopulas import (
     get_etpy_min,
     get_etpy_max,)
 
+from zb_cmn_ftns_plot import set_mpl_prms, roll_real_2arrs
+
 DEBUG_FLAG = False
 
 
-def roll_real_2arrs_with_nan(arr1, arr2, lag, rerank_flag=False):
+def main():
 
-    assert isinstance(arr1, np.ndarray)
-    assert isinstance(arr2, np.ndarray)
+    main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    assert arr1.ndim == 1
-    assert arr2.ndim == 1
+    main_dir /= r'test_pcorr_04'
 
-    assert arr1.size == arr2.size
+    os.chdir(main_dir)
 
-    assert isinstance(lag, (int, np.int64))
-    assert abs(lag) < arr1.size
+    data_dir = main_dir
 
-    if lag > 0:
-        # arr2 is shifted ahead
-        arr1 = arr1[:-lag].copy()
-        arr2 = arr2[+lag:].copy()
+    lag_steps = np.arange(1, 31, dtype=np.int64)
 
-    elif lag < 0:
-        # arr1 is shifted ahead
-        arr1 = arr1[-lag:].copy()
-        arr2 = arr2[:+lag].copy()
+    ecop_bins = 20
 
-    else:
-        pass
+    prms_dict = {
+        'figure.figsize': (15, 10),
+        'figure.dpi': 150,
+        'font.size': 16,
+        }
 
-    assert arr1.size == arr2.size
+    sep = ';'
 
-    not_nan_idxs = np.isfinite(arr1) & np.isfinite(arr2)
+    patt_ref = 'ref'
+    patt_sim = 'S*'
 
-    arr1, arr2 = arr1[not_nan_idxs], arr2[not_nan_idxs]
+    out_dir = main_dir
+    #==========================================================================
 
-    if rerank_flag:
-#         assert np.all(arr1 > 0) and np.all(arr2 > 0)
-#         assert np.all(arr1 < 1) and np.all(arr2 < 1)
+    out_dir.mkdir(exist_ok=True)
 
-        arr1 = rankdata(arr1) / (arr1.size + 1.0)
-        arr2 = rankdata(arr2) / (arr2.size + 1.0)
+    for in_file in data_dir.glob(r'./auto_sims_*.csv'):
 
-    return arr1, arr2
+        print(in_file)
 
+        in_df = pd.read_csv(in_file, sep=sep, index_col=0)
 
-def roll_real_2arrs(arr1, arr2, lag, rerank_flag=False):
+        if in_df.shape[0] % 2:
+            in_df = in_df.iloc[:-1,:]
 
-    assert isinstance(arr1, np.ndarray)
-    assert isinstance(arr2, np.ndarray)
+        file_suff = in_file.stem.split('auto_sims_')[1]
 
-    assert arr1.ndim == 1
-    assert arr2.ndim == 1
+        out_fig_name_pecop = str(out_dir / f'auto_props_{file_suff}.png')
 
-    assert arr1.size == arr2.size
+        out_fig_name_pwr = str(out_dir / f'auto_cumm_pwr_margs_{file_suff}.png')
 
-    assert isinstance(lag, (int, np.int64))
-    assert abs(lag) < arr1.size
+        out_fig_name_pwr_ranks = str(
+            out_dir / f'auto_cumm_pwr_ranks_{file_suff}.png')
 
-    if lag > 0:
-        # arr2 is shifted ahead
-        arr1 = arr1[:-lag].copy()
-        arr2 = arr2[+lag:].copy()
+        args = (
+            prms_dict,
+            in_df,
+            ecop_bins,
+            patt_ref,
+            patt_sim,
+            lag_steps,
+            out_fig_name_pecop,
+            out_fig_name_pwr,
+            out_fig_name_pwr_ranks,
+            )
 
-    elif lag < 0:
-        # arr1 is shifted ahead
-        arr1 = arr1[-lag:].copy()
-        arr2 = arr2[:+lag].copy()
-
-    else:
-        pass
-
-    assert arr1.size == arr2.size
-
-    if rerank_flag:
-#         assert np.all(arr1 > 0) and np.all(arr2 > 0)
-#         assert np.all(arr1 < 1) and np.all(arr2 < 1)
-
-        arr1 = rankdata(arr1) / (arr1.size + 1.0)
-        arr2 = rankdata(arr2) / (arr2.size + 1.0)
-
-    return arr1, arr2
-
-
-def set_mpl_prms(prms_dict):
-
-    plt.rcParams.update(prms_dict)
+        plot_cmpr_props(args)
 
     return
 
@@ -293,12 +273,12 @@ def plot_cmpr_props(args):
     axes[0, 0].set_ylabel('Spearman correlation')
 
     axes[1, 0].set_xlabel('Lag steps')
-    axes[1, 0].set_ylabel('Asymmetry (Type - 1)')
+    axes[1, 0].set_ylabel('Order asymmetry')
 
     axes[1, 1].set_xlabel('Lag steps')
-    axes[1, 1].set_ylabel('Asymmetry (Type - 2)')
+    axes[1, 1].set_ylabel('Directional asymmetry')
 
-    axes[0, 1].set_ylabel('Entropy')
+    axes[0, 1].set_ylabel('Copula entropy')
 
     axes[0, 2].set_xlabel('Lag steps')
     axes[0, 2].set_ylabel('Pearson correlation')
@@ -471,71 +451,6 @@ def plot_cmpr_props(args):
 
     plt.savefig(out_fig_name_pwr_ranks, bbox_inches='tight')
     plt.close()
-
-    return
-
-
-def main():
-
-    main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
-
-    main_dir /= r'iaaft_discharge_04_no_cps_ranks_only_daily'
-
-    os.chdir(main_dir)
-
-    data_dir = main_dir
-
-    lag_steps = np.arange(1, 31, dtype=np.int64)
-
-    ecop_bins = 20
-
-    prms_dict = {
-        'figure.figsize': (15, 10),
-        'figure.dpi': 150,
-        'font.size': 16,
-        }
-
-    sep = ';'
-
-    patt_ref = 'ref'
-    patt_sim = 'S*'
-
-    out_dir = main_dir
-    #==========================================================================
-
-    out_dir.mkdir(exist_ok=True)
-
-    for in_file in data_dir.glob(r'./auto_sims_*.csv'):
-
-        print(in_file)
-
-        in_df = pd.read_csv(in_file, sep=sep, index_col=0)
-
-        if in_df.shape[0] % 2:
-            in_df = in_df.iloc[:-1,:]
-
-        file_suff = in_file.stem.split('auto_sims_')[1]
-
-        out_fig_name_pecop = str(out_dir / f'auto_ecop_props_{file_suff}.png')
-
-        out_fig_name_pwr = str(out_dir / f'auto_cumm_pwr_margs_{file_suff}.png')
-
-        out_fig_name_pwr_ranks = str(
-            out_dir / f'auto_cumm_pwr_ranks_{file_suff}.png')
-
-        args = (
-            prms_dict,
-            in_df,
-            ecop_bins,
-            patt_ref,
-            patt_sim,
-            lag_steps,
-            out_fig_name_pecop,
-            out_fig_name_pwr,
-            out_fig_name_pwr_ranks,
-            )
-
-        plot_cmpr_props(args)
 
     return
 

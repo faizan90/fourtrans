@@ -14,56 +14,14 @@ import traceback as tb
 from pathlib import Path
 from fnmatch import fnmatch
 
-DEBUG_FLAG = False
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt; plt.ioff()
+
 from kde.kernels import triangular_kern, gaussian_kern
+from zb_cmn_ftns_plot import set_mpl_prms
 
 DEBUG_FLAG = False
-
-
-def get_smoothed_array(data, half_window_size):
-
-    n_vals = data.size
-
-    smoothed_arr = np.empty(n_vals, dtype=float)
-
-    data_padded = np.concatenate((
-        data[::-1][:half_window_size], data, data[:half_window_size]))
-
-    rel_dists = np.concatenate((
-        np.arange(half_window_size, -1, -1.0,),
-        np.arange(1.0, half_window_size + 1.0)))
-
-    rel_dists /= rel_dists.max() + 1.0
-
-    if True:
-        kern_ftn = np.vectorize(triangular_kern)
-
-    elif False:
-        kern_ftn = np.vectorize(gaussian_kern)
-
-    else:
-        raise Exception
-
-    window_wts = kern_ftn(rel_dists)
-
-    window_wts /= window_wts.sum()
-
-    for i in range(n_vals):
-        smoothed_arr[i] = np.nansum(
-            data_padded[i: i + 2 * half_window_size + 1] * window_wts)
-
-    return smoothed_arr
-
-
-def set_mpl_prms(prms_dict):
-
-    plt.rcParams.update(prms_dict)
-
-    return
 
 
 def main():
@@ -74,7 +32,7 @@ def main():
 
     main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'iaaft_discharge_04_no_cps_ranks_only_daily'
+    main_dir /= r'test_pcorr_04'
 
     os.chdir(main_dir)
 
@@ -161,7 +119,12 @@ def main():
             for j, doy in enumerate(doys):
                 doy_idxs = in_df.index.dayofyear == doy
 
-                assert doy_idxs.sum()
+                n_doy_idxs = doy_idxs.sum()
+
+                # assert doy_idxs.sum(), (j, doy)
+
+                if not n_doy_idxs:
+                    continue
 
                 doy_data = data[doy_idxs].mean()
 
@@ -201,6 +164,41 @@ def main():
 
     plt.close()
     return
+
+
+def get_smoothed_array(data, half_window_size):
+
+    n_vals = data.size
+
+    smoothed_arr = np.empty(n_vals, dtype=float)
+
+    data_padded = np.concatenate((
+        data[::-1][:half_window_size], data, data[:half_window_size]))
+
+    rel_dists = np.concatenate((
+        np.arange(half_window_size, -1, -1.0,),
+        np.arange(1.0, half_window_size + 1.0)))
+
+    rel_dists /= rel_dists.max() + 1.0
+
+    if True:
+        kern_ftn = np.vectorize(triangular_kern)
+
+    elif False:
+        kern_ftn = np.vectorize(gaussian_kern)
+
+    else:
+        raise Exception
+
+    window_wts = kern_ftn(rel_dists)
+
+    window_wts /= window_wts.sum()
+
+    for i in range(n_vals):
+        smoothed_arr[i] = np.nansum(
+            data_padded[i: i + 2 * half_window_size + 1] * window_wts)
+
+    return smoothed_arr
 
 
 if __name__ == '__main__':
