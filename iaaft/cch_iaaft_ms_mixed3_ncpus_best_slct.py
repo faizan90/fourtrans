@@ -51,7 +51,7 @@ def main():
 
     cols = ['3470', '3465', '420', '427', '3421']
 
-    out_dir = Path(r'test_spcorr_12')
+    out_dir = Path(r'test_spcorr_34')
 
     noise_add_flag = True
     noise_add_flag = False
@@ -132,7 +132,7 @@ def main():
 
     n_cpus = 8
 
-    n_sims = 8
+    n_sims = 100
 
     ratio_a = 1.0  # For marginals.
     ratio_b = 1.0  # For ranks.
@@ -141,14 +141,14 @@ def main():
     cross_spec_flag = True
 
     # auto_spec_flag = False
-    # cross_spec_flag = False
+    cross_spec_flag = False
 
     # Column with the name "ref_lab" should not be in cols.
     ref_lab = 'ref'
     sim_lab = 'S'  # Put infront of each simulation number.
 
-    n_repeat = len(cols) * 30
-    max_opt_iters = int(2e0)
+    n_repeat = len(cols) * 1000
+    max_opt_iters = int(1e0)
 
     float_fmt = '%0.1f'
 
@@ -218,7 +218,7 @@ def main():
     else:
         mp_pool = ProcessPool(n_cpus)
 
-        ress = list(mp_pool.imap(get_sim_dict, args_gen))
+        ress = list(mp_pool.imap(get_sim_dict, args_gen, chunksize=1))
 
         mp_pool.close()
         mp_pool.join()
@@ -343,25 +343,9 @@ def get_ts_data_cls(data, noise_add_flag, noise_magnitude):
     phss_ranks = np.angle(ft_ranks)
     mags_ranks = np.abs(ft_ranks)
 
-    if False:
-        # Adjust the spectrum sums to reference.
-        # This didnt help much. Most probably because scaling method is
-        # incorrect.
-        mags_sum = (mags ** 2).sum(axis=0)
-        mags_ranks_sum = (mags_ranks ** 2).sum(axis=0)
-
-        mags_ratios_ranks = mags_sum / mags_ranks_sum
-
-        ft_ranks *= mags_ratios_ranks  # FIXME: This tfm is incorrect.
-        mags_ranks = ((mags_ranks ** 2) * mags_ratios_ranks) ** 0.5
-
-    else:
-        mags_ratios_ranks = None
-
     data_cls.ft_ranks = ft_ranks
     data_cls.phss_ranks = phss_ranks
     data_cls.mags_ranks = mags_ranks
-    data_cls.mags_ratios_ranks = mags_ratios_ranks
     #==========================================================================
 
     phss_diffs = phss - phss[:, [0]]
@@ -376,7 +360,26 @@ def get_ts_data_cls(data, noise_add_flag, noise_magnitude):
     data_cls.data_sort = data_sort
     #==========================================================================
 
+    data_cls.pcorrs = np.corrcoef(data, rowvar=False)
+    data_cls.scorrs = np.corrcoef(rankdata(data, axis=0), rowvar=False)
+    #==========================================================================
+
     return data_cls
+
+
+def get_obj_val(ref_data_cls, sim_data):
+
+    obj_val = 0.0
+
+    obj_val += (
+        (ref_data_cls.pcorrs -
+         np.corrcoef(sim_data, rowvar=False)) ** 2).sum()
+
+    obj_val += (
+        (ref_data_cls.scorrs -
+         np.corrcoef(rankdata(sim_data, axis=0), rowvar=False)) ** 2).sum()
+
+    return obj_val
 
 
 def get_sim_dict(args):
@@ -427,8 +430,13 @@ def get_sim_dict(args):
         data_rand[:, k] = data_sort[order_old[:, k], k]
     #==========================================================================
 
+    if cross_spec_flag:
+        obj_val_global_min = get_obj_val(ref_data_cls, data_rand)
+        data_best = data_rand.copy()
+
     stn_ctr = 0
-    for _ in range(n_repeat):
+    for i_repeat in range(n_repeat):
+        break_flag_auto = False
         if auto_spec_flag:
             for _ in range(max_opt_iters):
                 # Marginals.
@@ -446,14 +454,15 @@ def get_sim_dict(args):
 
                     sim_ift_a = np.fft.irfft(sim_ft_new, axis=0)
 
+                    if True:
+                        sim_ift_a /= sim_ift_a.std(axis=0)
+
                 else:
                     sim_ift_a = 0.0
 
                 # Ranks.
                 if ratio_b:
-                    sim_ft = np.fft.rfft(
-                        rankdata(data_rand, axis=0),
-                        axis=0)
+                    sim_ft = np.fft.rfft(rankdata(data_rand, axis=0), axis=0)
 
                     sim_phs = np.angle(sim_ft)
 
@@ -465,6 +474,9 @@ def get_sim_dict(args):
                     sim_ft_new[0,:] = 0
 
                     sim_ift_b = np.fft.irfft(sim_ft_new, axis=0)
+
+                    if True:
+                        sim_ift_b /= sim_ift_b.std(axis=0)
 
                 else:
                     sim_ift_b = 0.0
@@ -489,9 +501,16 @@ def get_sim_dict(args):
                     data_rand[:, k] = data_sort[order_old[:, k], k]
 
                 if order_sdiff == 0:
+                    print(f'### Break auto ({i_repeat})!')
+                    break_flag_auto = True
                     break
             #==================================================================
 
+        if (not cross_spec_flag) and break_flag_auto:
+            print(f'### Break auto ({i_repeat}) full!')
+            break
+
+        break_flag_cross = False
         if cross_spec_flag:
             for _ in range(max_opt_iters):
                 # Marginals.
@@ -501,6 +520,7 @@ def get_sim_dict(args):
                     sim_mag = np.abs(sim_ft)
 
                     # sim_phs = np.angle(sim_ft[:, [0]]) + ref_phs_diffs
+
                     sim_phs = (
                         np.angle(sim_ft[:, [stn_ctr]]) +
                         ref_phs -
@@ -521,6 +541,9 @@ def get_sim_dict(args):
 
                     sim_ift_a = np.fft.irfft(sim_ft_new, axis=0)
 
+                    if True:
+                        sim_ift_a /= sim_ift_a.std(axis=0)
+
                 else:
                     sim_ift_a = 0.0
 
@@ -531,13 +554,6 @@ def get_sim_dict(args):
                         axis=0)
 
                     sim_mag = np.abs(sim_ft)
-
-                    if ref_data_cls.mags_ratios_ranks is not None:
-                        sim_pwr = sim_mag ** 2
-
-                        sim_pwr *= ref_data_cls.mags_ratios_ranks
-
-                        sim_mag = sim_pwr ** 0.5
 
                     # sim_phs = np.angle(sim_ft[:, [0]]) + ref_phs_ranks_diffs
 
@@ -556,6 +572,9 @@ def get_sim_dict(args):
                     sim_ft_new[0,:] = 0
 
                     sim_ift_b = np.fft.irfft(sim_ft_new, axis=0)
+
+                    if True:
+                        sim_ift_b /= sim_ift_b.std(axis=0)
 
                 else:
                     sim_ift_b = 0.0
@@ -580,20 +599,46 @@ def get_sim_dict(args):
                     data_rand[:, k] = data_sort[order_old[:, k], k]
 
                 if order_sdiff == 0:
+                    print(f'### Break cross ({i_repeat})!')
+                    break_flag_cross = True
                     break
             #==================================================================
+        #======================================================================
+
+        if cross_spec_flag:
+            obj_val = get_obj_val(ref_data_cls, data_rand)
+
+            if obj_val < obj_val_global_min:
+                obj_val_global_min = obj_val
+
+                data_best = data_rand.copy()
+        #======================================================================
+
+        if (not auto_spec_flag) and break_flag_cross:
+            print(f'### Break cross ({i_repeat}) full!')
+            break
+
+        if break_flag_auto and break_flag_cross:
+            print(f'### Break auto and cross ({i_repeat}) full!')
+            break
+        #======================================================================
 
         stn_ctr += 1
-
         if stn_ctr == data_rand.shape[1]:
             stn_ctr = 0
     #==========================================================================
 
     sims = {cols[k]:{} for k in range(len(cols))}
     for k, col in enumerate(cols):
-        sims[col][f'{sim_lab}{sim_idx:0{sim_zeros_str}d}'] = data_rand[:, k]
+        if cross_spec_flag:
+            sims[col][
+                f'{sim_lab}{sim_idx:0{sim_zeros_str}d}'] = data_best[:, k]
 
-    print('Done with sim_idx:', sim_idx)
+        else:
+            sims[col][
+                f'{sim_lab}{sim_idx:0{sim_zeros_str}d}'] = data_rand[:, k]
+
+    print(f'Done with sim_idx: {sim_idx} with i_repeat: {i_repeat}')
     return sims
 
 

@@ -36,7 +36,7 @@ def main():
 
     main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'test_spcorr_12'
+    main_dir /= r'test_spcorr_33'
 
     os.chdir(main_dir)
 
