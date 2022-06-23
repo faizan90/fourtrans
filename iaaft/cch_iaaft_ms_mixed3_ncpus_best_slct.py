@@ -26,7 +26,7 @@ from pathos.multiprocessing import ProcessPool
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt; plt.ioff()
-from scipy.stats import rankdata
+from scipy.stats import rankdata, norm
 
 DEBUG_FLAG = False
 
@@ -51,7 +51,7 @@ def main():
 
     cols = ['3470', '3465', '420', '427', '3421']
 
-    out_dir = Path(r'test_spcorr_34')
+    out_dir = Path(r'test_spcorr_39')
 
     noise_add_flag = True
     noise_add_flag = False
@@ -132,7 +132,7 @@ def main():
 
     n_cpus = 8
 
-    n_sims = 100
+    n_sims = 8
 
     ratio_a = 1.0  # For marginals.
     ratio_b = 1.0  # For ranks.
@@ -141,13 +141,13 @@ def main():
     cross_spec_flag = True
 
     # auto_spec_flag = False
-    cross_spec_flag = False
+    # cross_spec_flag = False
 
     # Column with the name "ref_lab" should not be in cols.
     ref_lab = 'ref'
     sim_lab = 'S'  # Put infront of each simulation number.
 
-    n_repeat = len(cols) * 1000
+    n_repeat = len(cols) * 5000
     max_opt_iters = int(1e0)
 
     float_fmt = '%0.1f'
@@ -180,6 +180,8 @@ def main():
         df_data = df_data.iloc[:-1,:]
 
     assert np.all(np.isfinite(df_data.values))
+
+    assert ref_lab not in df_data.columns
 
     df_data.to_csv(
         out_dir / f'cross_sims_{ref_lab}.csv', sep=sep, float_format=float_fmt)
@@ -454,8 +456,7 @@ def get_sim_dict(args):
 
                     sim_ift_a = np.fft.irfft(sim_ft_new, axis=0)
 
-                    if True:
-                        sim_ift_a /= sim_ift_a.std(axis=0)
+                    sim_ift_a /= sim_ift_a.std(axis=0)
 
                 else:
                     sim_ift_a = 0.0
@@ -475,8 +476,7 @@ def get_sim_dict(args):
 
                     sim_ift_b = np.fft.irfft(sim_ft_new, axis=0)
 
-                    if True:
-                        sim_ift_b /= sim_ift_b.std(axis=0)
+                    sim_ift_b /= sim_ift_b.std(axis=0)
 
                 else:
                     sim_ift_b = 0.0
@@ -530,10 +530,6 @@ def get_sim_dict(args):
 
                     sim_ft_new = np.empty_like(sim_ft)
 
-                    # Why is ref_mag here?
-                    # sim_ft_new.real[:] = np.cos(sim_phs) * ref_mag
-                    # sim_ft_new.imag[:] = np.sin(sim_phs) * ref_mag
-
                     sim_ft_new.real[:] = np.cos(sim_phs) * sim_mag
                     sim_ft_new.imag[:] = np.sin(sim_phs) * sim_mag
 
@@ -541,17 +537,14 @@ def get_sim_dict(args):
 
                     sim_ift_a = np.fft.irfft(sim_ft_new, axis=0)
 
-                    if True:
-                        sim_ift_a /= sim_ift_a.std(axis=0)
+                    sim_ift_a /= sim_ift_a.std(axis=0)
 
                 else:
                     sim_ift_a = 0.0
 
                 # Ranks.
                 if ratio_b:
-                    sim_ft = np.fft.rfft(
-                        rankdata(data_rand, axis=0),
-                        axis=0)
+                    sim_ft = np.fft.rfft(rankdata(data_rand, axis=0), axis=0)
 
                     sim_mag = np.abs(sim_ft)
 
@@ -573,8 +566,7 @@ def get_sim_dict(args):
 
                     sim_ift_b = np.fft.irfft(sim_ft_new, axis=0)
 
-                    if True:
-                        sim_ift_b /= sim_ift_b.std(axis=0)
+                    sim_ift_b /= sim_ift_b.std(axis=0)
 
                 else:
                     sim_ift_b = 0.0
