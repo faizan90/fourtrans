@@ -44,11 +44,8 @@ def main():
 
         print('Going through:', script_to_run)
 
-        # script_lines_orig = None
         with open(script_to_run, 'r') as script_hdl:
             script_lines = script_hdl.readlines()
-
-            # script_lines_orig = [line for line in script_lines]
 
             line_idx = None
             for i, script_line in enumerate(script_lines):
@@ -66,10 +63,17 @@ def main():
             assert line_idx is not None, (
                 'Could not find a line with the required prefix!')
 
-            print(line_idx, script_lines[line_idx])
+        print('old:', line_idx, script_lines[line_idx])
+
+        spaces = script_lines[line_idx].split(line_pref)[0]
+
+        script_lines[line_idx] = f"{spaces}{line_pref}r'{sim_dir}'\n"
+
+        print('new:', line_idx, script_lines[line_idx])
 
         with open(script_to_run, 'w') as script_hdl:
-            pass
+            for script_line in script_lines:
+                script_hdl.write(script_line)
 
     return
 
