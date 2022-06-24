@@ -26,7 +26,7 @@ def main():
 
     main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'test_spcorr_47'
+    main_dir /= r'test_spcorr_66'
 
     os.chdir(main_dir)
 
@@ -185,8 +185,8 @@ def plot_cross_corrs(args):
     ax_scatt.set_xlabel('Reference')
     ax_scatt.set_ylabel('Simulated')
 
-    scatt_min -= 0.05
-    scatt_max += 0.05
+    scatt_min -= 0.05 * (scatt_max - scatt_min)
+    scatt_max += 0.05 * (scatt_max - scatt_min)
 
     plt.plot(
         [scatt_min, scatt_max],
