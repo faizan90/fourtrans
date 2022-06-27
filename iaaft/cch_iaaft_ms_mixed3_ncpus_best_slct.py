@@ -49,9 +49,9 @@ def main():
     # end_time = '2015-12-31'
     end_time = '1965-12-31'
 
-    cols = ['3470', '3465', '420', '427', '3421']
+    cols = ['3470', '3421', '420', ]  # '427', '3465']
 
-    out_dir = Path(r'test_spcorr_39')
+    out_dir = Path(r'test_spcorr_71')
 
     noise_add_flag = True
     noise_add_flag = False
@@ -140,7 +140,7 @@ def main():
     auto_spec_flag = True
     cross_spec_flag = True
 
-    # auto_spec_flag = False
+    auto_spec_flag = False
     # cross_spec_flag = False
 
     # Column with the name "ref_lab" should not be in cols.
@@ -148,7 +148,7 @@ def main():
     sim_lab = 'S'  # Put infront of each simulation number.
 
     n_repeat = len(cols) * 5000
-    max_opt_iters = int(1e0)
+    max_opt_iters = int(1e1)
 
     float_fmt = '%0.1f'
 

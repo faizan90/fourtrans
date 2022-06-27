@@ -29,7 +29,7 @@ def main():
 
     main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'test_spcorr_66'
+    main_dir /= r'test_spcorr_89'
 
     os.chdir(main_dir)
 
@@ -45,6 +45,8 @@ def main():
 
     patt_ref = 'ref'
     patt_sim = 'S*'
+
+    max_combs_to_plot = 20
 
     out_dir = main_dir
     #==========================================================================
@@ -76,6 +78,7 @@ def main():
     ref_pwr = None
 
     combs = combinations(file_labs, 2)
+    combs_ctr = 0
     for comb in combs:
         leg_flag = True
         for col in cols:
@@ -145,11 +148,17 @@ def main():
             bbox_inches='tight')
 
         plt.close()
+
+        combs_ctr += 1
+
+        if combs_ctr == max_combs_to_plot:
+            break
     #==========================================================================
+
     ref_pwr = None
-    # leg_flag = True
 
     combs = combinations(file_labs, 2)
+    combs_ctr = 0
     for comb in combs:
         leg_flag = True
         for col in cols:
@@ -219,6 +228,11 @@ def main():
             bbox_inches='tight')
 
         plt.close()
+
+        combs_ctr += 1
+
+        if combs_ctr == max_combs_to_plot:
+            break
     #==========================================================================
     return
 

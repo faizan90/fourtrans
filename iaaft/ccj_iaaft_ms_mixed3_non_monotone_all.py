@@ -21,12 +21,12 @@ import time
 import timeit
 import traceback as tb
 from pathlib import Path
-from pathos.multiprocessing import ProcessPool
 
 import numpy as np
 import pandas as pd
-from scipy.stats import rankdata
+from scipy.stats import rankdata, expon, norm
 import matplotlib.pyplot as plt; plt.ioff()
+from pathos.multiprocessing import ProcessPool
 
 DEBUG_FLAG = False
 
@@ -49,9 +49,33 @@ def main():
     # end_time = '2015-12-31'
     end_time = '1965-12-31'
 
-    cols = ['3470', '3421', '420', ]  # '427', '3465']
+    cols = [
+        '406', '411', '420', '422', '427', '1438', '1439', '1452', '2431',
+        '2446', '2477', '4408', '4427', '44603', '76121', '76179', '434', '473',
+        '475', '1470', '3421', '3465', '3470', '3498', '4428', '36056', '454',
+        '1496', '2444', '4414', '4415', '4435', '62722', '76183', '464', '465',
+        ]
 
-    out_dir = Path(r'test_spcorr_67')
+    # All valid values from 1961 to 1965.
+    # cols = [
+    #     '406', '409', '411', '420', '422', '427', '463', '1438', '1439', '1452',
+    #     '1458', '2431', '2446', '2477', '4408', '4427', '40670', '44603',
+    #     '76121', '76179', '434', '469', '473', '475', '478', '1411', '1412',
+    #     '1433', '1470', '2452', '3421', '3465', '3470', '3498', '4421', '4422',
+    #     '4428', '36056', '46358', '454', '1450', '1469', '1496', '2444', '4414',
+    #     '4415', '443', '4435', '62722', '76183', '464', '465', 'cp'
+    #    ]
+
+    # All valid values from 1961 to 2015.
+    # cols = [
+    #     '406', '411', '420', '422', '427', '1438', '1439', '1452', '2431',
+    #     '2446', '2477', '4408', '4427', '44603', '76121', '76179', '434', '473',
+    #     '475', '1470', '3421', '3465', '3470', '3498', '4428', '36056', '454',
+    #     '1496', '2444', '4414', '4415', '4435', '62722', '76183', '464', '465',
+    #     'cp'
+    #     ]
+
+    out_dir = Path(r'test_spcorr_90')
 
     noise_add_flag = True
     noise_add_flag = False
@@ -160,7 +184,7 @@ def main():
     # #     'TG5429', 'TG5559', 'TG5654', 'TG5664', 'TG5885', 'TG755', 'TG772',
     # #     'TG881']
     #
-    # out_dir = Path(r'test_spcorr_tg_03')
+    # out_dir = Path(r'test_spcorr_tg_12')
     #
     # noise_add_flag = True
     # noise_add_flag = False
@@ -168,10 +192,10 @@ def main():
     #==========================================================================
 
     n_cpus = 8
-    n_sims = 8
+    n_sims = n_cpus * 10
 
     ratio_a = 1.0  # For marginals.
-    ratio_b = 10.0  # For ranks.
+    ratio_b = 1.0  # For ranks.
 
     auto_spec_flag = True
     cross_spec_flag = True
@@ -179,13 +203,16 @@ def main():
     # auto_spec_flag = False
     # cross_spec_flag = False
 
+    take_best_flag = True
+    # take_best_flag = False
+
     # Column with the name "ref_lab" should not be in cols.
     ref_lab = 'ref'
     sim_lab = 'S'  # Put infront of each simulation number.
 
-    n_repeat = len(cols) * 10000
+    n_repeat = len(cols) * 50
 
-    float_fmt = '%0.1f'
+    float_fmt = '%0.2f'
 
     show_corrs_flag = False
     max_corr_to_show = 6
@@ -217,6 +244,24 @@ def main():
     assert np.all(np.isfinite(df_data.values))
 
     assert ref_lab not in df_data.columns
+    #==========================================================================
+
+    if False:
+        data_probs = (
+            rankdata(df_data.values, axis=0) / (df_data.shape[0] + 1.0))
+
+        data_expon = expon.ppf(data_probs, loc=50, scale=10)
+
+        df_data[:] = data_expon
+
+    if False:
+        data_probs = (
+            rankdata(df_data.values, axis=0) / (df_data.shape[0] + 1.0))
+
+        data_norm = norm.ppf(data_probs)
+
+        df_data[:] = data_norm
+    #==========================================================================
 
     df_data.to_csv(
         out_dir / f'cross_sims_{ref_lab}.csv', sep=sep, float_format=float_fmt)
@@ -239,6 +284,7 @@ def main():
          sim_idx,
          n_sims,
          sim_lab,
+         take_best_flag,
         )
         for sim_idx in range(n_sims))
     #==========================================================================
@@ -444,6 +490,7 @@ def get_sim_dict(args):
      sim_idx,
      n_sims,
      sim_lab,
+     take_best_flag,
     ) = args
     #==========================================================================
 
@@ -644,7 +691,7 @@ def get_sim_dict(args):
     sims = {cols[k]: {} for k in range(len(cols))}
     key = f'{sim_lab}{sim_idx:0{sim_zeros_str}d}'
     for k, col in enumerate(cols):
-        if True:
+        if not take_best_flag:
             value = data_rand[:, k]
 
         else:

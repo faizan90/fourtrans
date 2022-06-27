@@ -12,30 +12,43 @@ import time
 import timeit
 import traceback as tb
 from pathlib import Path
+from importlib import import_module
+
+from pathos.multiprocessing import ProcessPool
 
 DEBUG_FLAG = False
 
 
 def main():
 
+    # Has to be the directory of the scripts.
     main_dir = Path(__file__).parents[0]
     os.chdir(main_dir)
 
-    sim_dir = r'test_spcorr_67'
+    # Whatever the name. It is changed to this.
+    sim_dir = r'test_spcorr_90'
 
-    # Manual execution of each script.
     # There are scripts that require the output of the first as an input.
-    scripts_to_run = [
+    # This is specified in sequences_to_run.
+    scripts_to_run = (
         Path('daa_cmpr_props.py'),
         Path('dab_cmpr_props_ms.py'),
         Path('dac_plot_cross_corrs_combined.py'),
         Path('dba_cmpt_resampled_sers__space.py'),
-        Path('dbb_plot_resampled_sers__space.py'),
         Path('dca_cmpt_resampled_sers__time.py'),
-        Path('dcb_plot_resampled_sers__time.py'),
         Path('dea_cmpr_ann_cyc.py'),
         Path('dfa_plot_opt.py'),
-        ]
+
+        Path('dbb_plot_resampled_sers__space.py'),
+        Path('dcb_plot_resampled_sers__time.py'),
+        )
+
+    sequences_to_run = (
+        list(range(len(scripts_to_run) - 2)),
+        list(range(len(scripts_to_run) - 2, len(scripts_to_run))),
+        )
+
+    n_cpus = 8
 
     line_pref = 'main_dir /= '
     #==========================================================================
@@ -74,7 +87,43 @@ def main():
         with open(script_to_run, 'w') as script_hdl:
             for script_line in script_lines:
                 script_hdl.write(script_line)
+    #==========================================================================
 
+    n_cpus = min(len(scripts_to_run), n_cpus)
+
+    if n_cpus == 1:
+        pass
+
+    else:
+        mp_pool = ProcessPool(n_cpus)
+
+    for sequence_to_run in sequences_to_run:
+        args_gen = (
+            (main_dir, scripts_to_run[i].name) for i in sequence_to_run)
+
+        if n_cpus == 1:
+            for args in args_gen:
+                run_script(args)
+
+        else:
+            list(mp_pool.imap(run_script, args_gen, chunksize=1))
+
+    mp_pool.close()
+    mp_pool.join()
+    return
+
+
+def run_script(args):
+
+    old_cwd = os.getcwd()
+
+    module_dir, script_file_name, = args
+
+    os.chdir(module_dir)
+
+    getattr(import_module(script_file_name.rsplit('.', 1)[0]), 'main')()
+
+    os.chdir(old_cwd)
     return
 
 
