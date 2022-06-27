@@ -36,7 +36,7 @@ def main():
 
     main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'test_spcorr_89'
+    main_dir /= r'test_spcorr_ppt_32'
 
     os.chdir(main_dir)
 
@@ -343,8 +343,7 @@ def plot_cmpr_props(args):
         pwr /= ref_pwr
         # pwr /= pwr[-1]
 
-        periods = (pwr.size * 2) / (
-            np.arange(1, pwr.size + 1))
+        periods = (pwr.size * 2) / np.arange(1, pwr.size + 1)
 
         assert periods.size == pwr.shape[0]
 
@@ -425,8 +424,7 @@ def plot_cmpr_props(args):
         pwr /= ref_pwr
         # pwr /= pwr[-1]
 
-        periods = (pwr.size * 2) / (
-            np.arange(1, pwr.size + 1))
+        periods = (pwr.size * 2) / np.arange(1, pwr.size + 1)
 
         assert periods.size == pwr.shape[0]
 

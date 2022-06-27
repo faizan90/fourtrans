@@ -29,7 +29,7 @@ def main():
 
     main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'test_spcorr_89'
+    main_dir /= r'test_spcorr_ppt_32'
 
     os.chdir(main_dir)
 
@@ -233,6 +233,160 @@ def main():
 
         if combs_ctr == max_combs_to_plot:
             break
+    #==========================================================================
+
+    ref_pwr = None
+
+    for file_lab in file_labs:
+
+        leg_flag = True
+
+        print(file_lab)
+
+        data_a = in_dfs[file_lab].loc[:, patt_ref].values.copy()
+
+        for col in cols:
+
+            data_b = in_dfs[file_lab].loc[:, col].values.copy()
+
+            if fnmatch(col, patt_ref):
+                clr = clrs[0]
+
+                lab = 'ref-ref'
+
+                zorder = 2
+
+                plt_alpha = 0.6
+                lw = 3.0
+
+            else:
+                clr = clrs[1]
+
+                if leg_flag and fnmatch(col, patt_sim):
+                    leg_flag = False
+                    lab = 'ref-sim'
+
+                else:
+                    lab = None
+
+                plt_alpha = 0.35
+                lw = 2.0
+
+                zorder = 1
+
+            ft_corr, pwr_denom = get_ft_cumm_corr(data_a, data_b)
+
+            if fnmatch(col, patt_ref):
+                ref_pwr = pwr_denom
+
+            ft_corr /= ref_pwr
+
+            periods = (ft_corr.size * 2) / (
+                np.arange(1, ft_corr.size + 1))
+
+            assert periods.size == ft_corr.shape[0]
+
+            plt.semilogx(
+                periods,
+                ft_corr,
+                alpha=plt_alpha,
+                color=clr,
+                label=lab,
+                lw=lw,
+                zorder=zorder)
+
+        plt.legend()
+
+        plt.grid()
+        plt.gca().set_axisbelow(True)
+
+        plt.xlabel('Period')
+        plt.ylabel('Cummulative correlation')
+
+        plt.xlim(plt.xlim()[::-1])
+
+        plt.savefig(
+            str(out_dir / f'cmpr_cumm_pwr_margs__{file_lab}.png'),
+            bbox_inches='tight')
+
+        plt.close()
+    #==========================================================================
+
+    ref_pwr = None
+
+    for file_lab in file_labs:
+
+        leg_flag = True
+
+        print(file_lab)
+
+        data_a = rankdata(in_dfs[file_lab].loc[:, patt_ref].values)
+
+        for col in cols:
+
+            data_b = rankdata(in_dfs[file_lab].loc[:, col].values)
+
+            if fnmatch(col, patt_ref):
+                clr = clrs[0]
+
+                lab = 'ref-ref'
+
+                zorder = 2
+
+                plt_alpha = 0.6
+                lw = 3.0
+
+            else:
+                clr = clrs[1]
+
+                if leg_flag and fnmatch(col, patt_sim):
+                    leg_flag = False
+                    lab = 'ref-sim'
+
+                else:
+                    lab = None
+
+                plt_alpha = 0.35
+                lw = 2.0
+
+                zorder = 1
+
+            ft_corr, pwr_denom = get_ft_cumm_corr(data_a, data_b)
+
+            if fnmatch(col, patt_ref):
+                ref_pwr = pwr_denom
+
+            ft_corr /= ref_pwr
+
+            periods = (ft_corr.size * 2) / (
+                np.arange(1, ft_corr.size + 1))
+
+            assert periods.size == ft_corr.shape[0]
+
+            plt.semilogx(
+                periods,
+                ft_corr,
+                alpha=plt_alpha,
+                color=clr,
+                label=lab,
+                lw=lw,
+                zorder=zorder)
+
+        plt.legend()
+
+        plt.grid()
+        plt.gca().set_axisbelow(True)
+
+        plt.xlabel('Period')
+        plt.ylabel('Cummulative correlation')
+
+        plt.xlim(plt.xlim()[::-1])
+
+        plt.savefig(
+            str(out_dir / f'cmpr_cumm_pwr_ranks__{file_lab}.png'),
+            bbox_inches='tight')
+
+        plt.close()
     #==========================================================================
     return
 

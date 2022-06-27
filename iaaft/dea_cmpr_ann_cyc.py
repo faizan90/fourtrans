@@ -32,7 +32,7 @@ def main():
 
     main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'test_spcorr_89'
+    main_dir /= r'test_spcorr_ppt_32'
 
     os.chdir(main_dir)
 
@@ -56,7 +56,7 @@ def main():
 
     half_window_size = 30  # Julian days.
 
-    max_n_sims = 5
+    max_n_sims = 8
 
     out_dir = main_dir
     #==========================================================================

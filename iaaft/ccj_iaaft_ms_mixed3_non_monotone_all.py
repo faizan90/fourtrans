@@ -41,45 +41,46 @@ def main():
     # Daily discharge.
     #==========================================================================
 
-    in_data_file = Path(r'neckar_q_data_combined_20180713_10cps.csv')
-
-    sep = ';'
-
-    beg_time = '1961-01-01'
-    # end_time = '2015-12-31'
-    end_time = '1965-12-31'
-
-    cols = [
-        '406', '411', '420', '422', '427', '1438', '1439', '1452', '2431',
-        '2446', '2477', '4408', '4427', '44603', '76121', '76179', '434', '473',
-        '475', '1470', '3421', '3465', '3470', '3498', '4428', '36056', '454',
-        '1496', '2444', '4414', '4415', '4435', '62722', '76183', '464', '465',
-        ]
-
-    # All valid values from 1961 to 1965.
+    # in_data_file = Path(r'neckar_q_data_combined_20180713_10cps.csv')
+    #
+    # sep = ';'
+    #
+    # beg_time = '1961-01-01'
+    # # end_time = '2015-12-31'
+    # end_time = '1965-12-31'
+    #
     # cols = [
-    #     '406', '409', '411', '420', '422', '427', '463', '1438', '1439', '1452',
-    #     '1458', '2431', '2446', '2477', '4408', '4427', '40670', '44603',
-    #     '76121', '76179', '434', '469', '473', '475', '478', '1411', '1412',
-    #     '1433', '1470', '2452', '3421', '3465', '3470', '3498', '4421', '4422',
-    #     '4428', '36056', '46358', '454', '1450', '1469', '1496', '2444', '4414',
-    #     '4415', '443', '4435', '62722', '76183', '464', '465', 'cp'
-    #    ]
-
-    # All valid values from 1961 to 2015.
-    # cols = [
-    #     '406', '411', '420', '422', '427', '1438', '1439', '1452', '2431',
-    #     '2446', '2477', '4408', '4427', '44603', '76121', '76179', '434', '473',
-    #     '475', '1470', '3421', '3465', '3470', '3498', '4428', '36056', '454',
-    #     '1496', '2444', '4414', '4415', '4435', '62722', '76183', '464', '465',
-    #     'cp'
+    #     '406',  # '411', '420',
+    #     # '406', '411', '420', '422', '427', '1438', '1439', '1452', '2431',
+    #     # '2446', '2477', '4408', '4427', '44603', '76121', '76179', '434', '473',
+    #     # '475', '1470', '3421', '3465', '3470', '3498', '4428', '36056', '454',
+    #     # '1496', '2444', '4414', '4415', '4435', '62722', '76183', '464', '465',
     #     ]
-
-    out_dir = Path(r'test_spcorr_90')
-
-    noise_add_flag = True
-    noise_add_flag = False
-    noise_magnitude = 1e-3
+    #
+    # # All valid values from 1961 to 1965.
+    # # cols = [
+    # #     '406', '409', '411', '420', '422', '427', '463', '1438', '1439', '1452',
+    # #     '1458', '2431', '2446', '2477', '4408', '4427', '40670', '44603',
+    # #     '76121', '76179', '434', '469', '473', '475', '478', '1411', '1412',
+    # #     '1433', '1470', '2452', '3421', '3465', '3470', '3498', '4421', '4422',
+    # #     '4428', '36056', '46358', '454', '1450', '1469', '1496', '2444', '4414',
+    # #     '4415', '443', '4435', '62722', '76183', '464', '465', 'cp'
+    # #    ]
+    #
+    # # All valid values from 1961 to 2015.
+    # # cols = [
+    # #     '406', '411', '420', '422', '427', '1438', '1439', '1452', '2431',
+    # #     '2446', '2477', '4408', '4427', '44603', '76121', '76179', '434', '473',
+    # #     '475', '1470', '3421', '3465', '3470', '3498', '4428', '36056', '454',
+    # #     '1496', '2444', '4414', '4415', '4435', '62722', '76183', '464', '465',
+    # #     'cp'
+    # #     ]
+    #
+    # out_dir = Path(r'test_spcorr_96')
+    #
+    # noise_add_flag = True
+    # noise_add_flag = False
+    # noise_magnitude = 1e-3
     #==========================================================================
 
     #==========================================================================
@@ -125,12 +126,12 @@ def main():
     # beg_time = '2009-01-01'
     # end_time = '2009-12-31'
     #
-    # out_dir = Path(r'iaaft_ppt_04_no_cps_ranks_only_hourly')
+    # out_dir = Path(r'test_spcorr_ppt_04')
     #
-    # cols = ['P1176', 'P1290' , 'P13674' , 'P13698', 'P1937', 'P2159', 'P2292']  # , 'cp']
+    # cols = ['P1176']  # , 'P1290' , 'P13674' , 'P13698', 'P1937', 'P2159', 'P2292']  # , 'cp']
     #
     # noise_add_flag = True
-    # # noise_add_flag = False
+    # noise_add_flag = False
     # noise_magnitude = 1e-4
     #==========================================================================
 
@@ -138,20 +139,21 @@ def main():
     # Daily ppt.
     #==========================================================================
 
-    # in_data_file = Path(r'precipitation_bw_1961_2015_10cps.csv')
-    #
-    # sep = ';'
-    #
-    # beg_time = '1961-01-01'
+    in_data_file = Path(r'precipitation_bw_1961_2015_10cps.csv')
+
+    sep = ';'
+
+    beg_time = '1961-01-01'
     # end_time = '2015-12-31'
-    #
-    # out_dir = Path(r'iaaft_ppt_12_no_cps_5_1_daily_noise')
-    #
-    # cols = ['P1162', 'P1197']  # , 'cp']
-    #
-    # noise_add_flag = True
-    # # noise_add_flag = False
-    # noise_magnitude = 1e-3
+    end_time = '1965-12-31'
+
+    out_dir = Path(r'test_spcorr_ppt_32')
+
+    cols = ['P1162', 'P1197']  # , 'cp']
+
+    noise_add_flag = True
+    noise_add_flag = False
+    noise_magnitude = 1e-3
     #==========================================================================
 
     #==========================================================================
@@ -166,7 +168,7 @@ def main():
     # # end_time = '2015-12-31'
     # end_time = '1965-12-31'
     #
-    # cols = ['TG1197', 'TG3257', 'TG330', 'TG3402', 'TG3621']
+    # cols = ['TG1197']  # , 'TG3257', 'TG330']  # , 'TG3402', 'TG3621']
     #
     # # All valid from 1961 to 2015.
     # # cols = [
@@ -184,7 +186,7 @@ def main():
     # #     'TG5429', 'TG5559', 'TG5654', 'TG5664', 'TG5885', 'TG755', 'TG772',
     # #     'TG881']
     #
-    # out_dir = Path(r'test_spcorr_tg_12')
+    # out_dir = Path(r'test_spcorr_tg_21')
     #
     # noise_add_flag = True
     # noise_add_flag = False
@@ -192,10 +194,10 @@ def main():
     #==========================================================================
 
     n_cpus = 8
-    n_sims = n_cpus * 10
+    n_sims = n_cpus * 1
 
     ratio_a = 1.0  # For marginals.
-    ratio_b = 1.0  # For ranks.
+    ratio_b = 0.0  # For ranks.
 
     auto_spec_flag = True
     cross_spec_flag = True
@@ -204,13 +206,17 @@ def main():
     # cross_spec_flag = False
 
     take_best_flag = True
-    # take_best_flag = False
+    take_best_flag = False
+
+    # All frequencies with periods longer than and equal to this are kept.
+    keep_period = None
+    keep_period = 90
 
     # Column with the name "ref_lab" should not be in cols.
     ref_lab = 'ref'
     sim_lab = 'S'  # Put infront of each simulation number.
 
-    n_repeat = len(cols) * 50
+    n_repeat = len(cols) * 1000
 
     float_fmt = '%0.2f'
 
@@ -220,6 +226,10 @@ def main():
 
     assert n_sims > 0, n_sims
     assert n_cpus > 0, n_cpus
+
+    if take_best_flag:
+        assert cross_spec_flag, (
+            'cross_spec_flag should be True for take_best_flag!')
 
     assert ref_lab not in cols, cols
 
@@ -244,6 +254,12 @@ def main():
     assert np.all(np.isfinite(df_data.values))
 
     assert ref_lab not in df_data.columns
+
+    if cross_spec_flag:
+        assert df_data.shape[1] >= 2
+
+    assert np.unique(df_data.columns).size == df_data.shape[1]
+    assert np.unique(df_data.index).size == df_data.shape[0]
     #==========================================================================
 
     if False:
@@ -271,7 +287,8 @@ def main():
     time_index = df_data.index.copy()
     #==========================================================================
 
-    ref_data_cls = get_ts_data_cls(data, noise_add_flag, noise_magnitude)
+    ref_data_cls = get_ts_data_cls(
+        data, noise_add_flag, noise_magnitude, keep_period)
 
     args_gen = (
         (ref_data_cls,
@@ -407,7 +424,9 @@ class Data:
         return
 
 
-def get_ts_data_cls(data, noise_add_flag, noise_magnitude):
+def get_ts_data_cls(data, noise_add_flag, noise_magnitude, keep_period):
+
+    assert not (data.shape[0] % 2), data.shape[0]
 
     data_cls = Data()
     #==========================================================================
@@ -460,20 +479,38 @@ def get_ts_data_cls(data, noise_add_flag, noise_magnitude):
     data_cls.scorrs = np.corrcoef(rankdata(data, axis=0), rowvar=False)
     #==========================================================================
 
+    if keep_period is not None:
+        periods = (ft.shape[0] * 2) / (np.arange(1.0, ft.shape[0] + 1.0))
+
+        keep_period_flags = periods >= keep_period
+
+        assert periods.size == ft.shape[0], (periods.size, ft.shape[0])
+
+        assert periods[+1] == ft.shape[0], periods[+1]
+        assert periods[-1] == 2, periods[-1]
+
+    else:
+        keep_period_flags = None
+
+    data_cls.keep_period_flags = keep_period_flags
+    #==========================================================================
+
     return data_cls
 
 
-def get_obj_val(ref_data_cls, sim_data):
+def get_obj_val(ref_data_cls, sim_data, ratio_a, ratio_b):
 
     obj_val = 0.0
 
-    obj_val += (
-        (ref_data_cls.pcorrs -
-         np.corrcoef(sim_data, rowvar=False)) ** 2).sum()
+    if ratio_a:
+        obj_val += ratio_a * (
+            (ref_data_cls.pcorrs -
+             np.corrcoef(sim_data, rowvar=False)) ** 2).sum()
 
-    obj_val += (
-        (ref_data_cls.scorrs -
-         np.corrcoef(rankdata(sim_data, axis=0), rowvar=False)) ** 2).sum()
+    if ratio_b:
+        obj_val += ratio_b * (
+            (ref_data_cls.scorrs -
+             np.corrcoef(rankdata(sim_data, axis=0), rowvar=False)) ** 2).sum()
 
     return obj_val
 
@@ -495,10 +532,16 @@ def get_sim_dict(args):
     #==========================================================================
 
     assert any([ratio_a, ratio_b])
-    # assert any([auto_spec_flag, cross_spec_flag])
+    assert any([auto_spec_flag, cross_spec_flag])
+
+    if take_best_flag:
+        assert cross_spec_flag
     #==========================================================================
 
     data = ref_data_cls.data
+
+    if cross_spec_flag:
+        assert data.shape[1] >= 2
 
     # ref_ft = ref_data_cls.ft
     ref_phs = ref_data_cls.phss
@@ -509,6 +552,8 @@ def get_sim_dict(args):
     ref_mag_ranks = ref_data_cls.mags_ranks
 
     data_sort = ref_data_cls.data_sort
+
+    keep_period_flags = ref_data_cls.keep_period_flags
     #==========================================================================
 
     sim_zeros_str = len(str(n_sims))
@@ -524,7 +569,7 @@ def get_sim_dict(args):
     #==========================================================================
 
     # For the cross case only.
-    obj_val_global_min = get_obj_val(ref_data_cls, data_rand)
+    obj_val_global_min = get_obj_val(ref_data_cls, data_rand, ratio_a, ratio_b)
     data_best = data_rand.copy()
     i_data_best = -1
 
@@ -533,16 +578,25 @@ def get_sim_dict(args):
 
     stn_ctr = 0
     for i_repeat in range(n_repeat):
+
+        if ratio_a:
+            sim_ft_margs = np.fft.rfft(data_rand, axis=0)
+
+        if ratio_b:
+            sim_ft_ranks = np.fft.rfft(rankdata(data_rand, axis=0), axis=0)
+
         # Marginals auto.
         if ratio_a and auto_spec_flag:
-            sim_ft = np.fft.rfft(data_rand, axis=0)
+            sim_phs_margs = np.angle(sim_ft_margs)
 
-            sim_phs = np.angle(sim_ft)
+            if keep_period_flags is not None:
+                sim_phs_margs[keep_period_flags,:] = (
+                    ref_phs[keep_period_flags,:])
 
-            sim_ft_new = np.empty_like(sim_ft)
+            sim_ft_new = np.empty_like(sim_ft_margs)
 
-            sim_ft_new.real[:] = np.cos(sim_phs) * ref_mag
-            sim_ft_new.imag[:] = np.sin(sim_phs) * ref_mag
+            sim_ft_new.real[:] = np.cos(sim_phs_margs) * ref_mag
+            sim_ft_new.imag[:] = np.sin(sim_phs_margs) * ref_mag
 
             sim_ft_new[0,:] = 0
 
@@ -556,6 +610,7 @@ def get_sim_dict(args):
             for k in range(len(cols)):
                 sim_ift_a_auto[:, k] = data_sort[order_new_a[:, k], k]
 
+            sim_ift_a_auto -= sim_ift_a_auto.mean(axis=0)
             sim_ift_a_auto /= sim_ift_a_auto.std(axis=0)
 
         else:
@@ -563,11 +618,13 @@ def get_sim_dict(args):
 
         # Ranks auto.
         if ratio_b and auto_spec_flag:
-            sim_ft = np.fft.rfft(rankdata(data_rand, axis=0), axis=0)
+            sim_phs = np.angle(sim_ft_ranks)
 
-            sim_phs = np.angle(sim_ft)
+            if keep_period_flags is not None:
+                sim_phs[keep_period_flags,:] = (
+                    ref_phs_ranks[keep_period_flags,:])
 
-            sim_ft_new = np.empty_like(sim_ft)
+            sim_ft_new = np.empty_like(sim_ft_ranks)
 
             sim_ft_new.real[:] = np.cos(sim_phs) * ref_mag_ranks
             sim_ft_new.imag[:] = np.sin(sim_phs) * ref_mag_ranks
@@ -576,6 +633,7 @@ def get_sim_dict(args):
 
             sim_ift_b_auto = np.fft.irfft(sim_ft_new, axis=0)
             sim_ift_b_auto = rankdata(sim_ift_b_auto, axis=0)
+            sim_ift_b_auto -= sim_ift_b_auto.mean(axis=0)
             sim_ift_b_auto /= sim_ift_b_auto.std(axis=0)
 
         else:
@@ -584,18 +642,20 @@ def get_sim_dict(args):
 
         # Marginals cross.
         if ratio_a and cross_spec_flag:
-            sim_ft = np.fft.rfft(data_rand, axis=0)
-
-            sim_mag = np.abs(sim_ft)
+            sim_mag = np.abs(sim_ft_margs)
 
             sim_phs = (
-                np.angle(sim_ft[:, [stn_ctr]]) +
+                np.angle(sim_ft_margs[:, [stn_ctr]]) +
                 ref_phs -
                 ref_phs[:, [stn_ctr]])
 
             sim_phs[0,:] = ref_phs[0,:]
 
-            sim_ft_new = np.empty_like(sim_ft)
+            if keep_period_flags is not None:
+                sim_phs[keep_period_flags,:] = ref_phs[keep_period_flags,:]
+                sim_mag[keep_period_flags,:] = ref_mag[keep_period_flags,:]
+
+            sim_ft_new = np.empty_like(sim_ft_margs)
 
             sim_ft_new.real[:] = np.cos(sim_phs) * sim_mag
             sim_ft_new.imag[:] = np.sin(sim_phs) * sim_mag
@@ -612,6 +672,7 @@ def get_sim_dict(args):
             for k in range(len(cols)):
                 sim_ift_a_cross[:, k] = data_sort[order_new_a[:, k], k]
 
+            sim_ift_a_cross -= sim_ift_a_cross.mean(axis=0)
             sim_ift_a_cross /= sim_ift_a_cross.std(axis=0)
 
         else:
@@ -619,18 +680,23 @@ def get_sim_dict(args):
 
         # Ranks cross.
         if ratio_b and cross_spec_flag:
-            sim_ft = np.fft.rfft(rankdata(data_rand, axis=0), axis=0)
-
-            sim_mag = np.abs(sim_ft)
+            sim_mag = np.abs(sim_ft_ranks)
 
             sim_phs = (
-                np.angle(sim_ft[:, [stn_ctr]]) +
+                np.angle(sim_ft_ranks[:, [stn_ctr]]) +
                 ref_phs_ranks -
                 ref_phs_ranks[:, [stn_ctr]])
 
             sim_phs[0,:] = ref_phs_ranks[0,:]
 
-            sim_ft_new = np.empty_like(sim_ft)
+            if keep_period_flags is not None:
+                sim_phs[keep_period_flags,:] = (
+                    ref_phs_ranks[keep_period_flags,:])
+
+                sim_mag[keep_period_flags,:] = ref_mag_ranks[
+                    keep_period_flags,:]
+
+            sim_ft_new = np.empty_like(sim_ft_ranks)
 
             sim_ft_new.real[:] = np.cos(sim_phs) * sim_mag
             sim_ft_new.imag[:] = np.sin(sim_phs) * sim_mag
@@ -639,6 +705,7 @@ def get_sim_dict(args):
 
             sim_ift_b_cross = np.fft.irfft(sim_ft_new, axis=0)
             sim_ift_b_cross = rankdata(sim_ift_b_cross, axis=0)
+            sim_ift_b_cross -= sim_ift_b_cross.mean(axis=0)
             sim_ift_b_cross /= sim_ift_b_cross.std(axis=0)
 
         else:
@@ -657,7 +724,11 @@ def get_sim_dict(args):
         for k in range(len(cols)):
             order_new[:, k] = np.argsort(np.argsort(sim_ift[:, k]))
 
-        order_sdiff = ((order_old - order_new) ** 2).sum()
+        order_sdiff = (
+            (order_old.astype(float) - order_new.astype(float)) ** 2).sum()
+
+        # Casting may create problems.
+        assert order_sdiff >= 0, order_sdiff
 
         order_sdiffs[i_repeat] = order_sdiff
 
@@ -667,20 +738,20 @@ def get_sim_dict(args):
         order_old = order_new
 
         data_rand = np.empty_like(data)
-
         for k in range(len(cols)):
             data_rand[:, k] = data_sort[order_old[:, k], k]
         #======================================================================
 
-        obj_val = get_obj_val(ref_data_cls, data_rand)
+        if cross_spec_flag:
+            obj_val = get_obj_val(ref_data_cls, data_rand, ratio_a, ratio_b)
 
-        obj_vals[i_repeat] = obj_val
+            obj_vals[i_repeat] = obj_val
 
-        if obj_val < obj_val_global_min:
-            obj_val_global_min = obj_val
+            if obj_val < obj_val_global_min:
+                obj_val_global_min = obj_val
 
-            data_best = data_rand.copy()
-            i_data_best = i_repeat
+                data_best = data_rand.copy()
+                i_data_best = i_repeat
         #======================================================================
 
         stn_ctr += 1

@@ -26,7 +26,7 @@ def main():
     os.chdir(main_dir)
 
     # Whatever the name. It is changed to this.
-    sim_dir = r'test_spcorr_90'
+    sim_dir = r'test_spcorr_ppt_32'
 
     # There are scripts that require the output of the first as an input.
     # This is specified in sequences_to_run.
@@ -69,7 +69,7 @@ def main():
 
                     if line_idx is not None:
                         raise AssertionError(
-                            f'Found more than one line with same prefix!')
+                            f'Found more than one line with the same prefix!')
 
                     line_idx = i
 

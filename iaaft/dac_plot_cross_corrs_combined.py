@@ -26,7 +26,7 @@ def main():
 
     main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'test_spcorr_89'
+    main_dir /= r'test_spcorr_ppt_32'
 
     os.chdir(main_dir)
 
@@ -51,6 +51,10 @@ def main():
 
     ref_df = pd.read_csv(
         data_dir / r'cross_sims_ref.csv', sep=sep, index_col=0)
+
+    if ref_df.shape[1] < 2:
+        print('No cross correlations for only one time series!')
+        return
 
     sim_dfs = []
     for sim_file in data_dir.glob(rf'./cross_sims_{sims_lab}*.csv'):
