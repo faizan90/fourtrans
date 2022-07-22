@@ -32,7 +32,7 @@ def main():
 
     main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'test_spcorr_ppt_32'
+    main_dir /= r'holy_grail_2_02'
 
     os.chdir(main_dir)
 
@@ -56,7 +56,7 @@ def main():
 
     half_window_size = 30  # Julian days.
 
-    max_n_sims = 8
+    max_n_sims = int(1e3)
 
     out_dir = main_dir
     #==========================================================================
@@ -152,7 +152,7 @@ def main():
         plt.legend()
 
         plt.xlabel('Time')
-        plt.ylabel('Smoothed Precipitation')
+        plt.ylabel('Smoothed variable')
 
         out_fig_path = str(
             out_dir /

@@ -42,21 +42,21 @@ def main():
     # Daily discharge.
     #==========================================================================
 
-    in_data_file = Path(r'neckar_q_data_combined_20180713_10cps.csv')
-
-    sep = ';'
-
-    beg_time = '1961-01-01'
-    end_time = '2015-12-31'
-    # end_time = '1970-12-31'
-
-    cols = ['420', '427', '3470' , '3465', '3421', 'cp']
-
-    out_dir = Path(r'discharge_with_cps_5_1_daily_01_more_max_iters')
-
-    noise_add_flag = True
-    noise_add_flag = False
-    noise_magnitude = 1e-3
+    # in_data_file = Path(r'neckar_q_data_combined_20180713_10cps.csv')
+    #
+    # sep = ';'
+    #
+    # beg_time = '1961-01-01'
+    # end_time = '2015-12-31'
+    # # end_time = '1970-12-31'
+    #
+    # cols = ['420', '427', '3470' , '3465', '3421', 'cp']
+    #
+    # out_dir = Path(r'discharge_with_cps_5_1_daily_01_more_max_iters')
+    #
+    # noise_add_flag = True
+    # noise_add_flag = False
+    # noise_magnitude = 1e-3
     #==========================================================================
 
     #==========================================================================
@@ -115,41 +115,41 @@ def main():
     # Daily ppt.
     #==========================================================================
 
-    # in_data_file = Path(r'precipitation_bw_1961_2015_10cps.csv')
-    #
-    # sep = ';'
-    #
-    # beg_time = '1961-01-01'
-    # end_time = '2015-12-31'
-    #
-    # out_dir = Path(r'iaaft_ppt_12_no_cps_5_1_daily_noise')
-    #
-    # cols = ['P1162', 'P1197']  # , 'cp']
-    #
-    # noise_add_flag = True
-    # # noise_add_flag = False
-    # noise_magnitude = 1e-3
+    in_data_file = Path(r'precipitation_bw_1961_2015_10cps.csv')
+
+    sep = ';'
+
+    beg_time = '1961-01-01'
+    end_time = '1965-12-31'
+
+    out_dir = Path(r'test_spcorr_ppt_07')
+
+    cols = ['P1162', 'P1197']  # , 'cp']
+
+    noise_add_flag = True
+    # noise_add_flag = False
+    noise_magnitude = 1e-3
     #==========================================================================
 
     n_cpus = 8
 
     n_sims = 8 * 4
 
-    ratio_a = 5.0  # For marginals.
-    ratio_b = 1.0  # For ranks.
+    ratio_a = 1.0  # For marginals.
+    ratio_b = 0.0  # For ranks.
 
     auto_spec_flag = True
     cross_spec_flag = True
 
-    # auto_spec_flag = False
+    auto_spec_flag = False
     # cross_spec_flag = False
 
     # Column with the name "ref_lab" should not be in cols.
     ref_lab = 'ref'
     sim_lab = 'S'  # Put infront of each simulation number.
 
-    n_repeat = 3
-    max_opt_iters = int(1e3)
+    n_repeat = 50
+    max_opt_iters = int(1e1)
 
     float_fmt = '%0.1f'
 

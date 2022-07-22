@@ -16,14 +16,14 @@ from fnmatch import fnmatch
 
 import numpy as np
 import pandas as pd
-from scipy.stats import rankdata
+# from scipy.stats import rankdata
 import matplotlib.pyplot as plt; plt.ioff()
 
 from fcopulas import (
-    get_asymms_sample,
+    # get_asymms_sample,
     fill_bi_var_cop_dens,
-    get_asymm_1_max,
-    get_asymm_2_max,
+    # get_asymm_1_max,
+    # get_asymm_2_max,
     get_etpy_min,
     get_etpy_max,)
 
@@ -73,12 +73,12 @@ def main():
 
         file_suff = in_file.stem.split('auto_sims_')[1]
 
-        out_fig_name_pecop = str(out_dir / f'auto_props_{file_suff}.png')
+        out_fig_name_pecop = str(out_dir / f'auto_props_asymm_margs_{file_suff}.png')
 
-        out_fig_name_pwr = str(out_dir / f'auto_cumm_pwr_margs_{file_suff}.png')
-
-        out_fig_name_pwr_ranks = str(
-            out_dir / f'auto_cumm_pwr_ranks_{file_suff}.png')
+        # out_fig_name_pwr = str(out_dir / f'auto_cumm_pwr_margs_{file_suff}.png')
+        #
+        # out_fig_name_pwr_ranks = str(
+        #     out_dir / f'auto_cumm_pwr_ranks_{file_suff}.png')
 
         args = (
             prms_dict,
@@ -88,8 +88,8 @@ def main():
             patt_sim,
             lag_steps,
             out_fig_name_pecop,
-            out_fig_name_pwr,
-            out_fig_name_pwr_ranks,
+            # out_fig_name_pwr,
+            # out_fig_name_pwr_ranks,
             )
 
         plot_cmpr_props(args)
@@ -106,8 +106,8 @@ def plot_cmpr_props(args):
      patt_sim,
      lag_steps,
      out_fig_name_pecop,
-     out_fig_name_pwr,
-     out_fig_name_pwr_ranks,
+     # out_fig_name_pwr,
+     # out_fig_name_pwr_ranks,
      ) = args
 
     set_mpl_prms(prms_dict)
@@ -175,11 +175,13 @@ def plot_cmpr_props(args):
             scorrs.append(scorr)
 
             # asymms.
-            asymm_1, asymm_2 = get_asymms_sample(probs_i, rolled_probs_i)
+            # asymm_1, asymm_2 = get_asymms_sample(probs_i, rolled_probs_i)
+            # asymm_1 /= get_asymm_1_max(scorr)
+            # asymm_2 /= get_asymm_2_max(scorr)
 
-            asymm_1 /= get_asymm_1_max(scorr)
-
-            asymm_2 /= get_asymm_2_max(scorr)
+            asymm_1, asymm_2 = get_asymms_sample(data_i, rolled_data_i)
+            asymm_1 /= get_asymm_1_max(data_i, rolled_data_i)
+            asymm_2 /= get_asymm_2_max(data_i, rolled_data_i)
 
             asymms_1.append(asymm_1)
             asymms_2.append(asymm_2)
@@ -288,169 +290,212 @@ def plot_cmpr_props(args):
     plt.savefig(out_fig_name_pecop, bbox_inches='tight')
     plt.close()
     #==========================================================================
-
-    # Marginals.
-    ref_pwr = None
-    leg_flag = True
-    for i in range(in_df.shape[1]):
-        data = in_df.iloc[:, i].values.copy()
-
-        # if i not in (0, 3, 5):
-        #     continue
-
-        if (fnmatch(in_df.columns[i], patt_ref) or
-            fnmatch(in_df.columns[i], patt_sim)):
-
-            pass
-
-        else:
-            continue
-
-        if fnmatch(in_df.columns[i], patt_ref):
-            clr = clrs[0]
-
-            lab = 'ref'
-
-            zorder = 2
-
-            plt_alpha = 0.6
-            lw = 3.0
-
-        else:
-            clr = clrs[1]
-
-            if leg_flag and fnmatch(in_df.columns[i], patt_sim):
-                leg_flag = False
-                lab = 'sim'
-
-            else:
-                lab = None
-
-            plt_alpha = 0.35
-            lw = 2.0
-
-            zorder = 1
-
-        ft = np.fft.rfft(data)[1:]
-
-        pwr = np.abs(ft) ** 2
-
-        pwr = pwr.cumsum()
-
-        if fnmatch(in_df.columns[i], patt_ref):
-            ref_pwr = pwr[-1]
-
-        pwr /= ref_pwr
-        # pwr /= pwr[-1]
-
-        periods = (pwr.size * 2) / np.arange(1, pwr.size + 1)
-
-        assert periods.size == pwr.shape[0]
-
-        plt.semilogx(
-            periods,
-            pwr,
-            alpha=plt_alpha,
-            color=clr,
-            label=lab,
-            lw=lw,
-            zorder=zorder)
-
-    plt.legend()
-
-    plt.grid()
-    plt.gca().set_axisbelow(True)
-
-    plt.xlabel('Period')
-    plt.ylabel('Cummulative power')
-
-    plt.xlim(plt.xlim()[::-1])
-
-    plt.savefig(out_fig_name_pwr, bbox_inches='tight')
-    plt.close()
-    #==========================================================================
-
-    # CDF.
-    ref_pwr = None
-    leg_flag = True
-    for i in range(in_df.shape[1]):
-        data = rankdata(in_df.iloc[:, i].values)
-
-        # if i not in (0, 3, 5):
-        #     continue
-
-        if (fnmatch(in_df.columns[i], patt_ref) or
-            fnmatch(in_df.columns[i], patt_sim)):
-
-            pass
-
-        else:
-            continue
-
-        if fnmatch(in_df.columns[i], patt_ref):
-            clr = clrs[0]
-
-            lab = 'ref'
-
-            zorder = 2
-
-            plt_alpha = 0.6
-            lw = 3.0
-
-        else:
-            clr = clrs[1]
-
-            if leg_flag and fnmatch(in_df.columns[i], patt_sim):
-                leg_flag = False
-                lab = 'sim'
-
-            else:
-                lab = None
-
-            plt_alpha = 0.35
-            lw = 2.0
-
-            zorder = 1
-
-        ft = np.fft.rfft(data)[1:]
-
-        pwr = np.abs(ft) ** 2
-
-        pwr = pwr.cumsum()
-
-        if fnmatch(in_df.columns[i], patt_ref):
-            ref_pwr = pwr[-1]
-
-        pwr /= ref_pwr
-        # pwr /= pwr[-1]
-
-        periods = (pwr.size * 2) / np.arange(1, pwr.size + 1)
-
-        assert periods.size == pwr.shape[0]
-
-        plt.semilogx(
-            periods,
-            pwr,
-            alpha=plt_alpha,
-            color=clr,
-            label=lab,
-            lw=lw,
-            zorder=zorder)
-
-    plt.legend()
-
-    plt.grid()
-    plt.gca().set_axisbelow(True)
-
-    plt.xlabel('Period')
-    plt.ylabel('Cummulative power (ranks)')
-
-    plt.xlim(plt.xlim()[::-1])
-
-    plt.savefig(out_fig_name_pwr_ranks, bbox_inches='tight')
-    plt.close()
+    #
+    # # Marginals.
+    # ref_pwr = None
+    # leg_flag = True
+    # for i in range(in_df.shape[1]):
+    #     data = in_df.iloc[:, i].values.copy()
+    #
+    #     # if i not in (0, 3, 5):
+    #     #     continue
+    #
+    #     if (fnmatch(in_df.columns[i], patt_ref) or
+    #         fnmatch(in_df.columns[i], patt_sim)):
+    #
+    #         pass
+    #
+    #     else:
+    #         continue
+    #
+    #     if fnmatch(in_df.columns[i], patt_ref):
+    #         clr = clrs[0]
+    #
+    #         lab = 'ref'
+    #
+    #         zorder = 2
+    #
+    #         plt_alpha = 0.6
+    #         lw = 3.0
+    #
+    #     else:
+    #         clr = clrs[1]
+    #
+    #         if leg_flag and fnmatch(in_df.columns[i], patt_sim):
+    #             leg_flag = False
+    #             lab = 'sim'
+    #
+    #         else:
+    #             lab = None
+    #
+    #         plt_alpha = 0.35
+    #         lw = 2.0
+    #
+    #         zorder = 1
+    #
+    #     ft = np.fft.rfft(data)[1:]
+    #
+    #     pwr = np.abs(ft) ** 2
+    #
+    #     pwr = pwr.cumsum()
+    #
+    #     if fnmatch(in_df.columns[i], patt_ref):
+    #         ref_pwr = pwr[-1]
+    #
+    #     pwr /= ref_pwr
+    #     # pwr /= pwr[-1]
+    #
+    #     periods = (pwr.size * 2) / np.arange(1, pwr.size + 1)
+    #
+    #     assert periods.size == pwr.shape[0]
+    #
+    #     plt.semilogx(
+    #         periods,
+    #         pwr,
+    #         alpha=plt_alpha,
+    #         color=clr,
+    #         label=lab,
+    #         lw=lw,
+    #         zorder=zorder)
+    #
+    # plt.legend()
+    #
+    # plt.grid()
+    # plt.gca().set_axisbelow(True)
+    #
+    # plt.xlabel('Period')
+    # plt.ylabel('Cummulative power')
+    #
+    # plt.xlim(plt.xlim()[::-1])
+    #
+    # plt.savefig(out_fig_name_pwr, bbox_inches='tight')
+    # plt.close()
+    # #==========================================================================
+    #
+    # # CDF.
+    # ref_pwr = None
+    # leg_flag = True
+    # for i in range(in_df.shape[1]):
+    #     data = rankdata(in_df.iloc[:, i].values)
+    #
+    #     # if i not in (0, 3, 5):
+    #     #     continue
+    #
+    #     if (fnmatch(in_df.columns[i], patt_ref) or
+    #         fnmatch(in_df.columns[i], patt_sim)):
+    #
+    #         pass
+    #
+    #     else:
+    #         continue
+    #
+    #     if fnmatch(in_df.columns[i], patt_ref):
+    #         clr = clrs[0]
+    #
+    #         lab = 'ref'
+    #
+    #         zorder = 2
+    #
+    #         plt_alpha = 0.6
+    #         lw = 3.0
+    #
+    #     else:
+    #         clr = clrs[1]
+    #
+    #         if leg_flag and fnmatch(in_df.columns[i], patt_sim):
+    #             leg_flag = False
+    #             lab = 'sim'
+    #
+    #         else:
+    #             lab = None
+    #
+    #         plt_alpha = 0.35
+    #         lw = 2.0
+    #
+    #         zorder = 1
+    #
+    #     ft = np.fft.rfft(data)[1:]
+    #
+    #     pwr = np.abs(ft) ** 2
+    #
+    #     pwr = pwr.cumsum()
+    #
+    #     if fnmatch(in_df.columns[i], patt_ref):
+    #         ref_pwr = pwr[-1]
+    #
+    #     pwr /= ref_pwr
+    #     # pwr /= pwr[-1]
+    #
+    #     periods = (pwr.size * 2) / np.arange(1, pwr.size + 1)
+    #
+    #     assert periods.size == pwr.shape[0]
+    #
+    #     plt.semilogx(
+    #         periods,
+    #         pwr,
+    #         alpha=plt_alpha,
+    #         color=clr,
+    #         label=lab,
+    #         lw=lw,
+    #         zorder=zorder)
+    #
+    # plt.legend()
+    #
+    # plt.grid()
+    # plt.gca().set_axisbelow(True)
+    #
+    # plt.xlabel('Period')
+    # plt.ylabel('Cummulative power (ranks)')
+    #
+    # plt.xlim(plt.xlim()[::-1])
+    #
+    # plt.savefig(out_fig_name_pwr_ranks, bbox_inches='tight')
+    # plt.close()
 
     return
+
+
+def get_asymms_sample(u, v):
+
+    n_vals = u.shape[0]
+
+    # max_u = max((v.mean(),))  # u.max(),
+    max_u = np.median(v)
+
+    asymm_1 = ((u + v - max_u) ** 3.0).sum()
+    asymm_2 = ((u - v) ** 3.0).sum()
+
+    asymm_1 = asymm_1 / n_vals
+    asymm_2 = asymm_2 / n_vals
+    return asymm_1, asymm_2
+
+
+def get_asymm_1_max(data_a, data_b):
+
+    std_prod = data_a.std() * data_b.std()
+
+    covar = np.cov(data_a, data_b)[0, 1]
+
+    asymm_1_max = (
+        0.5 *
+        (std_prod - covar) *
+        (std_prod - (0.5 * (std_prod - covar)) ** (1.0 / 3.0)))
+
+    return asymm_1_max
+
+
+def get_asymm_2_max(data_a, data_b):
+
+    std_prod = data_a.std() * data_b.std()
+
+    covar = np.cov(data_a, data_b)[0, 1]
+
+    asymm_2_max = (
+        0.5 *
+        (std_prod + covar) *
+        (std_prod - (0.5 * (std_prod + covar)) ** (1.0 / 3.0)))
+
+    return asymm_2_max
 
 
 if __name__ == '__main__':

@@ -26,7 +26,7 @@ def main():
     os.chdir(main_dir)
 
     # Whatever the name. It is changed to this.
-    sim_dir = r'test_spcorr_ppt_32'
+    sim_dir = r'holy_grail_2_02'
 
     # There are scripts that require the output of the first as an input.
     # This is specified in sequences_to_run.
@@ -34,6 +34,8 @@ def main():
         Path('daa_cmpr_props.py'),
         Path('dab_cmpr_props_ms.py'),
         Path('dac_plot_cross_corrs_combined.py'),
+        Path('dad_plot_cross_asymms_combined.py'),
+        Path('dae_cmpr_props_asymms_marginals.py'),
         Path('dba_cmpt_resampled_sers__space.py'),
         Path('dca_cmpt_resampled_sers__time.py'),
         Path('dea_cmpr_ann_cyc.py'),

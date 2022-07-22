@@ -21,12 +21,18 @@ import time
 import timeit
 import traceback as tb
 from pathlib import Path
+from itertools import combinations
 
 import numpy as np
 import pandas as pd
 from scipy.stats import rankdata, expon, norm
 import matplotlib.pyplot as plt; plt.ioff()
 from pathos.multiprocessing import ProcessPool
+
+from fcopulas import (
+    get_asymms_sample, get_asymm_1_max, get_asymm_2_max)
+
+from zb_cmn_ftns_plot import roll_real_2arrs_with_nan
 
 DEBUG_FLAG = False
 
@@ -46,11 +52,12 @@ def main():
     # sep = ';'
     #
     # beg_time = '1961-01-01'
-    # # end_time = '2015-12-31'
-    # end_time = '1965-12-31'
+    # end_time = '2015-12-31'
+    # # end_time = '1965-12-31'
     #
     # cols = [
-    #     '406',  # '411', '420',
+    #     '4408'
+    #     # '406', '411',  # '420',
     #     # '406', '411', '420', '422', '427', '1438', '1439', '1452', '2431',
     #     # '2446', '2477', '4408', '4427', '44603', '76121', '76179', '434', '473',
     #     # '475', '1470', '3421', '3465', '3470', '3498', '4428', '36056', '454',
@@ -76,7 +83,7 @@ def main():
     # #     'cp'
     # #     ]
     #
-    # out_dir = Path(r'test_spcorr_96')
+    # out_dir = Path(r'test_daily_dis_13')
     #
     # noise_add_flag = True
     # noise_add_flag = False
@@ -139,21 +146,21 @@ def main():
     # Daily ppt.
     #==========================================================================
 
-    in_data_file = Path(r'precipitation_bw_1961_2015_10cps.csv')
-
-    sep = ';'
-
-    beg_time = '1961-01-01'
-    # end_time = '2015-12-31'
-    end_time = '1965-12-31'
-
-    out_dir = Path(r'test_spcorr_ppt_32')
-
-    cols = ['P1162', 'P1197']  # , 'cp']
-
-    noise_add_flag = True
-    noise_add_flag = False
-    noise_magnitude = 1e-3
+    # in_data_file = Path(r'precipitation_bw_1961_2015_10cps.csv')
+    #
+    # sep = ';'
+    #
+    # beg_time = '1961-01-01'
+    # # end_time = '2015-12-31'
+    # end_time = '1965-12-31'
+    #
+    # out_dir = Path(r'test_spcorr_ppt_19')
+    #
+    # cols = ['P1162', 'P1197']  # , 'cp']
+    #
+    # noise_add_flag = True
+    # noise_add_flag = False
+    # noise_magnitude = 1e-3
     #==========================================================================
 
     #==========================================================================
@@ -193,11 +200,30 @@ def main():
     # noise_magnitude = 1e-3
     #==========================================================================
 
+    #==========================================================================
+    #    Daily HBV sim
+    #==========================================================================
+    in_data_file = Path(r'hbv_sim__1963_2015_2.csv')
+
+    cols = 'prec;pet;temp;q_sim'.split(';')
+
+    sep = ';'
+
+    beg_time = '1996-01-01'
+    end_time = '2000-12-31'
+
+    out_dir = Path(r'holy_grail_2_02')
+
+    noise_add_flag = True
+    noise_add_flag = False
+    noise_magnitude = 1e-3
+    #==========================================================================
+
     n_cpus = 8
-    n_sims = n_cpus * 1
+    n_sims = n_cpus * 4
 
     ratio_a = 1.0  # For marginals.
-    ratio_b = 0.0  # For ranks.
+    ratio_b = 1.0  # For ranks.
 
     auto_spec_flag = True
     cross_spec_flag = True
@@ -206,17 +232,17 @@ def main():
     # cross_spec_flag = False
 
     take_best_flag = True
-    take_best_flag = False
+    # take_best_flag = False
 
-    # All frequencies with periods longer than and equal to this are kept.
+    # All coefficients with periods longer than and equal to this are kept.
     keep_period = None
-    keep_period = 90
+    keep_period = 180
 
     # Column with the name "ref_lab" should not be in cols.
     ref_lab = 'ref'
     sim_lab = 'S'  # Put infront of each simulation number.
 
-    n_repeat = len(cols) * 1000
+    n_repeat = int(len(cols) * 200)
 
     float_fmt = '%0.2f'
 
@@ -475,8 +501,27 @@ def get_ts_data_cls(data, noise_add_flag, noise_magnitude, keep_period):
     data_cls.data_sort = data_sort
     #==========================================================================
 
-    data_cls.pcorrs = np.corrcoef(data, rowvar=False)
-    data_cls.scorrs = np.corrcoef(rankdata(data, axis=0), rowvar=False)
+    probs = rankdata(data, axis=0) / (data.shape[0] + 1.0)
+    probs = probs.copy(order='f')
+
+    data_cls.pcorrs_cross = np.corrcoef(data, rowvar=False)
+    data_cls.scorrs_cross = np.corrcoef(probs, rowvar=False)
+    #==========================================================================
+
+    scorrs_auto, asymms_1_auto, asymms_2_auto, pcorrs_auto = (
+        get_corrs_asymms_ecop_auto(data, np.arange(1, 31, dtype=np.int64)))
+
+    data_cls.scorrs_auto = scorrs_auto
+    data_cls.asymms_1_auto = asymms_1_auto
+    data_cls.asymms_2_auto = asymms_2_auto
+    data_cls.pcorrs_auto = pcorrs_auto
+    #==========================================================================
+
+    asymms_1s_cross, asymms_2s_cross = get_asymms_ecop_cross(
+        probs, data_cls.scorrs_cross)
+
+    data_cls.asymms_1s_cross = asymms_1s_cross
+    data_cls.asymms_2s_cross = asymms_2s_cross
     #==========================================================================
 
     if keep_period is not None:
@@ -503,16 +548,130 @@ def get_obj_val(ref_data_cls, sim_data, ratio_a, ratio_b):
     obj_val = 0.0
 
     if ratio_a:
+        pcorrs_cross = np.corrcoef(sim_data, rowvar=False)
         obj_val += ratio_a * (
-            (ref_data_cls.pcorrs -
-             np.corrcoef(sim_data, rowvar=False)) ** 2).sum()
+            (ref_data_cls.pcorrs_cross - pcorrs_cross) ** 2).sum()
+
+        # pcorrs auto in ratio_b part.
 
     if ratio_b:
+        probs = rankdata(sim_data, axis=0) / (sim_data.shape[0] + 1.0)
+        probs = probs.copy(order='f')
+
+        scorrs_auto, asymms_1_auto, asymms_2_auto, pcorrs_auto = (
+            get_corrs_asymms_ecop_auto(
+                sim_data, np.arange(1, 31, dtype=np.int64)))
+
+        scorrs_cross = np.corrcoef(probs, rowvar=False)
+
+        asymms_1s_cross, asymms_2s_cross = get_asymms_ecop_cross(
+            probs, scorrs_cross)
+
         obj_val += ratio_b * (
-            (ref_data_cls.scorrs -
-             np.corrcoef(rankdata(sim_data, axis=0), rowvar=False)) ** 2).sum()
+            (ref_data_cls.scorrs_cross - scorrs_cross) ** 2).sum()
+
+        obj_val += ratio_b * (
+            (ref_data_cls.asymms_1s_cross - asymms_1s_cross) ** 2).sum()
+
+        obj_val += ratio_b * (
+            (ref_data_cls.asymms_2s_cross - asymms_2s_cross) ** 2).sum()
+
+        obj_val += ratio_b * (
+            (ref_data_cls.scorrs_auto - scorrs_auto) ** 2).sum()
+
+        obj_val += ratio_b * (
+            (ref_data_cls.asymms_1_auto - asymms_1_auto) ** 2).sum()
+
+        obj_val += ratio_b * (
+            (ref_data_cls.asymms_2_auto - asymms_2_auto) ** 2).sum()
+
+        obj_val += ratio_b * (
+            (ref_data_cls.pcorrs_auto - pcorrs_auto) ** 2).sum()
 
     return obj_val
+
+
+def get_asymms_ecop_cross(probs, scorrs):
+
+    combs = combinations(list(range(probs.shape[1])), 2)
+
+    asymms_1s = np.zeros_like(scorrs)
+    asymms_2s = asymms_1s.copy()
+
+    for comb in combs:
+        scorr = scorrs[comb[0], comb[1]]
+
+        asymm_1, asymm_2 = get_asymms_sample(
+            probs[:, comb[0]], probs[:, comb[1]])
+
+        asymm_1 /= get_asymm_1_max(scorr)
+        asymm_2 /= get_asymm_2_max(scorr)
+
+        asymms_1s[comb[0], comb[1]] = asymm_1
+        asymms_2s[comb[0], comb[1]] = asymm_2
+
+        asymms_1s[comb[1], comb[0]] = asymm_1
+        asymms_2s[comb[1], comb[0]] = asymm_2
+
+    return asymms_1s, asymms_2s
+
+
+def get_corrs_asymms_ecop_auto(data, lag_steps):
+
+    scorrs = []
+    asymms_1 = []
+    asymms_2 = []
+    # etpys = []
+    pcorrs = []
+
+    for col_i in range(data.shape[1]):
+
+        for lag_step in lag_steps:
+            probs_i, rolled_probs_i = roll_real_2arrs_with_nan(
+                data[:, col_i], data[:, col_i], lag_step, True)
+
+            data_i, rolled_data_i = roll_real_2arrs_with_nan(
+                data[:, col_i], data[:, col_i], lag_step, False)
+
+            # scorr.
+            scorr = np.corrcoef(probs_i, rolled_probs_i)[0, 1]
+            scorrs.append(scorr)
+
+            # asymms.
+            asymm_1, asymm_2 = get_asymms_sample(probs_i, rolled_probs_i)
+
+            asymm_1 /= get_asymm_1_max(scorr)
+
+            asymm_2 /= get_asymm_2_max(scorr)
+
+            asymms_1.append(asymm_1)
+            asymms_2.append(asymm_2)
+
+            # # ecop etpy.
+            # fill_bi_var_cop_dens(probs_i, rolled_probs_i, ecop_dens_arrs)
+            #
+            # non_zero_idxs = ecop_dens_arrs > 0
+            #
+            # dens = ecop_dens_arrs[non_zero_idxs]
+            #
+            # etpy_arr = -(dens * np.log(dens))
+            #
+            # etpy = etpy_arr.sum()
+            #
+            # etpy = (etpy - etpy_min) / (etpy_max - etpy_min)
+            #
+            # etpys.append(etpy)
+
+            # pcorr.
+            pcorr = np.corrcoef(data_i, rolled_data_i)[0, 1]
+            pcorrs.append(pcorr)
+
+    scorrs = np.array(scorrs)
+    asymms_1 = np.array(asymms_1)
+    asymms_2 = np.array(asymms_2)
+    # etpys = np.array(etpys )
+    pcorrs = np.array(pcorrs)
+    return scorrs, asymms_1, asymms_2, pcorrs
 
 
 def get_sim_dict(args):
@@ -566,6 +725,8 @@ def get_sim_dict(args):
             np.random.random(data_sort.shape[0])))
 
         data_rand[:, k] = data_sort[order_old[:, k], k]
+
+    order_old_ranks = rankdata(order_old)
     #==========================================================================
 
     # For the cross case only.
@@ -575,6 +736,9 @@ def get_sim_dict(args):
 
     order_sdiffs = np.full(n_repeat, np.nan)
     obj_vals = order_sdiffs.copy()
+
+    i_repeat = 0
+    order_sdiff = 0.0
 
     stn_ctr = 0
     for i_repeat in range(n_repeat):
@@ -642,7 +806,8 @@ def get_sim_dict(args):
 
         # Marginals cross.
         if ratio_a and cross_spec_flag:
-            sim_mag = np.abs(sim_ft_margs)
+            # sim_mag = np.abs(sim_ft_margs)
+            sim_mag = ref_mag.copy()
 
             sim_phs = (
                 np.angle(sim_ft_margs[:, [stn_ctr]]) +
@@ -653,7 +818,7 @@ def get_sim_dict(args):
 
             if keep_period_flags is not None:
                 sim_phs[keep_period_flags,:] = ref_phs[keep_period_flags,:]
-                sim_mag[keep_period_flags,:] = ref_mag[keep_period_flags,:]
+                # sim_mag[keep_period_flags,:] = ref_mag[keep_period_flags,:]
 
             sim_ft_new = np.empty_like(sim_ft_margs)
 
@@ -680,7 +845,8 @@ def get_sim_dict(args):
 
         # Ranks cross.
         if ratio_b and cross_spec_flag:
-            sim_mag = np.abs(sim_ft_ranks)
+            # sim_mag = np.abs(sim_ft_ranks)
+            sim_mag = ref_mag_ranks.copy()
 
             sim_phs = (
                 np.angle(sim_ft_ranks[:, [stn_ctr]]) +
@@ -693,8 +859,8 @@ def get_sim_dict(args):
                 sim_phs[keep_period_flags,:] = (
                     ref_phs_ranks[keep_period_flags,:])
 
-                sim_mag[keep_period_flags,:] = ref_mag_ranks[
-                    keep_period_flags,:]
+                # sim_mag[keep_period_flags,:] = ref_mag_ranks[
+                #     keep_period_flags,:]
 
             sim_ft_new = np.empty_like(sim_ft_ranks)
 
@@ -724,18 +890,24 @@ def get_sim_dict(args):
         for k in range(len(cols)):
             order_new[:, k] = np.argsort(np.argsort(sim_ift[:, k]))
 
-        order_sdiff = (
-            (order_old.astype(float) - order_new.astype(float)) ** 2).sum()
+        order_new_ranks = rankdata(order_new)
+
+        # order_sdiff = (
+        #     (order_old.astype(float) - order_new.astype(float)) ** 2).sum()
+
+        order_sdiff = 1 - np.corrcoef(order_old_ranks, order_new_ranks)[0, 1]
 
         # Casting may create problems.
         assert order_sdiff >= 0, order_sdiff
 
         order_sdiffs[i_repeat] = order_sdiff
 
-        if order_sdiff == 0.0:
+        if np.isclose(order_sdiff, 0.0):
+            # Nothing changed.
             break
 
         order_old = order_new
+        order_old_ranks = order_new_ranks
 
         data_rand = np.empty_like(data)
         for k in range(len(cols)):
@@ -773,7 +945,7 @@ def get_sim_dict(args):
     print(
         f'Done with sim_idx: {sim_idx} with i_repeat: {i_repeat} and '
         f'with i_data_best: {i_data_best} and '
-        f'with order_sdiff: {order_sdiff:0.1f}')
+        f'with order_sdiff: {order_sdiff:0.3f}')
 
     order_sdiffs = {key: order_sdiffs}
     obj_vals = {key: obj_vals}

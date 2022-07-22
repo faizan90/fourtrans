@@ -17,6 +17,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt; plt.ioff()
 
+from fcopulas import (
+    get_asymm_1_sample, get_asymm_2_sample, get_asymm_1_max, get_asymm_2_max)
+
 from zb_cmn_ftns_plot import set_mpl_prms, roll_real_2arrs_with_nan
 
 DEBUG_FLAG = False
@@ -53,7 +56,7 @@ def main():
         data_dir / r'cross_sims_ref.csv', sep=sep, index_col=0)
 
     if ref_df.shape[1] < 2:
-        print('No cross correlations for only one time series!')
+        print('No cross asymmetries for only one time series!')
         return
 
     sim_dfs = []
@@ -66,90 +69,97 @@ def main():
 
     sim_df = None
 
-    for corr_type in ('pearson', 'spearman'):
-        out_fig_path = out_dir / f'cross_corrs_scatter_{corr_type}.png'
+    for asymmm_type in ('order', 'directional'):
+        out_fig_path = out_dir / f'cross_asymms_{asymmm_type}.png'
 
         args = (
             ref_df,
             sim_dfs,
             lags,
-            corr_type,
+            asymmm_type,
             out_fig_path,
             prms_dict)
 
-        plot_cross_corrs(args)
+        plot_cross_asymms(args)
 
     return
 
 
-def get_lagged_corrs(in_df, lag, corr_type):
+def get_lagged_asymms(in_df, lag, asymm_type):
 
-    corrs_df = pd.DataFrame(
+    asymms_df = pd.DataFrame(
         index=in_df.columns,
         columns=in_df.columns,
         data=np.zeros((in_df.shape[1], in_df.shape[1])))
 
     # All values above the diagonal.
-    corrs = []
+    asymms = []
 
-    if corr_type == 'pearson':
-        pass
+    if asymm_type == 'order':
+        asymm_ftn = get_asymm_1_sample
+        asymm_norm = get_asymm_1_max
 
-    elif corr_type == 'spearman':
-        in_df = in_df.rank(axis=0)
+    elif asymm_type == 'directional':
+        asymm_ftn = get_asymm_2_sample
+        asymm_norm = get_asymm_2_max
 
     else:
-        raise NotImplementedError(corr_type)
+        raise NotImplementedError(asymm_type)
 
     for i, stn_i in enumerate(in_df.columns):
         arr_i = in_df[stn_i].values.copy()
         for j, stn_j in enumerate(in_df.columns):
 
             if i > j:
-                corrs_df.iloc[i, j] = corrs_df.iloc[j, i]
+                asymms_df.iloc[i, j] = asymms_df.iloc[j, i]
 
             elif i == j:
-                corrs_df.iloc[i, j] = 1.0
+                asymms_df.iloc[i, j] = 1.0
 
             else:
                 arr_j = in_df[stn_j].values
+
                 arr_i_lag, arr_j_lag = roll_real_2arrs_with_nan(
-                    arr_i, arr_j, lag)
+                    arr_i, arr_j, lag, True)
 
-                pcorr = np.corrcoef(arr_i_lag, arr_j_lag)[0, 1]
+                scorr = np.corrcoef(arr_i_lag, arr_j_lag)[0, 1]
 
-                corrs_df.iloc[i, j] = pcorr
+                asymm = asymm_ftn(arr_i_lag, arr_j_lag)
 
-                corrs.append(pcorr)
+                asymm /= asymm_norm(scorr)
 
-    corrs = np.array(corrs)
-    return corrs_df, corrs
+                asymms_df.iloc[i, j] = asymm
+
+                asymms.append(asymm)
+
+    asymms = np.array(asymms)
+    return asymms_df, asymms
 
 
-def plot_cross_corrs(args):
+def plot_cross_asymms(args):
 
     (ref_df,
      sim_dfs,
      lags,
-     corr_type,
+     asymm_type,
      out_fig_path,
      prms_dict) = args
 
     set_mpl_prms(prms_dict)
 
-    ref_cross_corrs_df_lags = {}
-    ref_corrs_lags = {}
+    ref_cross_asymms_df_lags = {}
+    ref_asymms_lags = {}
 
     for lag in lags:
-        ref_cross_corrs_df, ref_corrs = get_lagged_corrs(
-            ref_df, lag, corr_type)
+        ref_cross_asymms_df, ref_asymms = get_lagged_asymms(
+            ref_df, lag, asymm_type)
 
-        ref_cross_corrs_df_lags[lag] = ref_cross_corrs_df
-        ref_corrs_lags[lag] = ref_corrs
+        ref_cross_asymms_df_lags[lag] = ref_cross_asymms_df
+        ref_asymms_lags[lag] = ref_asymms
 
         if False:
-            print(ref_cross_corrs_df)
-            print(ref_corrs)
+            print(ref_cross_asymms_df)
+            print(ref_asymms)
 
     fig_scatt, ax_scatt = plt.subplots(1, 1,)
 
@@ -160,8 +170,8 @@ def plot_cross_corrs(args):
     for sim_df in sim_dfs:
         for i, lag in enumerate(lags):
 
-            ref_corrs = ref_corrs_lags[lag]
-            sim_corrs = get_lagged_corrs(sim_df, lag, corr_type)[1]
+            ref_asymms = ref_asymms_lags[lag]
+            sim_asymms = get_lagged_asymms(sim_df, lag, asymm_type)[1]
 
             if leg_flag:
                 label = f'lag: {lag:+d}'
@@ -173,14 +183,14 @@ def plot_cross_corrs(args):
             plt.figure(fig_scatt)
 
             ax_scatt.scatter(
-                ref_corrs,
-                sim_corrs,
+                ref_asymms,
+                sim_asymms,
                 alpha=0.5,
                 c=f'C{i}',
                 label=label)
 
-            scatt_min = min([min(ref_corrs), min(sim_corrs), scatt_min])
-            scatt_max = max([max(ref_corrs), max(sim_corrs), scatt_max])
+            scatt_min = min([min(ref_asymms), min(sim_asymms), scatt_min])
+            scatt_max = max([max(ref_asymms), max(sim_asymms), scatt_max])
 
         leg_flag = False
 
