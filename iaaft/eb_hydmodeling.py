@@ -48,7 +48,7 @@ def main():
     main_dir = Path(r'P:\Synchronize\IWS\QGIS_Neckar\hydmod\iaaft_sims')
     os.chdir(main_dir)
 
-    sim_file = Path('hydmod_tss/holy_grail_2_02.h5').absolute()
+    sim_file = Path('hydmod_tss/holy_grail_2_04.h5').absolute()
 
     main_hyd_mod_dir = Path(f'hydmod/{sim_file.stem}').absolute()
 

@@ -29,7 +29,7 @@ def main():
 
     main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'holy_grail_2_02'
+    main_dir /= r'test_asymm23_dis_16_03'
 
     os.chdir(main_dir)
 
@@ -47,6 +47,11 @@ def main():
 
     lags = np.array([-1, 0, 1], dtype=np.int64)
 
+    show_best_flag = True
+    # show_best_flag = False
+
+    obj_vals_file_path = Path(r'all_obj_vals.csv')
+
     out_dir = main_dir
     #==========================================================================
 
@@ -59,13 +64,24 @@ def main():
         print('No cross asymmetries for only one time series!')
         return
 
+    if show_best_flag and obj_vals_file_path.exists():
+        obj_vals_df = pd.read_csv(obj_vals_file_path, sep=sep, index_col=0)
+
+        best_sim_label = obj_vals_df.columns[
+            np.argmin(obj_vals_df.iloc[:,:].values) % obj_vals_df.shape[1]]
+
+    else:
+        best_sim_label = None
+
     sim_dfs = []
     for sim_file in data_dir.glob(rf'./cross_sims_{sims_lab}*.csv'):
-        print('Going through:', sim_file)
+        # print('Going through:', sim_file)
 
         sim_df = pd.read_csv(sim_file, sep=sep, index_col=0)
 
-        sim_dfs.append(sim_df)
+        sim_label = sim_file.stem.rsplit('_', 1)[1]
+
+        sim_dfs.append((sim_label, sim_df))
 
     sim_df = None
 
@@ -78,10 +94,152 @@ def main():
             lags,
             asymmm_type,
             out_fig_path,
-            prms_dict)
+            prms_dict,
+            best_sim_label)
 
         plot_cross_asymms(args)
 
+    return
+
+
+def plot_cross_asymms(args):
+
+    (ref_df,
+     sim_dfs,
+     lags,
+     asymm_type,
+     out_fig_path,
+     prms_dict,
+     best_sim_label) = args
+
+    set_mpl_prms(prms_dict)
+
+    ref_cross_asymms_df_lags = {}
+    ref_asymms_lags = {}
+
+    for lag in lags:
+        ref_cross_asymms_df, ref_asymms = get_lagged_asymms(
+            ref_df, lag, asymm_type)
+
+        ref_cross_asymms_df_lags[lag] = ref_cross_asymms_df
+        ref_asymms_lags[lag] = ref_asymms
+
+        if False:
+            print(ref_cross_asymms_df)
+            print(ref_asymms)
+
+    fig_scatt, ax_scatt = plt.subplots(1, 1,)
+
+    scatt_min, scatt_max = np.inf, -np.inf
+
+    leg_flag = True
+    best_leg_flag = True
+
+    all_refs = []
+    all_sims = []
+    for sim_label, sim_df in sim_dfs:
+        for i, lag in enumerate(lags):
+
+            ref_asymms = ref_asymms_lags[lag]
+            sim_asymms = get_lagged_asymms(sim_df, lag, asymm_type)[1]
+
+            if leg_flag:
+                label = f'lag: {lag:+d}'
+
+            else:
+                label = None
+
+            if best_sim_label == sim_label:
+
+                old_label = label
+
+                c = 'r'
+                zorder = 2
+
+                if best_leg_flag:
+                    label = 'best'
+
+                    best_leg_flag = False
+
+                else:
+                    label = old_label
+
+            else:
+                c = f'C{i}'
+                zorder = 1
+
+            # Scatter.
+            plt.figure(fig_scatt)
+
+            ax_scatt.scatter(
+                ref_asymms,
+                sim_asymms,
+                alpha=0.5,
+                c=c,
+                label=label,
+                zorder=zorder)
+
+            scatt_min = min([min(ref_asymms), min(sim_asymms), scatt_min])
+            scatt_max = max([max(ref_asymms), max(sim_asymms), scatt_max])
+
+            all_refs.extend(ref_asymms.tolist())
+            all_sims.extend(sim_asymms.tolist())
+
+        leg_flag = False
+
+    plt.figure(fig_scatt)
+
+    ax_scatt.set_xlabel('Reference')
+    ax_scatt.set_ylabel('Simulated')
+
+    scatt_min -= 0.05 * (scatt_max - scatt_min)
+    scatt_max += 0.05 * (scatt_max - scatt_min)
+
+    plt.plot(
+        [scatt_min, scatt_max],
+        [scatt_min, scatt_max],
+        alpha=0.25,
+        ls='--',
+        c='r',
+        label='ideal')
+    #==========================================================================
+
+    all_refs = np.array(all_refs)
+    all_sims = np.array(all_sims)
+
+    poly_coeffs = np.polyfit(
+        all_refs,
+        all_sims,
+        deg=1)
+
+    poly_ftn = np.poly1d(poly_coeffs)
+
+    scatt_min_sim, scatt_max_sim = poly_ftn([scatt_min, scatt_max])
+
+    plt.plot(
+        [scatt_min, scatt_max],
+        [scatt_min_sim, scatt_max_sim],
+        alpha=0.25,
+        ls='--',
+        c='k',
+        label='fit')
+    #==========================================================================
+
+    ax_scatt.set_xlim(scatt_min, scatt_max)
+    ax_scatt.set_ylim(scatt_min, scatt_max)
+
+    ax_scatt.grid()
+    ax_scatt.set_axisbelow(True)
+
+    ax_scatt.legend()
+
+    ax_scatt.set_aspect('equal')
+
+    plt.savefig(out_fig_path, dpi=150, bbox_inches='tight')
+
+    plt.close('all')
+
+    # plt.show()
     return
 
 
@@ -134,97 +292,6 @@ def get_lagged_asymms(in_df, lag, asymm_type):
 
     asymms = np.array(asymms)
     return asymms_df, asymms
-
-
-def plot_cross_asymms(args):
-
-    (ref_df,
-     sim_dfs,
-     lags,
-     asymm_type,
-     out_fig_path,
-     prms_dict) = args
-
-    set_mpl_prms(prms_dict)
-
-    ref_cross_asymms_df_lags = {}
-    ref_asymms_lags = {}
-
-    for lag in lags:
-        ref_cross_asymms_df, ref_asymms = get_lagged_asymms(
-            ref_df, lag, asymm_type)
-
-        ref_cross_asymms_df_lags[lag] = ref_cross_asymms_df
-        ref_asymms_lags[lag] = ref_asymms
-
-        if False:
-            print(ref_cross_asymms_df)
-            print(ref_asymms)
-
-    fig_scatt, ax_scatt = plt.subplots(1, 1,)
-
-    scatt_min, scatt_max = np.inf, -np.inf
-
-    leg_flag = True
-
-    for sim_df in sim_dfs:
-        for i, lag in enumerate(lags):
-
-            ref_asymms = ref_asymms_lags[lag]
-            sim_asymms = get_lagged_asymms(sim_df, lag, asymm_type)[1]
-
-            if leg_flag:
-                label = f'lag: {lag:+d}'
-
-            else:
-                label = None
-
-            # Scatter.
-            plt.figure(fig_scatt)
-
-            ax_scatt.scatter(
-                ref_asymms,
-                sim_asymms,
-                alpha=0.5,
-                c=f'C{i}',
-                label=label)
-
-            scatt_min = min([min(ref_asymms), min(sim_asymms), scatt_min])
-            scatt_max = max([max(ref_asymms), max(sim_asymms), scatt_max])
-
-        leg_flag = False
-
-    plt.figure(fig_scatt)
-
-    ax_scatt.set_xlabel('Reference')
-    ax_scatt.set_ylabel('Simulated')
-
-    scatt_min -= 0.05 * (scatt_max - scatt_min)
-    scatt_max += 0.05 * (scatt_max - scatt_min)
-
-    plt.plot(
-        [scatt_min, scatt_max],
-        [scatt_min, scatt_max],
-        alpha=0.25,
-        ls='--',
-        c='k')
-
-    ax_scatt.set_xlim(scatt_min, scatt_max)
-    ax_scatt.set_ylim(scatt_min, scatt_max)
-
-    ax_scatt.grid()
-    ax_scatt.set_axisbelow(True)
-
-    ax_scatt.legend()
-
-    ax_scatt.set_aspect('equal')
-
-    plt.savefig(out_fig_path, dpi=150, bbox_inches='tight')
-
-    plt.close('all')
-
-    # plt.show()
-    return
 
 
 if __name__ == '__main__':

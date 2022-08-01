@@ -13,6 +13,7 @@ import timeit
 import traceback as tb
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt; plt.ioff()
 
@@ -25,7 +26,7 @@ def main():
 
     main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'holy_grail_2_02'
+    main_dir /= r'test_asymm23_dis_16_03'
 
     os.chdir(main_dir)
 
@@ -51,6 +52,36 @@ def main():
 
         opt_df = pd.read_csv(opt_file, sep=sep, index_col=0)
 
+        if y_label == 'obj_val':
+
+            best_sim_label = opt_df.columns[
+                np.argmin(opt_df.iloc[:,:].values) % opt_df.shape[1]]
+
+            print(f'Sim {best_sim_label} has the best objective value.')
+
+            plt.scatter(
+                np.arange(opt_df.shape[1]),
+                np.sort(opt_df.values.min(axis=0)),
+                alpha=0.35,
+                color='k',
+                lw=2)
+
+            plt.yscale('log')
+
+            plt.xlabel('Sorted simulations')
+
+            plt.ylabel(y_label)
+
+            plt.grid()
+
+            plt.gca().set_axisbelow(True)
+
+            plt.savefig(
+                str(out_dir / f'opt__{y_label}__last_sorted.png'),
+                bbox_inches='tight')
+
+            plt.clf()
+
         for sim_lab in opt_df.columns:
             plt.semilogy(
                 opt_df[sim_lab][:],
@@ -58,7 +89,7 @@ def main():
                 color='k',
                 lw=2)
 
-        plt.xlabel('Iteration')
+            plt.xlabel('Iteration')
 
         plt.ylabel(y_label)
 

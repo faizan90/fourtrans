@@ -32,7 +32,7 @@ def main():
 
     main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'holy_grail_2_02'
+    main_dir /= r'test_asymm23_dis_16_03'
 
     os.chdir(main_dir)
 
@@ -58,18 +58,32 @@ def main():
 
     max_n_sims = int(1e3)
 
+    show_best_flag = True
+    # show_best_flag = False
+
+    obj_vals_file_path = Path(r'all_obj_vals.csv')
+
     out_dir = main_dir
     #==========================================================================
 
+    if show_best_flag and obj_vals_file_path.exists():
+        obj_vals_df = pd.read_csv(obj_vals_file_path, sep=sep, index_col=0)
+
+        best_sim_label = obj_vals_df.columns[
+            np.argmin(obj_vals_df.iloc[:,:].values) % obj_vals_df.shape[1]]
+
+    else:
+        best_sim_label = None
+
     set_mpl_prms(prms_dict)
 
-    clrs = ['r', 'k']
+    clrs = ['r', 'k', 'b']
 
     doys = np.arange(1, 367)
 
     for in_file in in_files:
 
-        print('Going through:', in_file)
+        # print('Going through:', in_file)
 
         in_df = pd.read_csv(in_file, sep=sep, index_col=0)
 
@@ -80,7 +94,7 @@ def main():
         for i in range(in_df.shape[1]):
             data = in_df.iloc[:, i].values.copy()
 
-            print(in_df.columns[i])
+            # print(in_df.columns[i])
 
             if (fnmatch(in_df.columns[i], patt_ref) or
                 fnmatch(in_df.columns[i], patt_sim)):
@@ -95,9 +109,21 @@ def main():
 
                 lab = 'ref'
 
+                zorder = 3
+
+                plt_alpha = 0.6
+
+                lw = 3.0
+
+            elif in_df.columns[i] == best_sim_label:
+                clr = clrs[2]
+
+                lab = 'best'
+
                 zorder = 2
 
                 plt_alpha = 0.6
+
                 lw = 3.0
 
             else:
@@ -111,6 +137,7 @@ def main():
                     lab = None
 
                 plt_alpha = 0.35
+
                 lw = 2.0
 
                 zorder = 1

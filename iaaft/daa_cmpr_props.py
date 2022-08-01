@@ -36,7 +36,7 @@ def main():
 
     main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'holy_grail_2_02'
+    main_dir /= r'test_asymm23_dis_16_03'
 
     os.chdir(main_dir)
 
@@ -57,14 +57,28 @@ def main():
     patt_ref = 'ref'
     patt_sim = 'S*'
 
+    show_best_flag = True
+    # show_best_flag = False
+
+    obj_vals_file_path = Path(r'all_obj_vals.csv')
+
     out_dir = main_dir
     #==========================================================================
 
     out_dir.mkdir(exist_ok=True)
 
+    if show_best_flag and obj_vals_file_path.exists():
+        obj_vals_df = pd.read_csv(obj_vals_file_path, sep=sep, index_col=0)
+
+        best_sim_label = obj_vals_df.columns[
+            np.argmin(obj_vals_df.iloc[:,:].values) % obj_vals_df.shape[1]]
+
+    else:
+        best_sim_label = None
+
     for in_file in data_dir.glob(r'./auto_sims_*.csv'):
 
-        print(in_file)
+        # print(in_file)
 
         in_df = pd.read_csv(in_file, sep=sep, index_col=0)
 
@@ -90,6 +104,7 @@ def main():
             out_fig_name_pecop,
             out_fig_name_pwr,
             out_fig_name_pwr_ranks,
+            best_sim_label,
             )
 
         plot_cmpr_props(args)
@@ -108,6 +123,7 @@ def plot_cmpr_props(args):
      out_fig_name_pecop,
      out_fig_name_pwr,
      out_fig_name_pwr_ranks,
+     best_sim_label,
      ) = args
 
     set_mpl_prms(prms_dict)
@@ -119,7 +135,7 @@ def plot_cmpr_props(args):
 
     axes = plt.subplots(2, 3, squeeze=False)[1]
 
-    clrs = ['r', 'k']
+    clrs = ['r', 'k', 'b']
 
     leg_flag = True
     for i in range(in_df.shape[1]):
@@ -138,9 +154,20 @@ def plot_cmpr_props(args):
 
             lab = 'ref'
 
+            zorder = 3
+
+            plt_alpha = 0.6
+            lw = 3.0
+
+        elif in_df.columns[i] == best_sim_label:
+            clr = clrs[2]
+
+            lab = 'best'
+
             zorder = 2
 
             plt_alpha = 0.6
+
             lw = 3.0
 
         else:
@@ -264,11 +291,11 @@ def plot_cmpr_props(args):
     # axes[1, 2].set_axisbelow(True)
 
     axes[0, 0].legend()
-    axes[1, 0].legend()
-    axes[1, 1].legend()
-    axes[0, 1].legend()
-    axes[0, 2].legend()
-#     axes[1, 2].legend()
+    # axes[1, 0].legend()
+    # axes[1, 1].legend()
+    # axes[0, 1].legend()
+    # axes[0, 2].legend()
+    # axes[1, 2].legend()
 
     axes[0, 0].set_ylabel('Spearman correlation')
 
@@ -310,6 +337,16 @@ def plot_cmpr_props(args):
             clr = clrs[0]
 
             lab = 'ref'
+
+            zorder = 3
+
+            plt_alpha = 0.6
+            lw = 3.0
+
+        elif in_df.columns[i] == best_sim_label:
+            clr = clrs[2]
+
+            lab = 'best'
 
             zorder = 2
 
@@ -391,6 +428,16 @@ def plot_cmpr_props(args):
             clr = clrs[0]
 
             lab = 'ref'
+
+            zorder = 3
+
+            plt_alpha = 0.6
+            lw = 3.0
+
+        elif in_df.columns[i] == best_sim_label:
+            clr = clrs[2]
+
+            lab = 'best'
 
             zorder = 2
 

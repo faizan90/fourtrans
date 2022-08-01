@@ -24,7 +24,7 @@ def main():
     main_dir = Path(
         r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'holy_grail_2_02'
+    main_dir /= r'test_asymm23_dis_16_03'
 
     os.chdir(main_dir)
 
@@ -54,7 +54,7 @@ def main():
 
     for in_df_path in data_dir.glob(data_patt):
 
-        print('Going through:', in_df_path.name)
+        # print('Going through:', in_df_path.name)
 
         if in_df_path.suffix == '.csv':
             in_df = pd.read_csv(in_df_path, sep=sep, index_col=0)
@@ -80,7 +80,7 @@ def main():
 
         nan_idxs = counts_ser.values < in_df.shape[1]
 
-        print(f'{nan_idxs.sum()} NaNs out of {in_df.shape[0]} records!')
+        # print(f'{nan_idxs.sum()} NaNs out of {in_df.shape[0]} records!')
 
         for resample_type in resample_types:
             resample_df = getattr(in_df, resample_type)(axis=1)

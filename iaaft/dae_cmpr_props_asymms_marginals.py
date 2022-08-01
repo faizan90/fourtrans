@@ -34,9 +34,11 @@ DEBUG_FLAG = False
 
 def main():
 
+    raise Exception('Out-of-date script!')
+
     main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'holy_grail_2_02'
+    main_dir /= r'test_dis_02'
 
     os.chdir(main_dir)
 
@@ -64,7 +66,7 @@ def main():
 
     for in_file in data_dir.glob(r'./auto_sims_*.csv'):
 
-        print(in_file)
+        # print(in_file)
 
         in_df = pd.read_csv(in_file, sep=sep, index_col=0)
 

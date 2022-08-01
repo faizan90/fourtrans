@@ -1,9 +1,9 @@
 '''
 @author: Faizan-Uni-Stuttgart
 
-Apr 4, 2022
+Jul 29, 2022
 
-2:58:43 PM
+4:28:57 PM
 
 '''
 import os
@@ -21,7 +21,7 @@ import time
 import timeit
 import traceback as tb
 from pathlib import Path
-from itertools import combinations
+from itertools import combinations, product
 
 import numpy as np
 import pandas as pd
@@ -52,13 +52,13 @@ def main():
     sep = ';'
 
     beg_time = '2001-01-01'
-    end_time = '2015-12-31'
-    # end_time = '1965-12-31'
+    end_time = '2002-12-31'
 
     cols = [
+        '420',  # '427'
         #
         # '406', '411',  # '420',
-        '4408', '406', '411', '420', '422', '427', '1438', '1439', '1452', '2431',
+        # '4408', '406', '411', '420', '422', '427', '1438', '1439', '1452', '2431',
         # '2446', '2477', '4427', '44603', '76121', '76179', '434', '473',
         # '475', '1470', '3421', '3465', '3470', '3498', '4428', '36056', '454',
         # '1496', '2444', '4414', '4415', '4435', '62722', '76183', '464', '465',
@@ -83,7 +83,7 @@ def main():
     #     'cp'
     #     ]
 
-    out_dir = Path(r'test_dis_03')
+    out_dir = Path(r'test_asymm23_dis_14_02')
 
     noise_add_flag = True
     noise_add_flag = False
@@ -223,26 +223,39 @@ def main():
     n_sims = n_cpus * 4
 
     ratio_a = 1.0  # For marginals.
-    ratio_b = 5.0  # For ranks.
+    ratio_b = 1.0  # For ranks.
 
     auto_spec_flag = True
     cross_spec_flag = True
 
     # auto_spec_flag = False
-    # cross_spec_flag = False
+    cross_spec_flag = False
 
-    take_best_flag = True
+    # take_best_flag = True
     # take_best_flag = False
+
+    asymmetrize_flag = True
+    # asymmetrize_flag = False
 
     # All coefficients with periods longer than and equal to this are kept.
     keep_period = None
     keep_period = 180
 
+    # quant_levels = np.arange(5, 101, 5)
+    # shift_exps = np.linspace(1, 10, 11)
+    # max_shifts = np.arange(1, 3)
+    # pre_vals_ratios = np.linspace(0.2, 1.0, 9)
+
+    quant_levels = np.arange(60, 81, 5)
+    shift_exps = np.linspace(6, 8, 11)
+    max_shifts = np.arange(1, 3)
+    pre_vals_ratios = np.linspace(0.8, 1.0, 9)
+
     # Column with the name "ref_lab" should not be in cols.
     ref_lab = 'ref'
     sim_lab = 'S'  # Put infront of each simulation number.
 
-    n_repeat = int(len(cols) * 5)
+    n_repeat = 1  # int(len(cols) * 100)
 
     float_fmt = '%0.2f'
 
@@ -250,12 +263,8 @@ def main():
     max_corr_to_show = 6
     #==========================================================================
 
-    assert n_sims > 0, n_sims
+    # assert n_sims > 0, n_sims
     assert n_cpus > 0, n_cpus
-
-    if take_best_flag:
-        assert cross_spec_flag, (
-            'cross_spec_flag should be True for take_best_flag!')
 
     assert ref_lab not in cols, cols
 
@@ -316,23 +325,50 @@ def main():
     ref_data_cls = get_ts_data_cls(
         data, noise_add_flag, noise_magnitude, keep_period)
 
-    args_gen = (
-        (ref_data_cls,
-         cols,
-         ratio_a,
-         ratio_b,
-         auto_spec_flag,
-         cross_spec_flag,
-         n_repeat,
-         sim_idx,
-         n_sims,
-         sim_lab,
-         take_best_flag,
-        )
-        for sim_idx in range(n_sims))
-    #==========================================================================
+    if asymmetrize_flag:
+        asymm_23_propss = product(
+            quant_levels,
+            shift_exps,
+            max_shifts,
+            pre_vals_ratios)
 
-    n_cpus = min(n_sims, n_cpus)
+        args_gen = (
+            (ref_data_cls,
+             cols,
+             ratio_a,
+             ratio_b,
+             auto_spec_flag,
+             cross_spec_flag,
+             n_repeat,
+             sim_idx,
+             # n_sims,
+             sim_lab,
+             # take_best_flag,
+             asymm23_props,
+             asymmetrize_flag,
+            )
+            for sim_idx, asymm23_props in enumerate(asymm_23_propss))
+
+    else:
+        args_gen = (
+            (ref_data_cls,
+             cols,
+             ratio_a,
+             ratio_b,
+             auto_spec_flag,
+             cross_spec_flag,
+             n_repeat,
+             sim_idx,
+             # n_sims,
+             sim_lab,
+             # take_best_flag,
+             None,
+             asymmetrize_flag,
+            )
+            for sim_idx in range(n_sims))
+
+        n_cpus = min(n_sims, n_cpus)
+    #==========================================================================
 
     if n_cpus == 1:
         ress = []
@@ -354,9 +390,10 @@ def main():
 
     all_order_sdiffs = {}
     all_obj_vals = {}
+    all_asymm_props = {}
 
     sim_labs = []
-    for sims, order_sdiffs, obj_vals in ress:
+    for sims, order_sdiffs, obj_vals, asymm_props in ress:
         for col in cols:
             all_sims[col].update(sims[col])
 
@@ -364,6 +401,8 @@ def main():
 
         all_order_sdiffs.update(order_sdiffs)
         all_obj_vals.update(obj_vals)
+
+        all_asymm_props.update(asymm_props)
 
     ress = sims = order_sdiffs = obj_vals = None
     sim_labs = tuple(sim_labs)
@@ -439,6 +478,11 @@ def main():
 
     pd.DataFrame(all_obj_vals).to_csv(
         out_dir / 'all_obj_vals.csv', sep=sep)
+
+    pd.DataFrame(
+        all_asymm_props,
+        index=['n_levels', 'max_shift_exp', 'max_shift', 'pre_vals_ratio']
+        ).to_csv(out_dir / 'all_asymm_props.csv', sep=sep)
     #==========================================================================
     return
 
@@ -453,17 +497,16 @@ def get_sim_dict(args):
      cross_spec_flag,
      n_repeat,
      sim_idx,
-     n_sims,
+     # n_sims,
      sim_lab,
-     take_best_flag,
+     # take_best_flag,
+     asymm23_props,
+     asymmetrize_flag,
     ) = args
     #==========================================================================
 
     assert any([ratio_a, ratio_b])
     assert any([auto_spec_flag, cross_spec_flag])
-
-    if take_best_flag:
-        assert cross_spec_flag
     #==========================================================================
 
     data = ref_data_cls.data
@@ -484,7 +527,7 @@ def get_sim_dict(args):
     keep_period_flags = ref_data_cls.keep_period_flags
     #==========================================================================
 
-    sim_zeros_str = len(str(n_sims))
+    sim_zeros_str = 5
     #==========================================================================
 
     data_rand = np.empty_like(data)
@@ -499,12 +542,12 @@ def get_sim_dict(args):
     #==========================================================================
 
     # For the cross case only.
-    obj_val_global_min = get_obj_val(ref_data_cls, data_rand, ratio_a, ratio_b)
-    data_best = data_rand.copy()
-    i_data_best = -1
+    # obj_val_global_min = get_obj_val(ref_data_cls, data_rand, ratio_a, ratio_b)
+    # data_best = data_rand.copy()
+    # i_data_best = -1
 
     order_sdiffs = np.full(n_repeat, np.nan)
-    obj_vals = order_sdiffs.copy()
+    obj_vals = np.array([np.inf])
 
     i_repeat = 0
     order_sdiff = 0.0
@@ -683,43 +726,88 @@ def get_sim_dict(args):
             data_rand[:, k] = data_sort[order_old[:, k], k]
         #======================================================================
 
-        if cross_spec_flag:
-            obj_val = get_obj_val(ref_data_cls, data_rand, ratio_a, ratio_b)
-
-            obj_vals[i_repeat] = obj_val
-
-            if obj_val < obj_val_global_min:
-                obj_val_global_min = obj_val
-
-                data_best = data_rand.copy()
-                i_data_best = i_repeat
-        #======================================================================
-
         stn_ctr += 1
         if stn_ctr == data_rand.shape[1]:
             stn_ctr = 0
     #==========================================================================
 
+    if asymmetrize_flag:
+        asymmetrize_data(data_rand, asymm23_props)
+    #==========================================================================
+
+    obj_val = get_obj_val(ref_data_cls, data_rand, ratio_a, ratio_b)
+
+    obj_vals[0] = obj_val
+    #======================================================================
+
     sims = {cols[k]: {} for k in range(len(cols))}
     key = f'{sim_lab}{sim_idx:0{sim_zeros_str}d}'
     for k, col in enumerate(cols):
-        if not take_best_flag:
-            value = data_rand[:, k]
+        # if not take_best_flag:
+        #     value = data_rand[:, k]
+        #
+        # else:
+        #     value = data_best[:, k]
 
-        else:
-            value = data_best[:, k]
+        value = data_rand[:, k]
 
         sims[col][key] = value
 
     print(
         f'Done with sim_idx: {sim_idx} with i_repeat: {i_repeat} and '
-        f'with i_data_best: {i_data_best} and '
+        # f'with i_data_best: {i_data_best} and '
         f'with order_sdiff: {order_sdiff:0.3f}')
 
     order_sdiffs = {key: order_sdiffs}
     obj_vals = {key: obj_vals}
 
-    return sims, order_sdiffs, obj_vals
+    asymm_props = {key: np.array(asymm23_props)}
+
+    return sims, order_sdiffs, obj_vals, asymm_props
+
+
+def asymmetrize_data(sim_data, asymm23_props):
+
+    n_levels, max_shift_exp, max_shift, pre_vals_ratio = asymm23_props
+
+    for i in range(sim_data.shape[1]):
+
+        vals = sim_data[:, i].copy()
+
+        vals_sort = np.sort(vals)
+
+        probs = rankdata(vals) / (vals.size + 1.0)
+
+        levels = (probs * n_levels).astype(int)
+
+        asymm_vals = vals.copy()
+        for level in range(n_levels):
+            asymm_vals_i = asymm_vals.copy()
+
+            max_shift_level = (
+                max_shift -
+                (max_shift * ((level / n_levels) ** max_shift_exp)))
+
+            max_shift_level = round(max_shift_level)
+            max_shift_level = int(max_shift_level)
+
+            for shift in range(1, max_shift_level + 1):
+                asymm_vals_i = np.roll(asymm_vals_i, shift)
+
+                idxs_to_shift = levels <= level
+
+                asymm_vals[idxs_to_shift] = (
+                    asymm_vals[idxs_to_shift] * pre_vals_ratio +
+                    asymm_vals_i[idxs_to_shift] * (1 - pre_vals_ratio))
+
+        asymm_vals += (
+            (-1e-6) + (2e-6) * np.random.random(size=asymm_vals.size))
+
+        asymm_vals = vals_sort[np.argsort(np.argsort(asymm_vals))]
+
+        sim_data[:, i] = asymm_vals
+
+    return
 
 
 class Data:
@@ -826,21 +914,19 @@ def get_obj_val(ref_data_cls, sim_data, ratio_a, ratio_b):
 
     obj_val = 0.0
 
-    if ratio_a:
+    if (sim_data.shape[0] > 1):
         pcorrs_cross = np.corrcoef(sim_data, rowvar=False)
+
         obj_val += ratio_a * (
             (ref_data_cls.pcorrs_cross - pcorrs_cross) ** 2).sum()
 
         # pcorrs auto in ratio_b part.
+    #==========================================================================
 
-    if ratio_b:
-        probs = rankdata(sim_data, axis=0) / (sim_data.shape[0] + 1.0)
-        probs = probs.copy(order='f')
+    probs = rankdata(sim_data, axis=0) / (sim_data.shape[0] + 1.0)
+    probs = probs.copy(order='f')
 
-        # scorrs_auto, asymms_1_auto, asymms_2_auto, pcorrs_auto = (
-        #     get_corrs_asymms_ecop_auto(
-        #         sim_data, np.arange(1, 31, dtype=np.int64)))
-
+    if (sim_data.shape[0] > 1):
         scorrs_cross = np.corrcoef(probs, rowvar=False)
 
         asymms_1s_cross, asymms_2s_cross = get_asymms_ecop_cross(
@@ -854,18 +940,23 @@ def get_obj_val(ref_data_cls, sim_data, ratio_a, ratio_b):
 
         obj_val += ratio_b * (
             (ref_data_cls.asymms_2s_cross - asymms_2s_cross) ** 2).sum()
+    #==========================================================================
 
-        # obj_val += ratio_b * (
-        #     (ref_data_cls.scorrs_auto - scorrs_auto) ** 2).sum()
-        #
-        # obj_val += ratio_b * (
-        #     (ref_data_cls.asymms_1_auto - asymms_1_auto) ** 2).sum()
-        #
-        # obj_val += ratio_b * (
-        #     (ref_data_cls.asymms_2_auto - asymms_2_auto) ** 2).sum()
-        #
-        # obj_val += ratio_b * (
-        #     (ref_data_cls.pcorrs_auto - pcorrs_auto) ** 2).sum()
+    scorrs_auto, asymms_1_auto, asymms_2_auto, pcorrs_auto = (
+        get_corrs_asymms_ecop_auto(
+            sim_data, np.arange(1, 31, dtype=np.int64)))
+
+    obj_val += ratio_b * (
+        (ref_data_cls.scorrs_auto - scorrs_auto) ** 2).sum()
+
+    obj_val += ratio_b * (
+        (ref_data_cls.asymms_1_auto - asymms_1_auto) ** 2).sum()
+
+    obj_val += ratio_b * (
+        (ref_data_cls.asymms_2_auto - asymms_2_auto) ** 2).sum()
+
+    obj_val += ratio_b * (
+        (ref_data_cls.pcorrs_auto - pcorrs_auto) ** 2).sum()
 
     return obj_val
 

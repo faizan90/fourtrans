@@ -27,7 +27,7 @@ def main():
     main_dir = Path(
         r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'holy_grail_2_02'
+    main_dir /= r'test_asymm23_dis_16_03'
 
     os.chdir(main_dir)
 
@@ -49,6 +49,11 @@ def main():
         'figure.dpi': 150,
         'font.size': 16,
         }
+
+    show_best_flag = True
+    # show_best_flag = False
+
+    obj_vals_file_path = Path(r'all_obj_vals.csv')
 
     out_dir = data_dir
     #==========================================================================
@@ -74,20 +79,52 @@ def main():
 
         assert isinstance(sim_data_ser, pd.Series)
 
-        sim_data_sers.append(sim_data_ser)
+        sim_label = sim_data_file.stem.split('_')[2]
+
+        sim_data_sers.append((sim_label, sim_data_ser))
 
     assert sim_data_sers, 'Didn\'t find the simulation file(s)!'
 
     set_mpl_prms(prms_dict)
 
+    if show_best_flag and obj_vals_file_path.exists():
+        obj_vals_df = pd.read_csv(obj_vals_file_path, sep=';', index_col=0)
+
+        best_sim_label = obj_vals_df.columns[
+            np.argmin(obj_vals_df.iloc[:,:].values) % obj_vals_df.shape[1]]
+
+    else:
+        best_sim_label = None
+
     leg_flag = True
-    for sim_data_ser in sim_data_sers:
+    best_leg_flag = True
+    for sim_label, sim_data_ser in sim_data_sers:
         if leg_flag:
             label = 'sim'
             leg_flag = False
 
         else:
             label = None
+
+        if best_sim_label == sim_label:
+
+            old_label = label
+
+            c = 'b'
+
+            zorder = 3
+
+            if best_leg_flag:
+                label = 'best'
+
+                best_leg_flag = False
+
+            else:
+                label = old_label
+
+        else:
+            c = 'k'
+            zorder = 2
 
         sim_data_ser.dropna(inplace=True)
 
@@ -97,16 +134,16 @@ def main():
         sim_ser = sim_data_ser.sort_values()
         sim_probs = sim_ser.rank().values / (sim_ser.shape[0] + 1.0)
 
-        print('Unique values in sim_probs:', np.unique(sim_probs).size)
+        # print('Unique values in sim_probs:', np.unique(sim_probs).size)
 
         plt.semilogy(
             sim_ser.values,
             1 - sim_probs,
-            c='k',
+            c=c,
             alpha=0.4,
             lw=1.5,
             label=label,
-            zorder=2)
+            zorder=zorder)
 
     ref_data_ser.dropna(inplace=True)
 
@@ -116,7 +153,7 @@ def main():
     ref_ser = ref_data_ser.sort_values()
     ref_probs = ref_ser.rank().values / (ref_ser.shape[0] + 1.0)
 
-    print('Unique values in ref_probs:', np.unique(ref_probs).size)
+    # print('Unique values in ref_probs:', np.unique(ref_probs).size)
 
     plt.semilogy(
         ref_ser.values,

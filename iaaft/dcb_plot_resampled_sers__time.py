@@ -13,6 +13,7 @@ import timeit
 import traceback as tb
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt; plt.ioff()
 
@@ -26,7 +27,7 @@ def main():
     main_dir = Path(
         r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'holy_grail_2_02'
+    main_dir /= r'test_asymm23_dis_16_03'
 
     os.chdir(main_dir)
 
@@ -47,40 +48,63 @@ def main():
         'font.size': 16,
         }
 
+    show_best_flag = True
+    # show_best_flag = False
+
+    obj_vals_file_path = Path(r'all_obj_vals.csv')
+
     out_dir = data_dir
     #==========================================================================
 
     out_dir.mkdir(exist_ok=True)
 
+    if show_best_flag and obj_vals_file_path.exists():
+        obj_vals_df = pd.read_csv(obj_vals_file_path, sep=';', index_col=0)
+
+        best_sim_label = obj_vals_df.columns[
+            np.argmin(obj_vals_df.iloc[:,:].values) % obj_vals_df.shape[1]]
+
+    else:
+        best_sim_label = None
+
     set_mpl_prms(prms_dict)
     for data_file in data_dir.glob(data_patt):
-        print('Going through:', data_file)
+        # print('Going through:', data_file)
 
         data_df = pd.read_csv(data_file, sep=';', index_col=0)
 
         assert isinstance(data_df, pd.DataFrame)
 
+        sim_leg_not_shown_flag = True
         for i, col in enumerate(data_df.columns):
             if i == 0:
                 label = 'ref'
                 clr = 'r'
                 alpha = 0.75
                 lw = 2.0
-                zorder = 1
+                zorder = 3
 
-            elif i == 1:
+            elif col == best_sim_label:
+                label = 'best'
+                clr = 'b'
+                alpha = 0.75
+                lw = 2.0
+                zorder = 2
+
+            elif sim_leg_not_shown_flag:
                 label = 'sim'
                 clr = 'k'
                 alpha = 0.5
                 lw = 1.5
-                zorder = 2
+                zorder = 1
+                sim_leg_not_shown_flag = False
 
             else:
                 label = None
                 clr = 'k'
                 alpha = 0.5
                 lw = 1.5
-                zorder = 2
+                zorder = 1
 
             data = data_df[col].sort_values()
             data.dropna(inplace=True)

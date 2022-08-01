@@ -25,7 +25,7 @@ def main():
     main_dir = Path(r'P:\Synchronize\IWS\QGIS_Neckar\hydmod\iaaft_sims')
     os.chdir(main_dir)
 
-    hydmod_dir = Path(r'hydmod/holy_grail_2_02')
+    hydmod_dir = Path(r'hydmod/holy_grail_2_04')
 
     sim_files = hydmod_dir.glob(
         './cross_sims_S*/02_hydrographs/calib_kfold_01__cats_outflow.csv')

@@ -23,7 +23,7 @@ def main():
     main_dir = Path(
         r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'holy_grail_2_02'
+    main_dir /= r'test_asymm23_dis_16_03'
 
     os.chdir(main_dir)
 
@@ -68,7 +68,7 @@ def main():
 
     for in_df_path in data_dir.glob(f'./{in_df_path_patt}'):
 
-        print('Going through:', in_df_path)
+        # print('Going through:', in_df_path)
 
         if in_df_path.suffix == '.csv':
             in_df = pd.read_csv(in_df_path, sep=sep, index_col=0)
@@ -120,7 +120,7 @@ def main():
 
                 out_path = out_dir / out_name
 
-                print('Output:', out_path)
+                # print('Output:', out_path)
 
                 if out_fmt == '.csv':
                     resample_df.to_csv(

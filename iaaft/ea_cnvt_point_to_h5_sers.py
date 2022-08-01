@@ -22,16 +22,16 @@ DEBUG_FLAG = False
 
 def main():
 
-    main_dir = Path(r'P:\Synchronize\IWS\QGIS_Neckar\hydmod\iaaft_sims')
+    main_dir = Path(r'P:\Synchronize\IWS\Testings\hydmod\iaaft_sims')
     os.chdir(main_dir)
 
-    iaaft_sim_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft\holy_grail_2_02')
+    iaaft_sim_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft\test_dis_01')
 
     # Some hardcodded file_names.
     in_files = iaaft_sim_dir.glob('cross_sims_*.csv')
 
-    beg_date = '1996-01-01'
-    end_date = '2000-12-30'
+    beg_date = '2001-01-01'
+    end_date = '2015-12-30'
     time_fmt = '%Y-%m-%d'
 
     sep = ';'

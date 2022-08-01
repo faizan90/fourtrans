@@ -29,7 +29,7 @@ def main():
 
     main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'holy_grail_2_02'
+    main_dir /= r'test_asymm23_dis_16_03'
 
     os.chdir(main_dir)
 
@@ -48,14 +48,28 @@ def main():
 
     max_combs_to_plot = 20
 
+    show_best_flag = True
+    # show_best_flag = False
+
+    obj_vals_file_path = Path(r'all_obj_vals.csv')
+
     out_dir = main_dir
     #==========================================================================
 
     out_dir.mkdir(exist_ok=True)
 
+    if show_best_flag and obj_vals_file_path.exists():
+        obj_vals_df = pd.read_csv(obj_vals_file_path, sep=sep, index_col=0)
+
+        best_sim_label = obj_vals_df.columns[
+            np.argmin(obj_vals_df.iloc[:,:].values) % obj_vals_df.shape[1]]
+
+    else:
+        best_sim_label = None
+
     set_mpl_prms(prms_dict)
 
-    clrs = ['r', 'k']
+    clrs = ['r', 'k', 'b']
 
     cols = None
     in_dfs = {}
@@ -82,7 +96,7 @@ def main():
     for comb in combs:
         leg_flag = True
         for col in cols:
-            print(col, comb)
+            # print(col, comb)
 
             data_a = in_dfs[comb[0]].loc[:, col].values.copy()
             data_b = in_dfs[comb[1]].loc[:, col].values.copy()
@@ -91,6 +105,16 @@ def main():
                 clr = clrs[0]
 
                 lab = 'ref'
+
+                zorder = 3
+
+                plt_alpha = 0.6
+                lw = 3.0
+
+            elif col == best_sim_label:
+                clr = clrs[2]
+
+                lab = 'best'
 
                 zorder = 2
 
@@ -162,7 +186,7 @@ def main():
     for comb in combs:
         leg_flag = True
         for col in cols:
-            print(col, comb)
+            # print(col, comb)
 
             data_a = rankdata(in_dfs[comb[0]].loc[:, col].values)
             data_b = rankdata(in_dfs[comb[1]].loc[:, col].values)
@@ -171,6 +195,16 @@ def main():
                 clr = clrs[0]
 
                 lab = 'ref'
+
+                zorder = 3
+
+                plt_alpha = 0.6
+                lw = 3.0
+
+            elif col == best_sim_label:
+                clr = clrs[2]
+
+                lab = 'best'
 
                 zorder = 2
 
@@ -241,7 +275,7 @@ def main():
 
         leg_flag = True
 
-        print(file_lab)
+        # print(file_lab)
 
         data_a = in_dfs[file_lab].loc[:, patt_ref].values.copy()
 
@@ -253,6 +287,16 @@ def main():
                 clr = clrs[0]
 
                 lab = 'ref-ref'
+
+                zorder = 3
+
+                plt_alpha = 0.6
+                lw = 3.0
+
+            elif col == best_sim_label:
+                clr = clrs[2]
+
+                lab = 'best'
 
                 zorder = 2
 
@@ -318,7 +362,7 @@ def main():
 
         leg_flag = True
 
-        print(file_lab)
+        # print(file_lab)
 
         data_a = rankdata(in_dfs[file_lab].loc[:, patt_ref].values)
 
@@ -330,6 +374,16 @@ def main():
                 clr = clrs[0]
 
                 lab = 'ref-ref'
+
+                zorder = 3
+
+                plt_alpha = 0.6
+                lw = 3.0
+
+            elif col == best_sim_label:
+                clr = clrs[2]
+
+                lab = 'best'
 
                 zorder = 2
 
