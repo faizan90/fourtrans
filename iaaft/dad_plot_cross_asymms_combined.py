@@ -7,6 +7,15 @@ Feb 9, 2022
 
 '''
 import os
+
+# Numpy sneakily uses multiple threads sometimes. I don't want that.
+os.environ['MKL_NUM_THREADS'] = '1'
+os.environ['NUMEXPR_NUM_THREADS'] = '1'
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['MPI_NUM_THREADS'] = '1'
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
+os.environ['VECLIB_MAXIMUM_THREADS'] = '1'
+
 import sys
 import time
 import timeit
@@ -29,11 +38,11 @@ def main():
 
     main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'test_asymm23_dis_16_03'
+    main_dir /= r'test_wk_33'
 
     os.chdir(main_dir)
 
-    data_dir = main_dir
+    data_dir = main_dir / 'sim_files'
 
     sims_lab = 'S'
 
@@ -45,14 +54,16 @@ def main():
         'font.size': 16,
         }
 
+    sim_alpha = 0.2
+
     lags = np.array([-1, 0, 1], dtype=np.int64)
 
     show_best_flag = True
     # show_best_flag = False
 
-    obj_vals_file_path = Path(r'all_obj_vals.csv')
+    obj_vals_file_path = data_dir / Path(r'all_obj_vals.csv')
 
-    out_dir = main_dir
+    out_dir = main_dir / 'figures'
     #==========================================================================
 
     out_dir.mkdir(exist_ok=True)
@@ -95,7 +106,8 @@ def main():
             asymmm_type,
             out_fig_path,
             prms_dict,
-            best_sim_label)
+            best_sim_label,
+            sim_alpha)
 
         plot_cross_asymms(args)
 
@@ -110,7 +122,8 @@ def plot_cross_asymms(args):
      asymm_type,
      out_fig_path,
      prms_dict,
-     best_sim_label) = args
+     best_sim_label,
+     sim_alpha) = args
 
     set_mpl_prms(prms_dict)
 
@@ -174,7 +187,7 @@ def plot_cross_asymms(args):
             ax_scatt.scatter(
                 ref_asymms,
                 sim_asymms,
-                alpha=0.5,
+                alpha=sim_alpha,
                 c=c,
                 label=label,
                 zorder=zorder)

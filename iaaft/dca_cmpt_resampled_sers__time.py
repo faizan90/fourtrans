@@ -7,6 +7,15 @@ Apr 7, 2022
 
 '''
 import os
+
+# Numpy sneakily uses multiple threads sometimes. I don't want that.
+os.environ['MKL_NUM_THREADS'] = '1'
+os.environ['NUMEXPR_NUM_THREADS'] = '1'
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['MPI_NUM_THREADS'] = '1'
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
+os.environ['VECLIB_MAXIMUM_THREADS'] = '1'
+
 import sys
 import time
 import timeit
@@ -23,11 +32,11 @@ def main():
     main_dir = Path(
         r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'test_asymm23_dis_16_03'
+    main_dir /= r'test_wk_33'
 
     os.chdir(main_dir)
 
-    data_dir = main_dir
+    data_dir = main_dir / 'sim_files'
 
     # .csv and .pkl allowed.
     in_df_path_patt = 'auto_sims_*.csv'
@@ -57,7 +66,7 @@ def main():
     # Applied to shift the entire time series by this offset.
     tdelta = pd.Timedelta(0, unit='h')
 
-    out_dir = Path(r'resampled_series__time')
+    out_dir = data_dir / 'resampled_series__time'
     #==========================================================================
 
     assert out_fmt in ('.csv', '.pkl')

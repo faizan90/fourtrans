@@ -7,6 +7,15 @@ Jun 24, 2022
 
 '''
 import os
+
+# Numpy sneakily uses multiple threads sometimes. I don't want that.
+os.environ['MKL_NUM_THREADS'] = '1'
+os.environ['NUMEXPR_NUM_THREADS'] = '1'
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['MPI_NUM_THREADS'] = '1'
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
+os.environ['VECLIB_MAXIMUM_THREADS'] = '1'
+
 import sys
 import time
 import timeit
@@ -26,9 +35,11 @@ def main():
 
     main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'test_asymm23_dis_16_03'
+    main_dir /= r'test_wk_33'
 
     os.chdir(main_dir)
+
+    data_dir = main_dir / 'sim_files'
 
     sep = ';'
 
@@ -38,7 +49,9 @@ def main():
         'font.size': 16,
         }
 
-    out_dir = main_dir
+    sim_alpha = 0.2
+
+    out_dir = main_dir / 'figures'
     #==========================================================================
 
     out_dir.mkdir(exist_ok=True)
@@ -50,7 +63,12 @@ def main():
         ['all_order_sdiffs.csv', 'all_obj_vals.csv'],
         ['order_sdiff', 'obj_val']):
 
-        opt_df = pd.read_csv(opt_file, sep=sep, index_col=0)
+        if not (data_dir / opt_file).exists():
+
+            print(f'File: {opt_file} does not exist for opt plot!')
+            continue
+
+        opt_df = pd.read_csv(data_dir / opt_file, sep=sep, index_col=0)
 
         if y_label == 'obj_val':
 
@@ -62,7 +80,7 @@ def main():
             plt.scatter(
                 np.arange(opt_df.shape[1]),
                 np.sort(opt_df.values.min(axis=0)),
-                alpha=0.35,
+                alpha=0.05,
                 color='k',
                 lw=2)
 
@@ -85,7 +103,7 @@ def main():
         for sim_lab in opt_df.columns:
             plt.semilogy(
                 opt_df[sim_lab][:],
-                alpha=0.35,
+                alpha=sim_alpha,
                 color='k',
                 lw=2)
 
@@ -103,7 +121,6 @@ def main():
         plt.clf()
 
     plt.close()
-
     return
 
 

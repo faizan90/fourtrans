@@ -144,9 +144,9 @@ def main():
     #     'wk and pwr_ft scorr:',
     #     np.corrcoef(rankdata(wk_pcorrs), rankdata(pwr_ft_pcorr))[0, 1])
 
-    plt.plot(lags, ref_pcorrs, label='pc')
-    plt.plot(lags, wk_pcorrs, label='wk')
-    plt.plot(pwr_ft_pcorr, label='pwr')
+    plt.plot(lags, ref_pcorrs, label='pc', zorder=1, lw=2)
+    plt.plot(lags, wk_pcorrs, label='wk', zorder=2, lw=1)
+    # plt.plot(pwr_ft_pcorr, label='pwr', zorder=1)
 
     plt.grid()
     plt.legend()

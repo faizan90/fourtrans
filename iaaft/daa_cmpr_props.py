@@ -7,6 +7,15 @@ Dec 6, 2021
 
 '''
 import os
+
+# Numpy sneakily uses multiple threads sometimes. I don't want that.
+os.environ['MKL_NUM_THREADS'] = '1'
+os.environ['NUMEXPR_NUM_THREADS'] = '1'
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['MPI_NUM_THREADS'] = '1'
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
+os.environ['VECLIB_MAXIMUM_THREADS'] = '1'
+
 import sys
 import time
 import timeit
@@ -25,7 +34,8 @@ from fcopulas import (
     get_asymm_1_max,
     get_asymm_2_max,
     get_etpy_min,
-    get_etpy_max,)
+    get_etpy_max,
+    )
 
 from zb_cmn_ftns_plot import set_mpl_prms, roll_real_2arrs
 
@@ -36,11 +46,11 @@ def main():
 
     main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'test_asymm23_dis_16_03'
+    main_dir /= r'test_wk_33'
 
     os.chdir(main_dir)
 
-    data_dir = main_dir
+    data_dir = main_dir / 'sim_files'
 
     lag_steps = np.arange(1, 31, dtype=np.int64)
 
@@ -57,12 +67,14 @@ def main():
     patt_ref = 'ref'
     patt_sim = 'S*'
 
+    sim_alpha = 0.2
+
     show_best_flag = True
     # show_best_flag = False
 
-    obj_vals_file_path = Path(r'all_obj_vals.csv')
+    obj_vals_file_path = data_dir / Path(r'all_obj_vals.csv')
 
-    out_dir = main_dir
+    out_dir = main_dir / 'figures'
     #==========================================================================
 
     out_dir.mkdir(exist_ok=True)
@@ -105,6 +117,7 @@ def main():
             out_fig_name_pwr,
             out_fig_name_pwr_ranks,
             best_sim_label,
+            sim_alpha,
             )
 
         plot_cmpr_props(args)
@@ -124,6 +137,7 @@ def plot_cmpr_props(args):
      out_fig_name_pwr,
      out_fig_name_pwr_ranks,
      best_sim_label,
+     sim_alpha,
      ) = args
 
     set_mpl_prms(prms_dict)
@@ -180,7 +194,7 @@ def plot_cmpr_props(args):
             else:
                 lab = None
 
-            plt_alpha = 0.35
+            plt_alpha = sim_alpha
             lw = 2.0
 
             zorder = 1
@@ -363,7 +377,7 @@ def plot_cmpr_props(args):
             else:
                 lab = None
 
-            plt_alpha = 0.35
+            plt_alpha = sim_alpha
             lw = 2.0
 
             zorder = 1
@@ -454,7 +468,7 @@ def plot_cmpr_props(args):
             else:
                 lab = None
 
-            plt_alpha = 0.35
+            plt_alpha = sim_alpha
             lw = 2.0
 
             zorder = 1
@@ -496,7 +510,6 @@ def plot_cmpr_props(args):
 
     plt.savefig(out_fig_name_pwr_ranks, bbox_inches='tight')
     plt.close()
-
     return
 
 

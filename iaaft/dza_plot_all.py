@@ -26,7 +26,7 @@ def main():
     os.chdir(main_dir)
 
     # Whatever the name. It is changed to this.
-    sim_dir = r'test_asymm23_dis_16_03'
+    sim_dir = r'test_wk_33'
 
     # There are scripts that require the output of the first as an input.
     # This is specified in sequences_to_run.

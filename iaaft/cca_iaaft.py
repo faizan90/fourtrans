@@ -36,11 +36,11 @@ def main():
 
     col = '420'
 
-    n_sims = int(2)
+    n_sims = int(50)
 
-    max_opt_iters = int(1e5)
+    max_opt_iters = int(1e1)
 
-    out_dir = Path(r'P:/iaaft_test')
+    out_dir = Path(r'P:/iaaft_test2')
     #==========================================================================
 
     out_dir.mkdir(exist_ok=True)
@@ -148,11 +148,11 @@ def main():
 
         plt.legend()
 
-        # plt.show()
+        plt.show()
 
-        plt.savefig(out_dir / r'pwrs.png')
-
-        plt.close()
+        # plt.savefig(out_dir / r'pwrs.png')
+        #
+        # plt.close()
 
     return
 

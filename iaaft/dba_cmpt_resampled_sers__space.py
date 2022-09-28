@@ -7,6 +7,15 @@ Apr 7, 2022
 
 '''
 import os
+
+# Numpy sneakily uses multiple threads sometimes. I don't want that.
+os.environ['MKL_NUM_THREADS'] = '1'
+os.environ['NUMEXPR_NUM_THREADS'] = '1'
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['MPI_NUM_THREADS'] = '1'
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
+os.environ['VECLIB_MAXIMUM_THREADS'] = '1'
+
 import sys
 import time
 import timeit
@@ -24,11 +33,11 @@ def main():
     main_dir = Path(
         r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'test_asymm23_dis_16_03'
+    main_dir /= r'test_wk_33'
 
     os.chdir(main_dir)
 
-    data_dir = main_dir
+    data_dir = main_dir / 'sim_files'
 
     data_patt = 'cross_sims_*.csv'
 
@@ -47,7 +56,7 @@ def main():
 #     resample_types = ['mean']  # , 'min', 'max']
     resample_types = ['sum']
 
-    out_dir = Path('resampled_series__space')
+    out_dir = data_dir / 'resampled_series__space'
     #==========================================================================
 
     out_dir.mkdir(exist_ok=True)

@@ -7,6 +7,15 @@ Apr 7, 2022
 
 '''
 import os
+
+# Numpy sneakily uses multiple threads sometimes. I don't want that.
+os.environ['MKL_NUM_THREADS'] = '1'
+os.environ['NUMEXPR_NUM_THREADS'] = '1'
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['MPI_NUM_THREADS'] = '1'
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
+os.environ['VECLIB_MAXIMUM_THREADS'] = '1'
+
 import sys
 import time
 import timeit
@@ -27,11 +36,11 @@ def main():
     main_dir = Path(
         r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'test_asymm23_dis_16_03'
+    main_dir /= r'test_wk_33'
 
     os.chdir(main_dir)
 
-    data_dir = Path(r'resampled_series__time')
+    data_dir = main_dir / 'sim_files/resampled_series__time'
 
     resamp_res = 'W'
 
@@ -48,12 +57,14 @@ def main():
         'font.size': 16,
         }
 
+    sim_alpha = 0.2
+
     show_best_flag = True
     # show_best_flag = False
 
-    obj_vals_file_path = Path(r'all_obj_vals.csv')
+    obj_vals_file_path = main_dir / 'sim_files/all_obj_vals.csv'
 
-    out_dir = data_dir
+    out_dir = main_dir / 'figures'
     #==========================================================================
 
     out_dir.mkdir(exist_ok=True)
@@ -94,7 +105,7 @@ def main():
             elif sim_leg_not_shown_flag:
                 label = 'sim'
                 clr = 'k'
-                alpha = 0.5
+                alpha = (3 / 256)
                 lw = 1.5
                 zorder = 1
                 sim_leg_not_shown_flag = False
@@ -102,7 +113,7 @@ def main():
             else:
                 label = None
                 clr = 'k'
-                alpha = 0.5
+                alpha = sim_alpha
                 lw = 1.5
                 zorder = 1
 
@@ -129,7 +140,7 @@ def main():
         plt.ylabel(fig_y_label)
 
         plt.savefig(
-            out_dir / f'{out_fig_pref}_{data_file.stem}.png',
+            out_dir / f'{data_file.stem}.png',
             dpi=150,
             bbox_inches='tight')
 

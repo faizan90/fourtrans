@@ -7,6 +7,15 @@ Apr 7, 2022
 
 '''
 import os
+
+# Numpy sneakily uses multiple threads sometimes. I don't want that.
+os.environ['MKL_NUM_THREADS'] = '1'
+os.environ['NUMEXPR_NUM_THREADS'] = '1'
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['MPI_NUM_THREADS'] = '1'
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
+os.environ['VECLIB_MAXIMUM_THREADS'] = '1'
+
 import sys
 import time
 import timeit
@@ -32,17 +41,21 @@ def main():
 
     main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'test_asymm23_dis_16_03'
+    main_dir /= r'test_wk_33'
 
     os.chdir(main_dir)
 
-    in_files = main_dir.glob('./auto_sims_*.csv')
+    data_dir = main_dir / 'sim_files'
+
+    in_files = data_dir.glob('./auto_sims_*.csv')
 
     prms_dict = {
         'figure.figsize': (15, 10),
         'figure.dpi': 80,
         'font.size': 16,
         }
+
+    sim_alpha = 0.2
 
     sep = ';'
 
@@ -61,9 +74,9 @@ def main():
     show_best_flag = True
     # show_best_flag = False
 
-    obj_vals_file_path = Path(r'all_obj_vals.csv')
+    obj_vals_file_path = data_dir / Path(r'all_obj_vals.csv')
 
-    out_dir = main_dir
+    out_dir = main_dir / 'figures'
     #==========================================================================
 
     if show_best_flag and obj_vals_file_path.exists():
@@ -136,7 +149,7 @@ def main():
                 else:
                     lab = None
 
-                plt_alpha = 0.35
+                plt_alpha = sim_alpha
 
                 lw = 2.0
 
