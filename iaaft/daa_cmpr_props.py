@@ -46,7 +46,7 @@ def main():
 
     main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'test_wk_33'
+    main_dir /= r'test_wk_182'
 
     os.chdir(main_dir)
 
@@ -103,8 +103,16 @@ def main():
 
         out_fig_name_pwr = str(out_dir / f'auto_cumm_pwr_margs_{file_suff}.png')
 
+        out_fig_name_phs_corr = str(out_dir / f'auto_cumm_phs_corrs_margs_{file_suff}.png')
+
         out_fig_name_pwr_ranks = str(
             out_dir / f'auto_cumm_pwr_ranks_{file_suff}.png')
+
+        out_fig_name_phs_corr_ranks = str(
+            out_dir / f'auto_cumm_phs_corrs_ranks_{file_suff}.png')
+
+        out_fig_name_phs_corr_margs_ranks = str(
+            out_dir / f'auto_cumm_phs_corrs_margs_ranks_{file_suff}.png')
 
         args = (
             prms_dict,
@@ -116,6 +124,9 @@ def main():
             out_fig_name_pecop,
             out_fig_name_pwr,
             out_fig_name_pwr_ranks,
+            out_fig_name_phs_corr,
+            out_fig_name_phs_corr_ranks,
+            out_fig_name_phs_corr_margs_ranks,
             best_sim_label,
             sim_alpha,
             )
@@ -136,6 +147,9 @@ def plot_cmpr_props(args):
      out_fig_name_pecop,
      out_fig_name_pwr,
      out_fig_name_pwr_ranks,
+     out_fig_name_phs_corr,
+     out_fig_name_phs_corr_ranks,
+     out_fig_name_phs_corr_margs_ranks,
      best_sim_label,
      sim_alpha,
      ) = args
@@ -510,6 +524,297 @@ def plot_cmpr_props(args):
 
     plt.savefig(out_fig_name_pwr_ranks, bbox_inches='tight')
     plt.close()
+    #==========================================================================
+
+    # # Marginals phss corr.
+    # ref_phs_corr_sum = None
+    # leg_flag = True
+    # for i in range(in_df.shape[1]):
+    #     data = in_df.iloc[:, i].values.copy()
+    #
+    #     # if i not in (0, 3, 5):
+    #     #     continue
+    #
+    #     if (fnmatch(in_df.columns[i], patt_ref) or
+    #         fnmatch(in_df.columns[i], patt_sim)):
+    #
+    #         pass
+    #
+    #     else:
+    #         continue
+    #
+    #     if fnmatch(in_df.columns[i], patt_ref):
+    #         clr = clrs[0]
+    #
+    #         lab = 'ref'
+    #
+    #         zorder = 3
+    #
+    #         plt_alpha = 0.6
+    #         lw = 3.0
+    #
+    #     elif in_df.columns[i] == best_sim_label:
+    #         clr = clrs[2]
+    #
+    #         lab = 'best'
+    #
+    #         zorder = 2
+    #
+    #         plt_alpha = 0.6
+    #         lw = 3.0
+    #
+    #     else:
+    #         clr = clrs[1]
+    #
+    #         if leg_flag and fnmatch(in_df.columns[i], patt_sim):
+    #             leg_flag = False
+    #             lab = 'sim'
+    #
+    #         else:
+    #             lab = None
+    #
+    #         plt_alpha = sim_alpha
+    #         lw = 2.0
+    #
+    #         zorder = 1
+    #
+    #     ft = np.fft.rfft(data)[1:]
+    #
+    #     phs_spec = np.angle(ft)
+    #
+    #     if fnmatch(in_df.columns[i], patt_ref):
+    #
+    #         ref_phs_spec = phs_spec.copy()
+    #
+    #     phs_corr_spec = np.cos(phs_spec - ref_phs_spec).cumsum()
+    #
+    #     if fnmatch(in_df.columns[i], patt_ref):
+    #         ref_phs_corr_sum = phs_corr_spec[-1]
+    #
+    #     phs_corr_spec /= ref_phs_corr_sum
+    #
+    #     periods = (phs_corr_spec.size * 2) / np.arange(1, phs_corr_spec.size + 1)
+    #
+    #     assert periods.size == phs_corr_spec.shape[0]
+    #
+    #     plt.semilogx(
+    #         periods,
+    #         phs_corr_spec,
+    #         alpha=plt_alpha,
+    #         color=clr,
+    #         label=lab,
+    #         lw=lw,
+    #         zorder=zorder)
+    #
+    # plt.legend()
+    #
+    # plt.grid()
+    # plt.gca().set_axisbelow(True)
+    #
+    # plt.xlabel('Period')
+    # plt.ylabel('Cummulative phase correlation')
+    #
+    # plt.xlim(plt.xlim()[::-1])
+    #
+    # plt.savefig(out_fig_name_phs_corr, bbox_inches='tight')
+    # plt.close()
+    # #==========================================================================
+    #
+    # # CDF phss corr.
+    # ref_phs_corr_sum = None
+    # leg_flag = True
+    # for i in range(in_df.shape[1]):
+    #     data = rankdata(in_df.iloc[:, i].values)
+    #
+    #     # if i not in (0, 3, 5):
+    #     #     continue
+    #
+    #     if (fnmatch(in_df.columns[i], patt_ref) or
+    #         fnmatch(in_df.columns[i], patt_sim)):
+    #
+    #         pass
+    #
+    #     else:
+    #         continue
+    #
+    #     if fnmatch(in_df.columns[i], patt_ref):
+    #         clr = clrs[0]
+    #
+    #         lab = 'ref'
+    #
+    #         zorder = 3
+    #
+    #         plt_alpha = 0.6
+    #         lw = 3.0
+    #
+    #     elif in_df.columns[i] == best_sim_label:
+    #         clr = clrs[2]
+    #
+    #         lab = 'best'
+    #
+    #         zorder = 2
+    #
+    #         plt_alpha = 0.6
+    #         lw = 3.0
+    #
+    #     else:
+    #         clr = clrs[1]
+    #
+    #         if leg_flag and fnmatch(in_df.columns[i], patt_sim):
+    #             leg_flag = False
+    #             lab = 'sim'
+    #
+    #         else:
+    #             lab = None
+    #
+    #         plt_alpha = sim_alpha
+    #         lw = 2.0
+    #
+    #         zorder = 1
+    #
+    #     ft = np.fft.rfft(data)[1:]
+    #
+    #     phs_spec = np.angle(ft)
+    #
+    #     if fnmatch(in_df.columns[i], patt_ref):
+    #
+    #         ref_phs_spec = phs_spec.copy()
+    #
+    #     phs_corr_spec = np.cos(phs_spec - ref_phs_spec).cumsum()
+    #
+    #     if fnmatch(in_df.columns[i], patt_ref):
+    #         ref_phs_corr_sum = phs_corr_spec[-1]
+    #
+    #     phs_corr_spec /= ref_phs_corr_sum
+    #
+    #     periods = (phs_corr_spec.size * 2) / np.arange(1, phs_corr_spec.size + 1)
+    #
+    #     assert periods.size == phs_corr_spec.shape[0]
+    #
+    #     plt.semilogx(
+    #         periods,
+    #         phs_corr_spec,
+    #         alpha=plt_alpha,
+    #         color=clr,
+    #         label=lab,
+    #         lw=lw,
+    #         zorder=zorder)
+    #
+    # plt.legend()
+    #
+    # plt.grid()
+    # plt.gca().set_axisbelow(True)
+    #
+    # plt.xlabel('Period')
+    # plt.ylabel('Cummulative phase correlation')
+    #
+    # plt.xlim(plt.xlim()[::-1])
+    #
+    # plt.savefig(out_fig_name_phs_corr_ranks, bbox_inches='tight')
+    # plt.close()
+    # #==========================================================================
+
+    # Marginals vs. CDF phss corr.
+    ref_phs_corr_sum = None
+    leg_flag = True
+    for i in range(in_df.shape[1]):
+
+        data = in_df.iloc[:, i].values.copy()
+        ranks = rankdata(data)
+
+        ranks = ranks / (ranks.size + 1.0)
+
+        # data -= data.mean()
+        # data /= data.std()
+        #
+        # ranks -= ranks.mean()
+        # ranks /= ranks.std()
+
+        # if i not in (0, 3, 5):
+        #     continue
+
+        if (fnmatch(in_df.columns[i], patt_ref) or
+            fnmatch(in_df.columns[i], patt_sim)):
+
+            pass
+
+        else:
+            continue
+
+        if fnmatch(in_df.columns[i], patt_ref):
+            clr = clrs[0]
+
+            lab = 'ref'
+
+            zorder = 3
+
+            plt_alpha = 0.6
+            lw = 3.0
+
+        elif in_df.columns[i] == best_sim_label:
+            clr = clrs[2]
+
+            lab = 'best'
+
+            zorder = 2
+
+            plt_alpha = 0.6
+            lw = 3.0
+
+        else:
+            clr = clrs[1]
+
+            if leg_flag and fnmatch(in_df.columns[i], patt_sim):
+                leg_flag = False
+                lab = 'sim'
+
+            else:
+                lab = None
+
+            plt_alpha = sim_alpha
+            lw = 2.0
+
+            zorder = 1
+
+        ft = np.fft.rfft(data)[1:]
+        ft_ranks = np.fft.rfft(ranks)[1:]
+
+        phs_spec = np.angle(ft)
+        phs_spec_ranks = np.angle(ft_ranks)
+
+        phs_corr_spec = np.cos(phs_spec - phs_spec_ranks).cumsum()
+
+        if fnmatch(in_df.columns[i], patt_ref):
+            ref_phs_corr_sum = phs_corr_spec[-1]
+
+        phs_corr_spec /= ref_phs_corr_sum
+
+        periods = (phs_corr_spec.size * 2) / np.arange(1, phs_corr_spec.size + 1)
+
+        assert periods.size == phs_corr_spec.shape[0]
+
+        plt.semilogx(
+            periods,
+            phs_corr_spec,
+            alpha=plt_alpha,
+            color=clr,
+            label=lab,
+            lw=lw,
+            zorder=zorder)
+
+    plt.legend()
+
+    plt.grid()
+    plt.gca().set_axisbelow(True)
+
+    plt.xlabel('Period')
+    plt.ylabel('Cummulative phase correlation')
+
+    plt.xlim(plt.xlim()[::-1])
+
+    plt.savefig(out_fig_name_phs_corr_margs_ranks, bbox_inches='tight')
+    plt.close()
+    #==========================================================================
     return
 
 

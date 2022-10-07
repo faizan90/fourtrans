@@ -33,7 +33,7 @@ def main():
     main_dir = Path(
         r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
 
-    main_dir /= r'test_wk_33'
+    main_dir /= r'test_wk_182'
 
     os.chdir(main_dir)
 

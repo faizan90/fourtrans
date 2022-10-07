@@ -22,16 +22,16 @@ DEBUG_FLAG = False
 
 def main():
 
-    main_dir = Path(r'P:\Synchronize\IWS\QGIS_Neckar\hydmod\iaaft_sims')
+    main_dir = Path(r'P:\Synchronize\IWS\Testings\hydmod\iaaftsa_sims')
     os.chdir(main_dir)
 
-    hydmod_dir = Path(r'hydmod/holy_grail_2_04')
+    hydmod_dir = Path(r'hydmod/test_hbv_all_03__phs_swap')
 
     sim_files = hydmod_dir.glob(
-        './cross_sims_S*/02_hydrographs/calib_kfold_01__cats_outflow.csv')
+        './sim_data_*/02_hydrographs/calib_kfold_01__cats_outflow.csv')
 
     # ref_file = r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft\neckar_q_data_combined_20180713_10cps.csv'
-    ref_file = hydmod_dir / Path(r'cross_sims_ref/02_hydrographs/calib_kfold_01__cats_outflow.csv')
+    ref_file = hydmod_dir / Path(r'ref_data/02_hydrographs/calib_kfold_01__cats_outflow.csv')
 
     warmup_steps = 0
 

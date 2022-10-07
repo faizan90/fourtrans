@@ -26,7 +26,7 @@ def main():
     os.chdir(main_dir)
 
     # Whatever the name. It is changed to this.
-    sim_dir = r'test_wk_33'
+    sim_dir = r'test_wk_182'
 
     # There are scripts that require the output of the first as an input.
     # This is specified in sequences_to_run.
@@ -50,7 +50,7 @@ def main():
         list(range(len(scripts_to_run) - 2, len(scripts_to_run))),
         )
 
-    n_cpus = 8
+    n_cpus = 4
 
     line_pref = 'main_dir /= '
     #==========================================================================
