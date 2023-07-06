@@ -23,10 +23,10 @@ DEBUG_FLAG = False
 
 def main():
 
-    main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaft')
+    main_dir = Path(r'P:\Synchronize\IWS\Testings\fourtrans_practice\iaaftsa')
     os.chdir(main_dir)
 
-    in_data_file = Path(r'neckar_q_data_combined_20180713_10cps.csv')
+    in_data_file = Path(r'neckar_q_data_combined_20180713.csv')
 
     sep = ';'
 

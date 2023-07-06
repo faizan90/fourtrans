@@ -26,21 +26,88 @@ def main():
 
     #==========================================================================
 
-    ts = np.random.random(100000)
+    # ts = np.random.random(100000)
+    ts = np.arange(100)
+
+    ts = np.concatenate((ts, ts[::-1]))
 
     if (ts.size % 2):
         ts = ts[:-1]
 
     cumm_ft_corr, periods = get_cumm_ft_corr_auto(ts)
 
-    plt.semilogx(
-        periods,
-        cumm_ft_corr,
-        alpha=0.75,
-        color='r',
-        label='REF',
-        lw=4,
-        zorder=1)
+    ft_ts = np.fft.rfft(ts)
+    ft_ts[5:] = 0
+
+    mags = np.abs(ft_ts)
+
+    ift_ts = np.fft.irfft(ft_ts)
+
+    if False:
+        plt.semilogx(
+            periods,
+            cumm_ft_corr,
+            alpha=0.75,
+            color='r',
+            label='REF',
+            lw=4,
+            zorder=1)
+
+        plt.scatter(
+            periods,
+            cumm_ft_corr,
+            alpha=0.75,
+            color='r',
+            zorder=2)
+
+        plt.xlim(plt.xlim()[::-1])
+
+    else:
+        plt.plot(
+            ts,
+            alpha=0.75,
+            color='r',
+            label='REF',
+            lw=4,
+            zorder=2)
+
+        plt.plot(
+            ift_ts,
+            alpha=0.75,
+            color='b',
+            label='TNC',
+            lw=2,
+            zorder=3)
+
+        for i in range(100):
+
+            rand_ft_ts = np.empty_like(ft_ts)
+
+            rand_phss = -np.pi + (
+                2 * np.pi * np.random.random(size=ft_ts.shape[0]))
+
+            rand_phss[0] = 0
+
+            rand_ft_ts.real = mags * np.cos(rand_phss)
+            rand_ft_ts.imag = mags * np.sin(rand_phss)
+
+            rand_ft_ts[:2] = ft_ts[:2]
+
+            rand_ift_ts = np.fft.irfft(rand_ft_ts)
+
+            if i == 0:
+                label = 'SIM'
+
+            else:
+                label = None
+
+            plt.plot(
+                rand_ift_ts,
+                alpha=0.2,
+                color='k',
+                label=label,
+                lw=1,
+                zorder=1)
 
     plt.legend()
 
@@ -49,8 +116,6 @@ def main():
 
     plt.xlabel('Period')
     plt.ylabel('Cummulative power')
-
-    plt.xlim(plt.xlim()[::-1])
 
     plt.show()
 

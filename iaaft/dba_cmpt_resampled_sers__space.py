@@ -23,6 +23,7 @@ import traceback as tb
 from pathlib import Path
 from fnmatch import fnmatch
 
+import h5py
 import pandas as pd
 
 DEBUG_FLAG = False
