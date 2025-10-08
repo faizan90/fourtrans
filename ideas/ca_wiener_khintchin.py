@@ -78,14 +78,14 @@ def main():
     #     r'neckar_full_neckar_avg_temp_kriging_1961-01-01_to_2015-12-31_1km_all__EDK.csv')
 
     in_data_file = Path(
-        r'neckar_norm_cop_infill_discharge_1961_2015_20190118.csv')
+        r'neckar_daily_discharge_1961_2015.csv')
 
     stn = '420'
 
-    beg_time = '1990-01-01'
+    beg_time = '1965-01-01'
     end_time = '1990-12-31'
 
-    lags = np.arange(0, 10, dtype=np.int64)
+    lags = np.arange(0, 100, dtype=np.int64)
     #==========================================================================
 
     in_data = pd.read_csv(
@@ -144,9 +144,9 @@ def main():
     #     'wk and pwr_ft scorr:',
     #     np.corrcoef(rankdata(wk_pcorrs), rankdata(pwr_ft_pcorr))[0, 1])
 
-    plt.plot(lags, ref_pcorrs, label='pc', zorder=1, lw=2)
-    plt.plot(lags, wk_pcorrs, label='wk', zorder=2, lw=1)
-    # plt.plot(pwr_ft_pcorr, label='pwr', zorder=1)
+    plt.plot(lags, ref_pcorrs, label='pc', zorder=1, lw=3)
+    plt.plot(lags, wk_pcorrs, label='wk', zorder=2, lw=2)
+    plt.plot(pwr_ft_pcorr, label='pwr', zorder=3, lw=1)
 
     plt.grid()
     plt.legend()
